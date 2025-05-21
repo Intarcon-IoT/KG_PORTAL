@@ -22,8 +22,6 @@ export default {
 
 <template>
   <v-app>
-    <v-main class="bg-gray-50">
-      <RouterView />
-    </v-main>
+    <RouterView />
   </v-app>
 </template>

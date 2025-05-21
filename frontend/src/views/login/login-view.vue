@@ -80,11 +80,11 @@ export default {
           email: credentials.email,
           role: res.role
         })
-        notificationStore.notifySuccess('Login successful')
+        notificationStore.notifySuccess('Se ha iniciado sesión correctamente');
         router.push('/calendar')
       })
         .catch(err =>
-          notificationStore.notifyError(err.message)
+          notificationStore.notifyError('Error al iniciar sesión')
         )
         .finally(() => reload.value = false)
 

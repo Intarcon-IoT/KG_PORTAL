@@ -23,7 +23,8 @@ class Auth {
     this.session = false,
     this.email = '',
     this.token = '',
-    this.role = ''
+    this.role = '',
+    this.user = ''
   }
 
   resetCredentials() {
@@ -71,7 +72,9 @@ class Auth {
         const session = JSON.parse(session_str);  
         this.set(session);
 
-        await this.checkAuth({ token: session.token, role: session.role }).catch(err => { throw err });
+        const result = await this.checkAuth({ token: session.token, role: session.role }).catch(err => { throw err });
+        this.user = JSON.parse(result.user);
+
       }
       
     } catch(err) {

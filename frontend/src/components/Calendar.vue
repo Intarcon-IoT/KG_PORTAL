@@ -17,9 +17,11 @@
       </v-card> -->
       <v-card flat class="pa-2 mt-4">
         <ResourceFilter
-          :all-resources="allResources"
-          v-model:selected-building-ids="selectedBuildingIds"
+          :roomsList="roomsList"
+          :installationsList="installationsList"
+          @update:selectedFacilitiesUuid="handlerSelectedFacilitiesFilter"
         />
+        <!-- selectedBuildingIds -->
       </v-card>
       <v-card flat class="pa-2 mt-4">
         <UserOnlySwitch v-model="showOnlyMine" />
@@ -42,7 +44,8 @@
         <WeekView
           v-if="currentView === 'week'"
           :selected-date="selectedDate"
-          :resources="filteredResources"
+          :selectedFacilities="selectedFacilities"
+          :selectedRooms="selectedRooms"
           :bookingsList="bookingsList"
           @booking_click="handleBookingDetailsView"
         />
@@ -93,6 +96,8 @@
         v-model:dialog="showBookingDetailsModal"
         :booking="bookingDetails"
         :rooms="roomsList"
+        :facilities="installationsList"
+        @delete="deleteBooking"
       />
     </div>
   </div>
@@ -115,30 +120,57 @@ import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { v4 as uuidv4 } from 'uuid';
 import UserOnlySwitch from './filters/UserOnlySwitch.vue';
 import Request from "@/model/request";
-import { useNotificationStore } from '@/store';
+import { useNotificationStore,sessionStore } from '@/store';
+import { fa } from 'vuetify/locale';
 
 // SHOW MODALS
 const showFacilityModal = ref(false);
 const showRoomModal = ref(false);
 const showDateModal = ref(false);
 const showDetailsModal = ref(false);
-const showBookingDetailsModal = ref(false); 
+const showBookingDetailsModal = ref(false);
+const showEditModal = ref(false);
 
+// DATA
 const installationsList = ref([]);
 const roomsList = ref([]);
 const bookingsList = ref([]);
-const allResources = ref([]);
+
+// MODALS DATA
 const availableRooms = ref([]);
 const bookingDetails = ref(null);
+const selectedEditBooking = ref(null);
+const showReservationModal = ref(false);
+const isEditingMode = ref(false);
 
+// STORE
 const notificationStore = useNotificationStore();
+const session = sessionStore();
 
-const viewOptions = [
-  { value: 'day', label: 'Día' },
-  { value: 'week', label: 'Semana' },
-  { value: 'month', label: 'Mes' },
-  { value: 'diary', label: 'Agenda'}
-];
+//FILTER DATA
+const selectedFacilitiesUuid = ref([]);
+const selectedFacilities = computed(() => {
+  return installationsList.value.filter(facility =>
+    selectedFacilitiesUuid.value.includes(facility.uuid)
+  );
+});
+const selectedRooms = computed(() => {
+  return roomsList.value.filter(room =>
+    selectedFacilitiesUuid.value.includes(room.facility_uuid)
+  );
+});
+const showOnlyMine = ref(false);
+
+// CALENDAR NAVIGATION
+const todayDate = new Date();
+todayDate.setHours(0, 0, 0, 0);
+const tomorrowDate = new Date(todayDate);
+tomorrowDate.setDate(todayDate.getDate() + 1);
+const dayAfterTomorrowDate = new Date(todayDate);
+dayAfterTomorrowDate.setDate(todayDate.getDate() + 2);
+
+const currentView = ref('week');
+const selectedDate = ref(new Date());
 
 // OBJETO RESERVA TEMPORAL
 const booking = reactive({
@@ -147,6 +179,7 @@ const booking = reactive({
   date: null,
   time: null,
 });
+
 
 onMounted(async () => {
 
@@ -169,26 +202,24 @@ onMounted(async () => {
   .catch(err => notificationStore.notifyError(err.message))
 
   loadBookings();
-
-  const facilityMap = new Map();
-  installationsList.value.forEach(facility => {
-    facilityMap.set(facility.uuid, facility.name);
-  });
-
-  allResources.value = roomsList.value.map(room => {
-    return {
-      id: room.uuid,
-      name: room.name,
-      building: facilityMap.get(room.facility_uuid),
-      todo: installationsList.value
-    };
-  });
 });
 
+async function loadBookings() {
+    const request = new Request({
+      endpoint: 'bookings',
+      method: 'GET'
+    });
+
+    await request.http().then(res => {
+      bookingsList.value = res;
+      console.log('Bookings loaded:', bookingsList.value);
+    })
+    .catch(err => notificationStore.notifyError(err.message))
+}
+
 // HANDLERS
-function handleBookingDetailsView(booking, room) {
-  showBookingDetailsModal.value = true;
-  bookingDetails.value = booking;
+function handlerSelectedFacilitiesFilter(selectedFacilitiesArray) {
+  selectedFacilitiesUuid.value = selectedFacilitiesArray;
 }
 
 function handleSelectedFacility(facility) {
@@ -210,8 +241,12 @@ function handleDateSelected(date) {
   booking.date = date.date;
   booking.time = date.time;
 
-  showDateModal.value = false; 
   showDetailsModal.value = true;
+}
+
+function handleBookingDetailsView(booking, room) {
+  showBookingDetailsModal.value = true;
+  bookingDetails.value = booking;
 }
 
 function handleBooking(bookingData) {
@@ -226,6 +261,7 @@ function handleBooking(bookingData) {
   };
 
   saveBooking(newBooking);
+  notificationStore.notifySuccess('Reserva creada con éxito');
 }
 
 async function saveBooking(newBooking) {
@@ -233,10 +269,6 @@ async function saveBooking(newBooking) {
     endpoint: 'bookings',
     method: 'POST',
     body: JSON.stringify(newBooking),
-    // params: {
-    //   uuid: uuidv4()
-    // }
-
   });
 
   await request.http().then(res => {
@@ -245,88 +277,45 @@ async function saveBooking(newBooking) {
   .catch(err => notificationStore.notifyError(err.message))
 }
 
-async function loadBookings() {
+// function editBooking(booking) {
+//   selectedEditBooking.value = booking;
+//   isEditingMode.value = true;
+//   showEditModal.value = true;
+// }
+
+// const updateBooking = async (updatedBooking) => {
+//   try {
+//     const request = new Request({
+//       endpoint: `bookings/${updatedBooking.uuid}`,
+//       method: 'PUT',
+//       body: JSON.stringify(updatedBooking)
+//     });
+    
+//     await request.http();
+//     notificationStore.notifySuccess('Reserva actualizada con éxito');
+//     loadBookings();
+//   } catch (error) {
+//     console.error('Error al actualizar la reserva:', error);
+//     notificationStore.notifyError('Error al actualizar la reserva');
+//   }
+// }
+
+const deleteBooking = async (bookingId) => {
+  try {
+    // Llamada a tu API para eliminar la reserva usando Request
     const request = new Request({
-      endpoint: 'bookings',
-      method: 'GET'
+      endpoint: `bookings/${bookingId}`,
+      method: 'DELETE'
     });
-
-    await request.http().then(res => {
-      bookingsList.value = res;
-      console.log('Bookings loaded:', bookingsList.value);
-    })
-    .catch(err => notificationStore.notifyError(err.message))
+    
+    await request.http();
+    notificationStore.notifySuccess('Reserva eliminada con éxito');
+    loadBookings();
+  } catch (error) {
+    console.error('Error al eliminar la reserva:', error);
+    notificationStore.notifyError('Error al eliminar la reserva');
+  }
 }
-
-// FILTERS
-const showOnlyMine = ref(false);
-
-const todayDate = new Date();
-todayDate.setHours(0, 0, 0, 0);
-const tomorrowDate = new Date(todayDate);
-tomorrowDate.setDate(todayDate.getDate() + 1);
-const dayAfterTomorrowDate = new Date(todayDate);
-dayAfterTomorrowDate.setDate(todayDate.getDate() + 2);
-
-const currentView = ref('week');
-const selectedDate = ref(new Date());
-
-const initialBuildingIds = computed(() => {
-  const buildingMap = new Map();
-  allResources.value.forEach(resource => {
-    if (resource.building) {
-      buildingMap.set(resource.building, true);
-    }
-  });
-  return new Set(buildingMap.keys());
-});
-const selectedBuildingIds = ref(new Set(initialBuildingIds.value));
-
-watch(
-  allResources,
-  (resources) => {
-    if (resources.length > 0 && selectedBuildingIds.value.size === 0) {
-      const buildingMap = new Map();
-      resources.forEach(resource => {
-        if (resource.building) {
-          buildingMap.set(resource.building, true);
-        }
-      });
-      selectedBuildingIds.value = new Set(buildingMap.keys());
-    }
-  },
-  { immediate: true }
-);
-
-
-const filteredResources = computed(() => {
-  if (selectedBuildingIds.value.size === 0) {
-    return [];
-  }
-  return allResources.value.filter(resource =>
-    selectedBuildingIds.value.has(resource.building)
-  );
-});
-
-const filteredEvents = computed(() => {
-  const visibleResourceIds = new Set(filteredResources.value.map(r => r.id));
-  if (visibleResourceIds.size === 0) {
-    return [];
-  }
-  return bookingsList.value
-    .filter(event => visibleResourceIds.has(event.room_uuid))
-    .map(event => {
-      const start = new Date(`${event.start_date}T${event.start_time}`);
-      const end = new Date(`${event.end_date}T${event.end_time}`);
-
-      return {
-        ...event,
-        start,
-        end,
-        resourceId: event.room_uuid,
-      };
-    });
-});
 
 // NAVIGATION
 function navigatePrevious() {
@@ -362,6 +351,17 @@ function selectDateAndSwitchView(date) {
   selectedDate.value = new Date(date);
   currentView.value = 'day';
 }
+
+watch(showOnlyMine, (val) => {
+
+  console.log('user: ', session.auth.user);
+  
+  if (val) {
+    bookingsList.value = bookingsList.value.filter(booking => booking.user_uuid === session.auth.user.uuid);
+  } else {
+    loadBookings();
+  }
+});
 </script>
 
 <style scoped>

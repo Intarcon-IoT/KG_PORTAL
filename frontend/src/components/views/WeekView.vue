@@ -2,7 +2,7 @@
 
   <div class="week-view">
     
-    <!-- CABECERA -->
+    <!-- CABECERA: dias de la semana -->
     <div class="header-row">
       <div class="resource-header">Salas</div> 
       <div 
@@ -25,41 +25,44 @@
     <div class="resource-grid">
 
       <div
-        v-for="resource in resources"
-        :key="resource.id"
-        class="resource-line"
+        v-for="facility in selectedFacilities"
+        :key="facility.uuid"
       >
-      <!-- SALAS -->
-        <div class="resource-cell">
-          <span class="resource-name">{{ resource.name }}</span>
-          <span class="resource-building">{{ resource.building }}</span>
-        </div>
+        <div 
+          v-for="room in selectedRooms.filter(room => room.facility_uuid === facility.uuid)"
+          :key="room.uuid"
+          class="resource-line"
+        >
+          <!-- Nombres de la facility y la room -->
+          <div class="resource-cell">
+            <span class="resource-name">{{ room.name }}</span>
+            <span class="resource-building">{{ facility.name }}</span>
+          </div>
 
-        <!-- RESERVAS -->
-        <div class="resource-row">
-          <div
-            v-for="day in weekDays"
-            :key="day.date.toISOString()"
-            class="day-cell"
-            :style="{ minHeight: `${getEventsForResourceAndDay(resource.id, day.date).length * 30 + 40}px` }"
-
-          >
+          <!-- RESERVAS -->
+          <div class="resource-row">
             <div
-              v-for="event in getEventsForResourceAndDay(resource.id, day.date)"
-              :key="event.uuid"
-              class="event-chip"
-              :style="{ backgroundColor: `${resource.todo.find(e => e.name === resource.building).color}` }"
-              :title="`${event.title} (${formatTime(event.start_time)} - ${formatTime(event.end_time)})`"
-              @click="() => emit('booking_click', event, resource)"
+              v-for="day in weekDays"
+              :key="day.date.toISOString()"
+              class="day-cell"
+              :style="{ minHeight: `${getEventsForResourceAndDay(room.uuid, day.date).length * 30 + 40}px` }"
             >
-              {{ formatTime(event.start_time) }} - {{ formatTime(event.end_time) }}
-              <br />
-              {{ event.title }}
+              <div
+                v-for="event in getEventsForResourceAndDay(room.uuid, day.date)"
+                :key="event.uuid"
+                :style="{ backgroundColor: `${facility.color}` }"
+                class="event-chip"
+                :title="`${event.title} (${formatTime(event.start_time)} - ${formatTime(event.end_time)})`"
+                @click="() => emit('booking_click', event, resource)"
+              >
+                {{ formatTime(event.start_time) }} - {{ formatTime(event.end_time) }}
+                <br />
+                {{ event.title }}
+              </div>
+              <div class="add-icon">+</div>
             </div>
-            <div class="add-icon">+</div>
           </div>
         </div>
-
       </div>
     </div>
   </div>
@@ -70,9 +73,13 @@ import { computed } from 'vue';
 
 const props = defineProps({
   selectedDate: Date,
-  resources: Array,
+  selectedFacilities: Array,
+  selectedRooms: Array,
   bookingsList: Array,
+    // resources: Array,
+
 });
+
 
 const emit = defineEmits(['booking_click']);
 
@@ -113,16 +120,14 @@ function getEventsForResourceAndDay(resourceId, date) {
   const dayEnd = new Date(date);
   dayEnd.setHours(23, 59, 59, 999);
 
-  return props.bookingsList
-    .filter(event => {
+  return props.bookingsList.filter(event => {
       const eventDate = new Date(event.start_date);
-      return (
+      return ( 
         event.room_uuid === resourceId &&
         eventDate >= dayStart &&
         eventDate <= dayEnd
       );
-    })
-    .sort((a, b) => a.start_time.localeCompare(b.start_time));
+    }).sort((a, b) => a.start_time.localeCompare(b.start_time));
 }
 
 function formatTime(time) {
@@ -219,6 +224,7 @@ function formatTime(time) {
 
 
 .event-chip {
+  background-color: #007bff;
   color: white;
   padding: 2px 5px;
   border-radius: 3px;
@@ -282,6 +288,7 @@ function formatTime(time) {
 }
 
 .event-chip {
+  background-color: #007bff;
   color: white;
   padding: 2px 5px;
   border-radius: 3px;

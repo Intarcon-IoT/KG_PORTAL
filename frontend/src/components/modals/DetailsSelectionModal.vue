@@ -93,6 +93,9 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import { useNotificationStore } from '@/store';
+
+const notificationStore = useNotificationStore()
 
 const props = defineProps({
   booking: Object,
@@ -165,7 +168,7 @@ function onFacilityChange(newFacilityUuid) {
 
 function confirmReservation() {
   if (!isValidDateTimeRange()) {
-    alert("La fecha/hora de finalización no puede ser anterior a la de inicio.")
+    notificationStore.notifyWarning('La fecha/hora de finalización no puede ser anterior a la de inicio.');
     return
 }
 

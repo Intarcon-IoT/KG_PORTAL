@@ -19,7 +19,7 @@ import router from '@/router';
 
       const handleLogout = () => {
         auth.logout().then(() => {
-          notificationStore.notifySuccess('Logout successful');
+          notificationStore.notifySuccess('Cierre de sesión exitoso');
           router.push({ name: 'Log In' });
         })
       }
@@ -61,7 +61,7 @@ import router from '@/router';
           <v-list-item @click="handleLogout()" class="list-item">
             <div class="list-item-flex wh-max">
               <v-icon icon="fas fa-sign-out-alt" size="small"></v-icon>
-              <v-list-item-title>Log Out</v-list-item-title>
+              <v-list-item-title>Cerrar sesión</v-list-item-title>
             </div>
           </v-list-item>
 

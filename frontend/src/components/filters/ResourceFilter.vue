@@ -1,13 +1,13 @@
 <template>
   <div class="resource-filter">
-    <h4 @click="() => { console.log(buildings) }">Filtrar Salas</h4>
+    <h4>Filtrar Salas</h4>
     <v-checkbox
-      v-for="building in buildings"
-      :key="building.id"
-      :label="building.name"
-      :value="building.id"
-      v-model="selectedBuildingArray"
-      :color="building.color"
+      v-for="facility in installationsList"
+      :key="facility.uuid"
+      :label="facility.name"
+      :value="facility.uuid"
+      :color="facility.color"
+      v-model="selectedFacilities"
       density="compact"
       hide-details
       class="building-checkbox"
@@ -16,39 +16,29 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 const props = defineProps({
-  allResources: {
-    type: Array,
-    required: true
-  },
-  selectedBuildingIds: {
-    type: Set,
-    required: true
-  }
+  roomsList: Array,
+  installationsList: Array,
 });
 
-const emit = defineEmits(['update:selectedBuildingIds']);
+const emit = defineEmits(['update:selectedFacilitiesUuid']);
 
-const buildings = computed(() => {
-  const buildingMap = new Map();
-  props.allResources.forEach(resource => {
-    if (resource.building && !buildingMap.has(resource.building)) {
-      buildingMap.set(resource.building, { id: resource.building, name: resource.building, color: resource.todo.find(e => e.name === resource.building).color });
+const selectedFacilities = ref([]);
+
+watch(() => props.installationsList, (newList) => {
+    if (newList && newList.length > 0) {
+      selectedFacilities.value = newList.map(f => f.uuid);
     }
-  });
-  return Array.from(buildingMap.values());
+  },
+  { immediate: true }
+);
+
+watch(selectedFacilities, (val) => {
+  emit('update:selectedFacilitiesUuid', val);
 });
 
-const selectedBuildingArray = computed({
-  get() {
-    return Array.from(props.selectedBuildingIds);
-  },
-  set(newValue) {
-    emit('update:selectedBuildingIds', new Set(newValue));
-  }
-});
 </script>
 
 <style scoped>
