@@ -17,7 +17,7 @@ class Facility {
     const data = {
       uuid: this.uuid,
       name: this.name,
-      color: this.color,
+      color: this.color
     };
     return data;
   }
@@ -45,7 +45,7 @@ class Facility {
 
   read(filter = {}) {
     let data = [];
-    let sql = "SELECT uuid, name FROM kibooking_facilities WHERE uuid = ?";
+    let sql = "SELECT uuid, name, color FROM kibooking_facilities WHERE uuid = ?";
     if (Object.keys(filter).length === 0) {
       sql += " AND uuid = ?";
       data.push(this.uuid);

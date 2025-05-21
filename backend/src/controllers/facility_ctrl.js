@@ -5,10 +5,10 @@ const facilityCtrl = {};
 
 
 facilityCtrl.createFacility = async (req, res) => {
-  const { name } = req.body;
+  const { name, color } = req.body;
 
-  if (!name) {
-    return res.send({ message: "El nombre es obligatorios." });
+  if (!name || !color) {
+    return res.send({ message: "El nombre y color es obligatorios." });
   }
 
   const newFacility = new Facility(uuid.v4());
