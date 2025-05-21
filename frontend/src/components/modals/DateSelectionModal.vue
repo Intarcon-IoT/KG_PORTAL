@@ -1,0 +1,302 @@
+<template>
+  <v-dialog v-model="dialog" max-width="500" transition="dialog-bottom-transition">
+    <v-card class="pa-4 rounded-xl">
+      <v-card-title class="text-center text-subtitle-1 font-weight-medium text-grey-darken-3">
+        Selecciona día y hora
+      </v-card-title>
+
+      <v-card-text>
+
+        <div class="d-flex justify-between align-center mb-3">
+          <v-btn icon variant="text" @click="goToPreviousWeek">
+            <i class="fa-solid fa-chevron-left"></i>
+          </v-btn>
+          <span class="text-caption text-grey-darken-1 font-weight-medium">
+            {{ weekRangeText }}
+          </span>
+          <v-btn icon variant="text" @click="goToNextWeek">
+            <i class="fa-solid fa-chevron-right"></i>
+          </v-btn>
+        </div>
+
+        <div class="d-flex justify-space-around mb-5">
+          <div
+            v-for="day in weekDays"
+            :key="day.dateString"
+            class="text-center"
+          >
+            <div class="text-caption text-grey-darken-1">{{ day.shortName }}</div>
+            <v-btn
+              :color="day.dateString === selectedDate ? 'primary' : 'grey-lighten-3'"
+              :variant="day.dateString === selectedDate ? 'flat' : 'text'"
+              :disabled="day.isPast"
+              class="elevation-0 mt-1"
+              rounded
+              size="small"
+              @click="selectedDate = day.dateString"
+            >
+              <span :class="day.dateString === selectedDate ? 'text-white' : 'text-grey-darken-3'">
+                {{ day.day }}
+              </span>
+            </v-btn>
+          </div>
+        </div>
+        
+        <div class="hour-scroll">
+
+          <div
+            v-for="hour in hours"
+            :key="hour"
+            class="hour-block"
+           
+          >
+          <v-container>
+            <v-row>
+              <v-col cols="3" class="hour-cel">
+                <div class="hour-text">{{ hour }}</div>
+              </v-col>
+
+              <v-col v-if="!isBooked(hour)" cols="9" class="booking-cell d-flex justify-center">
+                <v-btn
+                  class="select-hour-btn"
+                  icon
+                  color="primary"
+                  @click="selectHour(hour)"
+                  elevation="6"
+                >
+                  <i class="fa-solid fa-plus fa-xs"></i>
+                </v-btn>
+              </v-col>
+              <v-col v-else cols="9" class="booking-cell d-flex justify-center align-center">
+                <div class="reserved-badge">
+                  <v-icon icon="mdi-calendar-alert" color="error" size="small" class="mr-1"></v-icon>
+                  <span class="text-error font-weight-bold">RESERVADO</span>
+                                 <!-- <v-btn
+                  class="select-hour-btn"
+                  icon
+                  color="grey"
+                  @click="showBooking(selectedDate, hour)"
+                  elevation="6"
+                >
+                  <i class="fa-solid fa-calendar fa-xs"></i>
+                </v-btn>
+                <span class="text-caption text-grey-darken-1">
+                  {{ showBooking(selectedDate, hour) }}
+                </span> -->
+                </div>
+              </v-col>
+
+
+            </v-row>
+          </v-container>
+          </div>
+        </div>
+
+      </v-card-text>
+    </v-card>
+  </v-dialog>
+</template>
+
+<script setup>
+import { ref, watch, computed, onMounted } from 'vue'
+import Request from "@/model/request";
+import { useNotificationStore } from '@/store';
+import moment from 'moment';
+
+const props = defineProps({ 
+  dialog: Boolean,
+  booking: Array,
+  selectedRoom: Object
+})
+const emit = defineEmits([
+  'update:dialog', 
+  'next'
+])
+
+const notificationStore = useNotificationStore();
+
+const dialog = ref(props.dialog);
+const selectedDate = ref(null);
+const bookingsOnDay = ref([]);
+
+const today = new Date();
+const offset = today.getDay() === 0 ? -6 : 1 - today.getDay();
+const baseDate = ref(new Date(today.setDate(today.getDate() + offset)));
+
+const hours = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
+
+const weekDays = computed(() => {
+  const days = []
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(baseDate.value)
+    d.setDate(d.getDate() + i)
+
+    const dateStr = d.toISOString().substring(0, 10)
+    const isPast = new Date(dateStr) < new Date(new Date().toISOString().substring(0, 10))
+
+    days.push({
+      date: d,
+      day: d.getDate(),
+      shortName: d.toLocaleDateString('es-ES', { weekday: 'short' }),
+      dateString: dateStr,
+      isPast
+    })
+  }
+  return days
+})
+
+const weekRangeText = computed(() => {
+  const first = weekDays.value[0].date
+  const last = weekDays.value[6].date
+  const format = (d) => d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
+  return `${format(first)} - ${format(last)}`
+})
+
+// onMounted(() => {
+//   selectedDate.value = new Date().toISOString().substring(0, 10)
+// })
+
+function goToPreviousWeek() {
+  baseDate.value.setDate(baseDate.value.getDate() - 7)
+  baseDate.value = new Date(baseDate.value)
+}
+
+function goToNextWeek() {
+  baseDate.value.setDate(baseDate.value.getDate() + 7)
+  baseDate.value = new Date(baseDate.value)
+}
+
+function selectHour(hour) {
+  emit('update:dialog', false)
+  emit('next', {
+    date: selectedDate.value,
+    time: hour
+  })
+}
+
+function showBooking(date, hour) {
+
+
+}
+
+async function updateBookingByDaySelectedList(day){
+
+  const requestBookingByDay = new Request({
+    endpoint: 'bookings',
+    method: 'GET',
+    params: {
+      start_date: day,
+      room_uuid: props.selectedRoom.uuid,
+      time_from: '00:00',
+      time_to: '23:59'
+    }
+  });
+  await requestBookingByDay.http().then(res => {
+    bookingsOnDay.value = res;
+  })
+  .catch(err => notificationStore.notifyError(err.message))
+}
+
+function isBooked(hour) {
+  if (!bookingsOnDay.value || bookingsOnDay.value.length === 0) {
+    return false;
+  }
+
+  const current = moment(hour, 'HH:mm');
+  
+  return bookingsOnDay.value.some(booking => {
+    const start = moment(booking.start_time, 'HH:mm');
+    const end = moment(booking.end_time, 'HH:mm');
+    
+    return current.isSameOrAfter(start) && current.isBefore(end);
+  });
+}
+
+watch(selectedDate, (val) => {
+
+  updateBookingByDaySelectedList(val);
+  
+})  
+
+watch(() => props.dialog, (val) => {
+  dialog.value = val
+})
+
+watch(dialog, (val) => {
+  emit('update:dialog', val)
+})
+</script>
+
+<style scoped>
+.hour-scroll {
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0; /* Eliminamos el espaciado */
+  padding-right: 6px;
+  border-radius: 12px;
+}
+
+.hour-block {
+  display: block;
+  margin: 0; /* Aseguramos que no hay margen */
+  padding: 0; /* Aseguramos que no hay padding */
+  height: 60px; /* Ajusta la altura como prefieras */
+
+  border-bottom: 1px solid #e0e0e0; /* Opcional: línea divisoria entre horas */
+}
+
+/* Opcional: quitar el borde inferior del último bloque */
+.hour-block:last-child {
+  border-bottom: none;
+}
+
+.booking-cell {
+  background-color: #f5f5f5; /* Cambié el color para mejor visibilidad */
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.select-hour-btn {
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  display: flex;         /* Usar flexbox */
+  align-items: center;   /* Centrar verticalmente */
+  justify-content: center; /* Centrar horizontalmente */
+  font-size: 1em;        /* Tamaño normal */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  z-index: 999;
+  transition: background-color 0.2s ease;
+}
+
+.select-hour-btn i {
+  font-size: 12px; /* Ajustar según necesites */
+}
+
+.reserved-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffebee;
+  border-left: 3px solid #f44336;
+  padding: 4px 12px;
+  border-radius: 4px;
+  width: 100%;
+  max-width: 160px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  transition: transform 0.2s ease;
+}
+
+.reserved-badge:hover {
+  transform: scale(1.02);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+</style>
