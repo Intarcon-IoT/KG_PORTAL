@@ -1,8 +1,9 @@
 <template>
   <v-dialog v-model="internalDialog" max-width="500" transition="dialog-bottom-transition">
     <v-card class="pa-4 rounded-xl">
-      <v-card-title class="text-center text-subtitle-1 font-weight-medium text-grey-darken-3">
-        Selecciona una instalación
+      <v-card-title class="d-flex align-center position-relative text-subtitle-1 font-weight-medium text-grey-darken-3">
+        <div class="w-100 text-center">Selecciona una instalación</div>
+        <i class="fa-solid fa-xmark position-absolute fa-lg close-icon" @click="internalDialog = false"></i>
       </v-card-title>
       <v-card-text>
         <v-list>
@@ -47,6 +48,19 @@ function selectFacility(facility) {
 </script>
 
 <style scoped>
+.close-icon {
+  position: absolute;
+  right: 0;
+  margin-right: 12px;
+  cursor: pointer;
+  color: #666;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.close-icon:hover {
+  color: #ff0000;
+}
+
 .custom-list-item {
   display: flex;
   align-items: center;

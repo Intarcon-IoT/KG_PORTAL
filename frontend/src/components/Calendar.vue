@@ -77,12 +77,14 @@
         v-model:dialog="showRoomModal"
         :rooms="availableRooms"
         @next="handleRoomSelected"
+        @back="handleBackToFacilityModal"
       />
       <DateSelectionModal
         v-model:dialog="showDateModal"
         :booking="bookingsList"
         :selectedRoom="booking.room"
         @next="handleDateSelected"
+        @back="handleBackToRoomModal"
       />
       <DetailsSelectionModal
         v-model:dialog="showDetailsModal"
@@ -90,6 +92,7 @@
         :bookingsList="bookingsList"
         :installations="installationsList"
         :rooms="roomsList"
+        @back="handleBackToDateModal"
         @confirmBooking="handleBooking"
       />
       <ViewBookingDetailsModal
@@ -230,6 +233,11 @@ function handleSelectedFacility(facility) {
   showRoomModal.value = true
 }
 
+function handleBackToFacilityModal() {
+  showRoomModal.value = false
+  showFacilityModal.value = true
+}
+
 function handleRoomSelected(room) {
   booking.room = room;
 
@@ -237,11 +245,21 @@ function handleRoomSelected(room) {
   showDateModal.value = true
 }
 
+function handleBackToRoomModal() {
+  showDateModal.value = false
+  showRoomModal.value = true
+}
+
 function handleDateSelected(date) {
   booking.date = date.date;
   booking.time = date.time;
 
   showDetailsModal.value = true;
+}
+
+function handleBackToDateModal() {
+  showBookingDetailsModal.value = false
+  showDateModal.value = true
 }
 
 function handleBookingDetailsView(booking, room) {
