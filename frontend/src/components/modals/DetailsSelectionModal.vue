@@ -1,8 +1,10 @@
 <template>
   <v-dialog v-model="dialog" max-width="600" transition="dialog-bottom-transition">
     <v-card class="pa-4 rounded-xl">
-      <v-card-title class="text-center text-subtitle-1 font-weight-medium text-grey-darken-3">
-        Detalles de la Reserva
+      <v-card-title class="d-flex align-center position-relative text-subtitle-1 font-weight-medium text-grey-darken-3">
+        <i class="fa-solid fa-arrow-left position-absolute start-5 fa-lg back-icon" @click="goBack"></i>
+        <div class="w-100 text-center">Detalles de la Reserva</div>
+        <i class="fa-solid fa-xmark position-absolute fa-lg close-icon" @click="dialog = false"></i>
       </v-card-title>
       <v-card-text class="dialog-content">
         <v-container>
@@ -105,7 +107,7 @@ const props = defineProps({
   rooms: Array
 })
 
-const emit = defineEmits(['update:dialog', 'confirmBooking'])
+const emit = defineEmits(['update:dialog', 'confirmBooking', 'back'])
 
 const today = new Date().toISOString().substring(0, 10)
 const availableRooms = ref([])
@@ -122,6 +124,11 @@ const form = ref({
   title: '',
   details: ''
 })
+
+function goBack() {
+  emit('update:dialog', false)
+  emit('back')
+}
 
 function generateTimeIntervals() {
   const intervals = []
@@ -199,6 +206,29 @@ watch(dialog, (val) => {
 </script>
 
 <style scoped>
+.close-icon {
+  position: absolute;
+  right: 0;
+  margin-right: 12px;
+  cursor: pointer;
+  color: #666;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.close-icon:hover {
+  color: #ff5252;
+}
+
+.back-icon {
+  cursor: pointer;
+  color: #666;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.back-icon:hover {
+  color: #24008f;
+}
+
 .confirm-btn {
   font-weight: bold;
   text-transform: uppercase;

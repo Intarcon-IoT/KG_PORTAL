@@ -1,20 +1,22 @@
 <template>
   <v-dialog v-model="dialog" max-width="500" transition="dialog-bottom-transition">
     <v-card class="pa-4 rounded-xl">
-      <v-card-title class="text-center text-subtitle-1 font-weight-medium text-grey-darken-3">
-        Selecciona día y hora
+      <v-card-title class="d-flex align-center position-relative text-subtitle-1 font-weight-medium text-grey-darken-3">
+        <i class="fa-solid fa-arrow-left position-absolute start-5 fa-lg back-icon" @click="goBack"></i>
+        <div class="w-100 text-center">Selecciona día y hora</div>
+        <i class="fa-solid fa-xmark position-absolute fa-lg close-icon" @click="dialog = false"></i>
       </v-card-title>
 
       <v-card-text>
 
-        <div class="d-flex justify-between align-center mb-3">
-          <v-btn icon variant="text" @click="goToPreviousWeek">
+        <div class="d-flex justify-center align-center mb-3">
+          <v-btn icon variant="text" class="btn-week" @click="goToPreviousWeek">
             <i class="fa-solid fa-chevron-left"></i>
           </v-btn>
           <span class="text-caption text-grey-darken-1 font-weight-medium">
             {{ weekRangeText }}
           </span>
-          <v-btn icon variant="text" @click="goToNextWeek">
+          <v-btn icon variant="text" class="btn-week" @click="goToNextWeek">
             <i class="fa-solid fa-chevron-right"></i>
           </v-btn>
         </div>
@@ -110,7 +112,8 @@ const props = defineProps({
 })
 const emit = defineEmits([
   'update:dialog', 
-  'next'
+  'next',
+  'back'
 ])
 
 const notificationStore = useNotificationStore();
@@ -155,6 +158,11 @@ const weekRangeText = computed(() => {
 // onMounted(() => {
 //   selectedDate.value = new Date().toISOString().substring(0, 10)
 // })
+
+function goBack() {
+  emit('update:dialog', false)
+  emit('back')
+}
 
 function goToPreviousWeek() {
   baseDate.value.setDate(baseDate.value.getDate() - 7)
@@ -228,6 +236,29 @@ watch(dialog, (val) => {
 </script>
 
 <style scoped>
+.close-icon {
+  position: absolute;
+  right: 0;
+  margin-right: 12px;
+  cursor: pointer;
+  color: #666;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.close-icon:hover {
+  color: #ff5252;
+}
+
+.back-icon {
+  cursor: pointer;
+  color: #666;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.back-icon:hover {
+  color:#24008f;
+}
+
 .hour-scroll {
   max-height: 300px;
   overflow-y: auto;

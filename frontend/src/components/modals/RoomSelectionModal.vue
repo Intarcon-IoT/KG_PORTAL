@@ -1,8 +1,10 @@
 <template>
   <v-dialog v-model="internalDialog" max-width="500" transition="dialog-bottom-transition">
     <v-card class="pa-4 rounded-xl">
-      <v-card-title class="text-center text-subtitle-1 font-weight-medium text-grey-darken-3">
-        Selecciona una sala
+      <v-card-title class="d-flex align-center position-relative text-subtitle-1 font-weight-medium text-grey-darken-3">
+        <i class="fa-solid fa-arrow-left position-absolute start-5 fa-lg back-icon" @click="goBack"></i>
+        <div class="w-100 text-center">Selecciona una sala</div>
+        <i class="fa-solid fa-xmark position-absolute fa-lg close-icon" @click="internalDialog = false"></i>
       </v-card-title>
       <v-card-text>
         <v-list>
@@ -31,7 +33,7 @@ const props = defineProps({
   rooms: Array
 })
 
-const emit = defineEmits(['update:dialog', 'next'])
+const emit = defineEmits(['update:dialog', 'next', 'back'])
 
 const internalDialog = ref(props.dialog)
 
@@ -47,9 +49,37 @@ function selectRoom(room) {
   emit('update:dialog', false)
   emit('next', room)
 }
+
+function goBack() {
+  emit('update:dialog', false)
+  emit('back')
+}
 </script>
 
 <style scoped>
+.close-icon {
+  position: absolute;
+  right: 0;
+  margin-right: 12px;
+  cursor: pointer;
+  color: #666;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.close-icon:hover {
+  color: #ff5252;
+}
+
+.back-icon {
+  cursor: pointer;
+  color: #666;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.back-icon:hover {
+  color:#24008f;
+}
+
 .custom-list-item {
   padding: 12px 16px;
   border-radius: 12px;
