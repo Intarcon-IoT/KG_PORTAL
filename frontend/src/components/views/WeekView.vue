@@ -23,7 +23,6 @@
 
     <!-- FILAS -->
     <div class="resource-grid">
-
       <div
         v-for="facility in selectedFacilities"
         :key="facility.uuid"
@@ -33,12 +32,24 @@
           :key="room.uuid"
           class="resource-line"
         >
-          <!-- Nombres de la facility y la room -->
           <div class="resource-cell">
-            <span class="resource-name">{{ room.name }}</span>
-            <span class="resource-building">{{ facility.name }}</span>
+            <div 
+              class="capacity-badge" 
+              :style="{ backgroundColor: `${facility.color}` }"
+            >
+              <v-tooltip
+                activator="parent"
+                location="end"
+              >
+                Aforo máximo: {{room.capacity}}
+              </v-tooltip>
+              {{ room.capacity }}
+            </div>
+            <div class="room-info">
+              <span class="resource-name">{{ room.name }}</span>
+              <span class="resource-building">{{ facility.name }}</span>
+            </div>
           </div>
-
           <!-- RESERVAS -->
           <div class="resource-row">
             <div
@@ -46,15 +57,21 @@
               :key="day.date.toISOString()"
               class="day-cell"
               :style="{ minHeight: `${getEventsForResourceAndDay(room.uuid, day.date).length * 30 + 40}px` }"
+              @click="() => emit('empty_cell_click', room, day.date)"
             >
               <div
                 v-for="event in getEventsForResourceAndDay(room.uuid, day.date)"
                 :key="event.uuid"
                 :style="{ backgroundColor: `${facility.color}` }"
                 class="event-chip"
-                :title="`${event.title} (${formatTime(event.start_time)} - ${formatTime(event.end_time)})`"
-                @click="() => emit('booking_click', event, resource)"
+                @click.stop="() => emit('booking_click', event, resource)"
               >
+                <v-tooltip
+                  activator="parent"
+                  location="end"
+                >
+                  {{event.title}} ({{formatTime(event.start_time)}} - {{formatTime(event.end_time)}})
+                </v-tooltip>
                 {{ formatTime(event.start_time) }} - {{ formatTime(event.end_time) }}
                 <br />
                 {{ event.title }}
@@ -76,12 +93,10 @@ const props = defineProps({
   selectedFacilities: Array,
   selectedRooms: Array,
   bookingsList: Array,
-    // resources: Array,
-
 });
 
 
-const emit = defineEmits(['booking_click']);
+const emit = defineEmits(['booking_click', 'empty_cell_click']);
 
 // Calcular los días de la semana actual
 const weekDays = computed(() => {
@@ -105,7 +120,7 @@ const weekDays = computed(() => {
 });
 
 const today = new Date();
-today.setHours(0, 0, 0, 0); // Normalizar a medianoche para comparar solo fechas
+today.setHours(0, 0, 0, 0);
 
 function isToday(date) {
   const d = new Date(date);
@@ -153,13 +168,13 @@ function formatTime(time) {
   display: flex;
   border-bottom: 1px solid #ccc;
   background-color: #f8f8f8;
-  flex-shrink: 0; /* No encoger la cabecera */
+  flex-shrink: 0;
 }
 
 .today-number {
-  border: 2px solid #007bff; /* color azul Vuetify */
+  border: 2px solid #007bff;
   border-radius: 50px;
-  padding: 4px 8px; /* ajusta para que quede redondo */
+  padding: 4px 8px;
   color: #ffffff;
   background-color: #007bff;
   font-weight: bold;
@@ -171,7 +186,7 @@ function formatTime(time) {
 }
 
 .resource-header {
-  width: 200px; /* Ancho fijo para la columna de recursos */
+  width: 200px;
   padding: 10px;
   border-right: 1px solid #ccc;
   font-weight: bold;
@@ -179,39 +194,71 @@ function formatTime(time) {
 }
 
 .day-header {
-  flex: 1; /* Ocupa el espacio restante */
+  flex: 1;
   text-align: center;
   padding: 5px;
   border-left: 1px solid #eee;
 }
 .day-header .weekday-name {
-    display: block;
-    font-size: 0.8em;
-    color: #666;
+  display: block;
+  font-size: 0.8em;
+  color: #666;
 }
 .day-header .day-number {
-    font-size: 1.1em;
-    font-weight: bold;
+  font-size: 1.1em;
+  font-weight: bold;
 }
 
 .resource-column {
-  width: 200px; /* Mismo ancho que el header */
+  width: 200px;
   border-right: 1px solid #ccc;
   display: flex;
   flex-direction: column;
-   flex-shrink: 0;
-   overflow-y: auto; /* Scroll si hay muchas salas */
+  flex-shrink: 0;
+  overflow-y: auto;
 }
 
-.resource-cell .resource-name {
-    display: block;
-    font-weight: bold;
-    font-size: 0.9em;
+.resource-cell {
+  width: 200px;
+  padding: 10px;
+  border-right: 1px solid #ccc;
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
-.resource-cell .resource-building {
-    display: block;
-    font-size: 0.8em;
-    color: #666;
+
+.capacity-badge {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.room-info {
+  display: flex;
+  flex-direction: column;
+  padding-right: 30px;
+}
+
+.resource-name {
+  display: block;
+  font-weight: bold;
+  font-size: 0.9em;
+  margin-bottom: 3px;
+}
+
+.resource-building {
+  display: block;
+  font-size: 0.8em;
+  color: #666;
 }
 
 .resource-row:last-child {
@@ -221,7 +268,6 @@ function formatTime(time) {
 .day-cell:first-child {
     border-left: none;
 }
-
 
 .event-chip {
   background-color: #007bff;
@@ -237,6 +283,7 @@ function formatTime(time) {
   z-index: 1;
   position: relative;
 }
+
 .event-chip:hover {
     opacity: 0.8;
 }
@@ -252,7 +299,6 @@ function formatTime(time) {
   display: flex;
   flex-direction: row;
   border-bottom: 1px solid #eee;
-  /* height: 125px; */
   flex-shrink: 0;
 }
 
@@ -261,6 +307,7 @@ function formatTime(time) {
   padding: 10px;
   border-right: 1px solid #ccc;
   box-sizing: border-box;
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -274,7 +321,7 @@ function formatTime(time) {
 .day-cell {
   flex: 1;
   padding: 5px;
-  padding-bottom: 24px; /* espacio reservado para el botón + */
+  padding-bottom: 24px;
   border-left: 1px solid #eee;
   position: relative;
   overflow: hidden;
@@ -285,19 +332,6 @@ function formatTime(time) {
 .event-list {
   max-height: 100%;
   overflow-y: auto;
-}
-
-.event-chip {
-  background-color: #007bff;
-  color: white;
-  padding: 2px 5px;
-  border-radius: 3px;
-  font-size: 0.8em;
-  margin-bottom: 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: pointer;
 }
 
 .add-icon {
@@ -322,5 +356,4 @@ function formatTime(time) {
 .day-cell:hover .add-icon {
   opacity: 1;
 }
-
 </style>

@@ -6,21 +6,18 @@
         <div class="w-100 text-center">Selecciona día y hora</div>
         <i class="fa-solid fa-xmark position-absolute fa-lg close-icon" @click="dialog = false"></i>
       </v-card-title>
-
       <v-card-text>
-
         <div class="d-flex justify-center align-center mb-3">
-          <v-btn icon variant="text" class="btn-week" @click="goToPreviousWeek">
+          <v-btn icon variant="text" @click="goToPreviousWeek">
             <i class="fa-solid fa-chevron-left"></i>
           </v-btn>
           <span class="text-caption text-grey-darken-1 font-weight-medium">
             {{ weekRangeText }}
           </span>
-          <v-btn icon variant="text" class="btn-week" @click="goToNextWeek">
+          <v-btn icon variant="text" @click="goToNextWeek">
             <i class="fa-solid fa-chevron-right"></i>
           </v-btn>
         </div>
-
         <div class="d-flex justify-space-around mb-5">
           <div
             v-for="day in weekDays"
@@ -43,9 +40,7 @@
             </v-btn>
           </div>
         </div>
-        
         <div class="hour-scroll">
-
           <div
             v-for="hour in hours"
             :key="hour"
@@ -57,7 +52,6 @@
               <v-col cols="3" class="hour-cel">
                 <div class="hour-text">{{ hour }}</div>
               </v-col>
-
               <v-col v-if="!isBooked(hour)" cols="9" class="booking-cell d-flex justify-center">
                 <v-btn
                   class="select-hour-btn"
@@ -73,43 +67,28 @@
                 <div class="reserved-badge">
                   <v-icon icon="mdi-calendar-alert" color="error" size="small" class="mr-1"></v-icon>
                   <span class="text-error font-weight-bold">RESERVADO</span>
-                                 <!-- <v-btn
-                  class="select-hour-btn"
-                  icon
-                  color="grey"
-                  @click="showBooking(selectedDate, hour)"
-                  elevation="6"
-                >
-                  <i class="fa-solid fa-calendar fa-xs"></i>
-                </v-btn>
-                <span class="text-caption text-grey-darken-1">
-                  {{ showBooking(selectedDate, hour) }}
-                </span> -->
                 </div>
               </v-col>
-
-
             </v-row>
           </v-container>
           </div>
         </div>
-
       </v-card-text>
     </v-card>
   </v-dialog>
 </template>
 
 <script setup>
-import { ref, watch, computed, onMounted } from 'vue'
+import { ref, watch, computed } from 'vue'
 import Request from "@/model/request";
 import { useNotificationStore } from '@/store';
 import moment from 'moment';
 
 const props = defineProps({ 
   dialog: Boolean,
-  booking: Array,
-  selectedRoom: Object
+  bookingInfo: Object, 
 })
+
 const emit = defineEmits([
   'update:dialog', 
   'next',
@@ -118,8 +97,8 @@ const emit = defineEmits([
 
 const notificationStore = useNotificationStore();
 
-const dialog = ref(props.dialog);
-const selectedDate = ref(null);
+const dialog = ref();
+const selectedDate = ref(props.bookingInfo.date);
 const bookingsOnDay = ref([]);
 
 const today = new Date();
@@ -155,10 +134,6 @@ const weekRangeText = computed(() => {
   return `${format(first)} - ${format(last)}`
 })
 
-// onMounted(() => {
-//   selectedDate.value = new Date().toISOString().substring(0, 10)
-// })
-
 function goBack() {
   emit('update:dialog', false)
   emit('back')
@@ -182,11 +157,6 @@ function selectHour(hour) {
   })
 }
 
-function showBooking(date, hour) {
-
-
-}
-
 async function updateBookingByDaySelectedList(day){
 
   const requestBookingByDay = new Request({
@@ -194,7 +164,7 @@ async function updateBookingByDaySelectedList(day){
     method: 'GET',
     params: {
       start_date: day,
-      room_uuid: props.selectedRoom.uuid,
+      room_uuid: props.bookingInfo.room.uuid,
       time_from: '00:00',
       time_to: '23:59'
     }
@@ -215,24 +185,39 @@ function isBooked(hour) {
   return bookingsOnDay.value.some(booking => {
     const start = moment(booking.start_time, 'HH:mm');
     const end = moment(booking.end_time, 'HH:mm');
-    
+
     return current.isSameOrAfter(start) && current.isBefore(end);
   });
 }
 
 watch(selectedDate, (val) => {
-
-  updateBookingByDaySelectedList(val);
-  
-})  
+    updateBookingByDaySelectedList(val);
+}) 
 
 watch(() => props.dialog, (val) => {
   dialog.value = val
 })
 
 watch(dialog, (val) => {
-  emit('update:dialog', val)
-})
+  emit('update:dialog', val);
+
+  if (val && props.bookingInfo?.date) {
+    const formattedDate = moment(props.bookingInfo.date).format('YYYY-MM-DD');
+    selectedDate.value = formattedDate;
+    updateBookingByDaySelectedList(formattedDate);
+  }
+
+  if (val && !props.bookingInfo?.date) {
+    console.log('No hay fecha seleccionada');
+    selectedDate.value = moment().format('YYYY-MM-DD');
+    updateBookingByDaySelectedList(moment().format('YYYY-MM-DD'));
+  }
+
+  if (!val) {
+    bookingsOnDay.value = [];
+    selectedDate.value = null;
+  }
+});
 </script>
 
 <style scoped>
@@ -264,27 +249,25 @@ watch(dialog, (val) => {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 0; /* Eliminamos el espaciado */
+  gap: 0;
   padding-right: 6px;
   border-radius: 12px;
 }
 
 .hour-block {
   display: block;
-  margin: 0; /* Aseguramos que no hay margen */
-  padding: 0; /* Aseguramos que no hay padding */
-  height: 60px; /* Ajusta la altura como prefieras */
-
-  border-bottom: 1px solid #e0e0e0; /* Opcional: línea divisoria entre horas */
+  margin: 0;
+  padding: 0;
+  height: 60px; 
+  border-bottom: 1px solid #e0e0e0;
 }
 
-/* Opcional: quitar el borde inferior del último bloque */
 .hour-block:last-child {
   border-bottom: none;
 }
 
 .booking-cell {
-  background-color: #f5f5f5; /* Cambié el color para mejor visibilidad */
+  background-color: #f5f5f5;
   border-radius: 8px;
   padding: 10px;
   text-align: center;
@@ -298,10 +281,10 @@ watch(dialog, (val) => {
   background-color: #007bff;
   color: white;
   border: none;
-  display: flex;         /* Usar flexbox */
-  align-items: center;   /* Centrar verticalmente */
-  justify-content: center; /* Centrar horizontalmente */
-  font-size: 1em;        /* Tamaño normal */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1em;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   cursor: pointer;
   z-index: 999;
@@ -309,7 +292,7 @@ watch(dialog, (val) => {
 }
 
 .select-hour-btn i {
-  font-size: 12px; /* Ajustar según necesites */
+  font-size: 12px;
 }
 
 .reserved-badge {

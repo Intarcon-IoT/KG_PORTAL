@@ -48,6 +48,7 @@
           :selectedRooms="selectedRooms"
           :bookingsList="bookingsList"
           @booking_click="handleBookingDetailsView"
+          @empty_cell_click="handleNewBookingFromCalendar"
         />
         <!-- <MonthView
           v-if="currentView === 'month'"
@@ -83,6 +84,7 @@
         v-model:dialog="showDateModal"
         :booking="bookingsList"
         :selectedRoom="booking.room"
+        :bookingInfo="booking"
         @next="handleDateSelected"
         @back="handleBackToRoomModal"
       />
@@ -143,7 +145,6 @@ const bookingsList = ref([]);
 const availableRooms = ref([]);
 const bookingDetails = ref(null);
 const selectedEditBooking = ref(null);
-const showReservationModal = ref(false);
 const isEditingMode = ref(false);
 
 // STORE
@@ -220,6 +221,13 @@ async function loadBookings() {
 }
 
 // HANDLERS
+function handleNewBookingFromCalendar(room, date) {
+  booking.facility = installationsList.value.find(facility => facility.uuid === room.facility_uuid);
+  booking.room = room;
+  booking.date = date;
+  showDateModal.value = true;
+}
+
 function handlerSelectedFacilitiesFilter(selectedFacilitiesArray) {
   selectedFacilitiesUuid.value = selectedFacilitiesArray;
 }
@@ -239,6 +247,7 @@ function handleBackToFacilityModal() {
 
 function handleRoomSelected(room) {
   booking.room = room;
+  booking.date = null;
 
   showRoomModal.value = false
   showDateModal.value = true
@@ -324,7 +333,7 @@ const deleteBooking = async (bookingId) => {
       endpoint: `bookings/${bookingId}`,
       method: 'DELETE'
     });
-    
+
     await request.http();
     notificationStore.notifySuccess('Reserva eliminada con éxito');
     loadBookings();
@@ -344,7 +353,6 @@ function navigatePrevious() {
   } else {
     d.setDate(d.getDate() - 1);
   }
-
   selectedDate.value = new Date(d);
 }
 
@@ -364,10 +372,10 @@ function goToToday() {
   selectedDate.value = new Date();
 }
 
-function selectDateAndSwitchView(date) {
-  selectedDate.value = new Date(date);
-  currentView.value = 'day';
-}
+// function selectDateAndSwitchView(date) {
+//   selectedDate.value = new Date(date);
+//   currentView.value = 'day';
+// }
 
 watch(showOnlyMine, (val) => {
   if (val) {
