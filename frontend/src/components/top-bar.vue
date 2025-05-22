@@ -78,7 +78,6 @@ import router from '@/router';
   display: flex;
   align-items: center;
   cursor: pointer;
-  width: 5%;
 }
 
 .menu-btn {
