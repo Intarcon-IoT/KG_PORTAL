@@ -92,12 +92,10 @@ class Booking {
     if (filter.from_date) {
       sql += " AND b.start_date >= ?";
       data.push(filter.from_date);
-      console.log("usando filtro from date");
     }
     if (filter.to_date) {
       sql += " AND b.start_date <= ?";
       data.push(filter.to_date);
-      console.log("usando filtro to date");
     }
     if (filter.from_time) {
       sql += " AND b.start_time >= ?";

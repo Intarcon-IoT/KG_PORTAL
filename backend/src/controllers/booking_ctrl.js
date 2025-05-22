@@ -32,7 +32,6 @@ bookingCtrl.createBooking = async (req, res) => {
 
 bookingCtrl.getBookings = async (req, res) => {
 
-console.log("getBookings params: ", req.query);
 const filter = req.query;
 
   const booking = new Booking();

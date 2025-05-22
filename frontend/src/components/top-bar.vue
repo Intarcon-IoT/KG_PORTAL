@@ -17,6 +17,8 @@ import router from '@/router';
 
       const isActive = ref(false);
 
+      const email = ref(auth.user?.mail);
+
       const handleLogout = () => {
         auth.logout().then(() => {
           notificationStore.notifySuccess('Cierre de sesión exitoso');
@@ -26,7 +28,8 @@ import router from '@/router';
 
       return {
         isActive,
-        handleLogout
+        handleLogout,
+        email
       }
     }
   }
@@ -52,11 +55,12 @@ import router from '@/router';
       <v-menu activator="parent" v-model="isActive">
         <v-list class="dropdown-list">
 
-          <!-- <v-list-item class="flex-center">
-            <div class="chips">
-              <kiVersion/>
+          <v-list-item class="flex-center">
+            <div>
+              <!-- <kiVersion/> -->
+              <strong class="user-email">{{ email }}</strong>
             </div>
-          </v-list-item> -->
+          </v-list-item>
 
           <v-list-item @click="handleLogout()" class="list-item">
             <div class="list-item-flex wh-max">
@@ -85,7 +89,7 @@ import router from '@/router';
   border: none;
   color: rgb(0, 0, 0);
   cursor: pointer;
-  margin-left: 5px;
+  margin-left: 15px;
   margin-right: 5px;
   font-size: 1.5rem;
 }
@@ -137,6 +141,14 @@ import router from '@/router';
   justify-content: center;
   align-items: center;
   color: var(--white-color);
+}
+
+.user-email {
+  font-size: 0.85rem;
+  color: #555;
+  padding: 6px 12px;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 8px;
 }
 
 </style>

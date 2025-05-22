@@ -60,11 +60,8 @@ export default class Request {
         this.errorHandler[response.code](response);
       }
       
-      return response;  
+      return response;
     }).catch((err) => {
-
-      console.log(err)
-      
       throw err;
     });
   }

@@ -151,7 +151,7 @@ export default {
   color: white;
   font-size: 1rem;
   cursor: pointer;
-  margin-left: 12rem;
+  margin-left: 10rem;
   margin-top: 1rem;
 }
 </style>

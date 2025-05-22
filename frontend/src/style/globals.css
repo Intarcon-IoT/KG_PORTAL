@@ -6,7 +6,7 @@ html {
 
 :root {
   --background-color: rgb(80, 79, 78);
-  --dropdown-color-hover: #727272;
+  --dropdown-color-hover: #e6f0ff;
   --primary-color: #658EB9;
   --primary-color-hover: rgb(75, 114, 156);
   --primary-color-semitransparent: rgb(38, 113, 196, .3);
