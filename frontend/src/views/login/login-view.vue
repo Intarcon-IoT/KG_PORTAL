@@ -78,7 +78,8 @@ export default {
           session: true,
           token: res.user.token,
           email: credentials.email,
-          role: res.role
+          role: res.role,
+          user: res.user
         })
         notificationStore.notifySuccess('Se ha iniciado sesión correctamente');
         router.push('/calendar')

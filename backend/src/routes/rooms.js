@@ -6,6 +6,10 @@ const {
   createRoom, editRoom, deleteRoom
 } = require("../controllers/room_ctrl");
 
+const { AuthMiddleware } = require('../middlewares/authMiddleware');
+
+router.use(AuthMiddleware);
+
 router.route("/")
   .get(getRooms)
   .post(createRoom);

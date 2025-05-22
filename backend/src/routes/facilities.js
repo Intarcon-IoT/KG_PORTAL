@@ -6,6 +6,10 @@ const {
   createFacility, editFacility, deleteFacility
 } = require("../controllers/facility_ctrl");
 
+const { AuthMiddleware } = require('../middlewares/authMiddleware');
+
+router.use(AuthMiddleware);
+
 router.route("/")
   .get(getFacilities)
   .post(createFacility);

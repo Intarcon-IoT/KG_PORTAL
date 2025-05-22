@@ -191,7 +191,7 @@ onMounted(async () => {
     method: 'GET'
   });
   await requestFacilities.http().then(res => {
-    installationsList.value = res;
+    installationsList.value = res.sort((a, b) => a.name.localeCompare(b.name));;
   })
   .catch(err => notificationStore.notifyError(err.message))
 
@@ -215,7 +215,6 @@ async function loadBookings() {
 
     await request.http().then(res => {
       bookingsList.value = res;
-      console.log('Bookings loaded:', bookingsList.value);
     })
     .catch(err => notificationStore.notifyError(err.message))
 }
@@ -371,9 +370,6 @@ function selectDateAndSwitchView(date) {
 }
 
 watch(showOnlyMine, (val) => {
-
-  console.log('user: ', session.auth.user);
-  
   if (val) {
     bookingsList.value = bookingsList.value.filter(booking => booking.user_uuid === session.auth.user.uuid);
   } else {

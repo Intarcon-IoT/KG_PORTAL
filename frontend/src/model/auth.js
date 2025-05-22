@@ -10,13 +10,15 @@ class Auth {
     session,
     email,
     token,
-    role
+    role,
+    user
   }) {
     localStorage.setItem('session', JSON.stringify({ session, email, token, role }));
     this.session = session,
     this.email = email,
     this.token = token,
-    this.role = role
+    this.role = role,
+    this.user = user
   }
 
   constructor() {
@@ -24,14 +26,15 @@ class Auth {
     this.email = '',
     this.token = '',
     this.role = '',
-    this.user = ''
+    this.user = null
   }
 
   resetCredentials() {
     this.session = false,
     this.email = '',
     this.token = '',
-    this.role = ''
+    this.role = '',
+    this.user = null
   }
 
   async login({ email, password }) {

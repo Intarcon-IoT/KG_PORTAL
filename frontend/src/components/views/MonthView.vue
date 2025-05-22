@@ -123,7 +123,6 @@ function getEventsCountOnDay(date) {
 
 function selectDay(date) {
   // Aquí puedes emitir un evento o actualizar otra variable para mostrar la vista semanal de este día.
-  console.log('Día seleccionado:', date);
 }
 </script>
 
