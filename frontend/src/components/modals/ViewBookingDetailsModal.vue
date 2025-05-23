@@ -4,19 +4,36 @@
       <v-card class="pa-6 rounded-xl" style="position: relative;">
         
         <div class="action-buttons">
-          <v-btn v-if="canDeleteBooking" class="btn-edit" icon size="small" aria-label="Editar" @click="handleEdit">
+          <v-btn 
+            v-if="canDeleteBooking && !booking.isReadOnly" 
+            class="btn-edit" 
+            icon size="small" 
+            aria-label="Editar" 
+            @click="handleEdit"
+          >
             <i class="fa-solid fa-pen-to-square"></i>
           </v-btn>
-          <v-btn v-if="canDeleteBooking" class="btn-delete" icon size="small" aria-label="Borrar" @click="confirmDelete">
+          <v-btn 
+            v-if="canDeleteBooking && !booking.isReadOnly" 
+            class="btn-delete" 
+            icon size="small" 
+            aria-label="Borrar" 
+            @click="confirmDelete"
+          >
             <i class="fa-solid fa-trash-can"></i>
           </v-btn>
-          <v-btn icon size="small" @click="internalDialog = false" aria-label="Cerrar">
+          <v-btn
+            icon size="small"
+            aria-label="Cerrar"
+            @click="internalDialog = false" 
+          >
             <i class="fa-solid fa-xmark"></i>
           </v-btn>
         </div>
 
         <v-card-title class="text-h6 font-weight-bold text-grey-darken-3 pa-0 mb-4">
           {{ booking.title }}
+          <v-chip v-if="booking.isReadOnly" size="small" color="grey" class="ml-2">Evento pasado</v-chip>
         </v-card-title>
 
         <v-card-text class="pa-0">

@@ -56,15 +56,17 @@
               v-for="day in weekDays"
               :key="day.date.toISOString()"
               class="day-cell"
+              :class="{ 'past-day': isPastDay(day.date) }"
               :style="{ minHeight: `${getEventsForResourceAndDay(room.uuid, day.date).length * 30 + 40}px` }"
-              @click="() => emit('empty_cell_click', room, day.date)"
+              @click="() => !isPastDay(day.date) && emit('empty_cell_click', room, day.date)"
             >
               <div
                 v-for="event in getEventsForResourceAndDay(room.uuid, day.date)"
                 :key="event.uuid"
                 :style="{ backgroundColor: `${facility.color}` }"
                 class="event-chip"
-                @click.stop="() => emit('booking_click', event, resource)"
+                :class="{ 'past-event': isPastDay(day.date) }"
+                @click.stop="() => emit('booking_click', event, resource, isPastDay(day.date))"
               >
                 <v-tooltip
                   activator="parent"
@@ -76,7 +78,7 @@
                 <br />
                 {{ event.title }}
               </div>
-              <div class="add-icon">+</div>
+              <div class="add-icon" v-if="!isPastDay(day.date)">+</div>
             </div>
           </div>
         </div>
@@ -126,6 +128,14 @@ function isToday(date) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
   return d.getTime() === today.getTime();
+}
+
+function isPastDay(date) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const checkDate = new Date(date);
+  checkDate.setHours(0, 0, 0, 0);
+  return checkDate < today;
 }
 
 // Filtrar eventos para una sala y día específicos
@@ -355,5 +365,34 @@ function formatTime(time) {
 
 .day-cell:hover .add-icon {
   opacity: 1;
+}
+
+.past-event {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.past-day {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(224, 224, 224, 0.5) 1px,
+    rgba(224, 224, 224, 0.5) 1px,
+    rgba(250, 250, 250, 0.1) 4px,
+    rgba(250, 250, 250, 0.1) 15px
+  );
+  background-color: rgba(250, 250, 250, 0.9);
+  background-attachment: fixed;
+  background-position: 0 0;
+  opacity: 1;
+  cursor: default;
+}
+
+.past-day:hover .add-icon {
+  opacity: 0;
+}
+
+.past-day .event-chip {
+  opacity: 0.7;
+  cursor: default;
 }
 </style>

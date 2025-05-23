@@ -270,9 +270,11 @@ function handleBackToDateModal() {
   showDateModal.value = true
 }
 
-function handleBookingDetailsView(booking, room) {
+function handleBookingDetailsView(booking, room, isPast) {
   showBookingDetailsModal.value = true;
   bookingDetails.value = booking;
+
+  bookingDetails.value.isReadOnly = isPast;
 }
 
 function handleBooking(bookingData) {
