@@ -7,7 +7,7 @@
       :label="facility.name"
       :value="facility.uuid"
       :color="facility.color"
-      v-model="selectedFacilities"
+      v-model="filters.selectedFacilities"
       density="compact"
       hide-details
       class="building-checkbox"
@@ -16,28 +16,25 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { watch } from 'vue';
+import { useConfigStore } from '@/store';
 
 const props = defineProps({
   installationsList: Array,
 });
 
 const emit = defineEmits(['update:selectedFacilitiesUuid']);
+const { filters } = useConfigStore();
 
-const selectedFacilities = ref([]);
+// Inicializa como array si aún no existe
+if (!Array.isArray(filters.selectedFacilities)) {
+  filters.selectedFacilities = props.installationsList.map((facility) => facility.uuid);
+}
 
-watch(() => props.installationsList, (newList) => {
-    if (newList && newList.length > 0) {
-      selectedFacilities.value = newList.map(f => f.uuid);
-    }
-  },
-  { immediate: true }
-);
-
-watch(selectedFacilities, (val) => {
+// Emitimos los valores seleccionados
+watch(() => filters.selectedFacilities, (val) => {
   emit('update:selectedFacilitiesUuid', val);
-});
-
+}, { immediate: true });
 </script>
 
 <style scoped>
