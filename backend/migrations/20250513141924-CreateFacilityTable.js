@@ -19,6 +19,7 @@ exports.up = function(db, callback) {
     id: { type: 'int', primaryKey: true, autoIncrement: true },
     uuid: { type: 'varchar', length:36, unique: true },
     name: { type: 'varchar', length: 100 },
+    color: { type: 'varchar', length: 7 },
     create_ts: { type: 'timestamp', defaultValue: new String('CURRENT_TIMESTAMP()'), notNull: true },
   }, callback);
   console.log("MIGRATE OK => Create facility table");

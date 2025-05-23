@@ -7,7 +7,6 @@ const moment = require("moment");
 class User {
   constructor(uuid) {
     this.uuid = uuid;
-    this.user = "";
     this.mail = "";
     this.name = "";
     this.password = "";
@@ -15,9 +14,8 @@ class User {
   }
 
   set(data) {
-    this.user = data.user;
-    this.mail = data.mail;
     this.name = data.name;
+    this.mail = data.mail;
     this.password = bcryptjs.hashSync(data.password, 0);
     this.isAdmin = data.isAdmin || false;
     return this;
@@ -26,9 +24,8 @@ class User {
   getData() {
     return {
       uuid: this.uuid,
-      user: this.user,
-      mail: this.mail,
       name: this.name,
+      mail: this.mail,
       password: this.password,
       isAdmin: this.isAdmin
     };
@@ -51,13 +48,13 @@ class User {
   }
 
   async list() {
-    const rows = await mysqlAdapter.query("SELECT uuid, user, mail, name, isAdmin FROM kibooking_users", []);
+    const rows = await mysqlAdapter.query("SELECT uuid, name, mail, isAdmin FROM kibooking_users", []);
     return rows;
   }
 
   read(filter = {}) {
     let data = [];
-    let sql = "SELECT uuid, user, password, mail, name, isAdmin FROM kibooking_users WHERE 1";
+    let sql = "SELECT uuid, name, mail, isAdmin FROM kibooking_users WHERE 1";
     if (Object.keys(filter).length === 0) {
       sql += " AND uuid = ?";
       data.push(this.uuid);

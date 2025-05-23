@@ -18,7 +18,7 @@ router.route('/load-session')
 
 router.route("/")
   .get(getUsers)
-// .post(createUser);
+  .post(createUser);
 
 router.route("/:uuid")
   .get(getUser)

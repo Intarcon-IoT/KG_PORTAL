@@ -4,27 +4,25 @@ const User = require("../models/user");
 const userCtrl = {};
 
 
-// userCtrl.createUser = async (req, res) => {
-//   const { user, mail, name, password, isAdmin } = req.body;
+userCtrl.createUser = async (req, res) => {
+  const { name, mail, password } = req.body;
 
-//   if (!user || !mail || !name || !password) {
-//     return res.send({ message: "El nombre de usuario, mail, name y pass son obligatorios" });
-//   }
+  if ( !mail || !name || !password) {
+    return res.send({ message: "El nombre de usuario, mail, name y pass son obligatorios" });
+  }
 
-//   const newUser = new User(uuid.v4());
+  const newUser = new User(uuid.v4());
 
+  newUser.set(req.body);
 
-//   newRoom.set(req.body);
+  const result = await newUser.create();
 
-//   const result = await newRoom.create();
-
-//   if (result.error) {
-//     return res.json({ ok: false, message: "Error al crear la sala" });
-//   } else {
-//     return res.json(result);
-//   }
-// };
-
+  if (result.error) {
+    return res.json({ ok: false, message: "Error al crear la sala" });
+  } else {
+    return res.json(result);
+  }
+};
 
 userCtrl.getUsers = async (req, res) => {
   const user = new User();
@@ -36,7 +34,6 @@ userCtrl.getUsers = async (req, res) => {
     res.json(result);
   }
 };
-
 
 userCtrl.getUser = async (req, res) => {
   const uuid = req.params.uuid;
@@ -76,49 +73,5 @@ userCtrl.loadSession = async (req, res) => {
     return res.json(result);
   }
 };
-
-
-// roomCtrl.getRoomsByFacility = async (req, res) => {
-//   const facility_uuid = req.params.facility_uuid;
-
-//   const room = new Room();
-//   const filter = { 'facility_uuid': facility_uuid };
-//   const result = await room.read(filter);
-
-//   if (result.error) {
-//     return res.json({ ok: false, message: "Error al obtener las salas para la instalación" });
-//   } else {
-//     return res.json(result);
-//   }
-// };
-
-
-// roomCtrl.editRoom = async (req, res) => {
-//   const uuid = req.params.uuid;
-
-//   let room = new Room(uuid);
-//   room.set(req.body);  
-//   const result = await room.update();
-
-//   if (result.error) {
-//     return res.json({ ok: false, message: "Error al actualizar la sala" });
-//   } else {
-//     return res.json(result);
-//   }
-// };
-
-
-// roomCtrl.deleteRoom = async (req, res) => {
-//   const uuid = req.params.uuid;
-
-//   let room = new Room(uuid);
-//   const result = await room.delete();
-
-//   if (result.error) {
-//     return res.json({ ok: false, message: "Error al eliminar la sala" });
-//   } else {
-//     return res.json({ ok: true, message: "Sala eliminada correctamente" });
-//   }
-// };
 
 module.exports = userCtrl;
