@@ -17,7 +17,7 @@
       </v-card> -->
       <v-card flat class="pa-2 mt-4">
         <ResourceFilter
-          :roomsList="roomsList"
+          v-if="installationsList.length > 0"
           :installationsList="installationsList"
           @update:selectedFacilitiesUuid="handlerSelectedFacilitiesFilter"
         />
