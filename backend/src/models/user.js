@@ -54,7 +54,7 @@ class User {
 
   read(filter = {}) {
     let data = [];
-    let sql = "SELECT uuid, name, mail, isAdmin FROM kibooking_users WHERE 1";
+    let sql = "SELECT uuid, name, mail, password, isAdmin FROM kibooking_users WHERE 1";
     if (Object.keys(filter).length === 0) {
       sql += " AND uuid = ?";
       data.push(this.uuid);
