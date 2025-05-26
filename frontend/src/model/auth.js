@@ -56,8 +56,22 @@ class Auth {
   }
 
   async logout() {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       try{
+        let response;
+
+        const request = new Request({
+          endpoint: 'users/log-out',
+          method: 'POST',
+          body: JSON.stringify({ token: this.token }) 
+        });
+
+        await request.http().then(res => {
+          response = res;
+        }).catch(err => {
+          throw err;
+        })
+
         this.resetCredentials();
         localStorage.removeItem('session');
         resolve();
@@ -84,7 +98,6 @@ class Auth {
       throw err;
     }
   }
-
 
   async checkAuth({ token, role }) {
     let response;

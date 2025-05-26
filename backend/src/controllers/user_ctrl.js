@@ -79,4 +79,12 @@ userCtrl.loadSession = async (req, res) => {
   }
 };
 
+userCtrl.logOut = async (req, res) => {
+  const user = new User();
+  const { token } = req.body;
+
+  const result = await user.closeSession(token);
+  return res.json(result);
+};
+
 module.exports = userCtrl;

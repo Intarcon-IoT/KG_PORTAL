@@ -112,6 +112,11 @@ class User {
     }
   }
 
+  async closeSession(token) {
+    await cache.delRedis(token, true);
+    return { ok: true };
+  }
+
 }
 
 module.exports = User;

@@ -2,14 +2,12 @@ const { Router } = require("express");
 const router = Router();
 
 const {
-  signIn, loadSession,
+  signIn, logOut, loadSession,
   getUsers, getUser,
   createUser
 } = require("../controllers/user_ctrl");
 
 const { AuthMiddleware } = require('../middlewares/authMiddleware');
-
-router.use(AuthMiddleware);
 
 router.route('/sign-in')
   .post(signIn);
@@ -17,8 +15,8 @@ router.route('/sign-in')
 router.route('/load-session')
   .post(loadSession);
 
-// router.route('/log-out')
-//   .post(logOut);
+router.route('/log-out')
+  .post(AuthMiddleware, logOut);
 
 router.route("/")
   .get(AuthMiddleware, getUsers)
