@@ -4,8 +4,12 @@ const router = Router();
 const {
   signIn, loadSession,
   getUsers, getUser,
-  createUser, editUser, deleteUser
+  createUser
 } = require("../controllers/user_ctrl");
+
+const { AuthMiddleware } = require('../middlewares/authMiddleware');
+
+router.use(AuthMiddleware);
 
 router.route('/sign-in')
   .post(signIn);
@@ -17,12 +21,10 @@ router.route('/load-session')
 //   .post(logOut);
 
 router.route("/")
-  .get(getUsers)
-  .post(createUser);
+  .get(AuthMiddleware, getUsers)
+  .post(AuthMiddleware, createUser);
 
 router.route("/:uuid")
-  .get(getUser)
-// .put(editUser)
-// .delete(deleteUser);
+  .get(AuthMiddleware, getUser)
 
 module.exports = router;

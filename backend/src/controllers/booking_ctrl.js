@@ -21,7 +21,7 @@ bookingCtrl.createBooking = async (req, res) => {
     if (result.error) {
       return res.status(500).json({ ok: false, message: "Error al crear la reserva." });
     } else {
-      return res.status(201).json(result);
+      return res.status(201).json({ ok: true, message: "Reserva creada correctamente" });
     }
   } catch (error) {
     console.error("Error en createBooking:", error); 
@@ -94,6 +94,12 @@ bookingCtrl.editBooking = async (req, res) => {
   const uuid = req.params.uuid;
 
   let booking = new Booking(uuid);
+
+  const saved = await booking.read();
+  if (saved[0].user_uuid !== res.locals.user.uuid && !res.locals.user.isAdmin) {
+    return res.status(403).json({ ok: false, message: "No tienes permiso para editar esta reserva" });
+  }
+
   booking.set(req.body);  
   const result = await booking.update();
 
@@ -109,6 +115,12 @@ bookingCtrl.deleteBooking = async (req, res) => {
   const uuid = req.params.uuid;
 
   let booking = new Booking(uuid);
+
+  const saved = await booking.read();
+  if (saved[0].user_uuid !== res.locals.user.uuid && !res.locals.user.isAdmin) {
+    return res.status(403).json({ ok: false, message: "No tienes permiso para eliminar esta reserva" });
+  }
+
   const result = await booking.delete();
 
   if (result.error) {
