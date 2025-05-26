@@ -5,6 +5,11 @@ const userCtrl = {};
 
 
 userCtrl.createUser = async (req, res) => {
+
+  if (!res.locals.user.isAdmin) {
+    return res.status(403).json({ ok: false, message: "No tienes permiso para crear usuarios" });
+  }
+  
   const { name, mail, password } = req.body;
 
   if ( !mail || !name || !password) {
@@ -18,9 +23,9 @@ userCtrl.createUser = async (req, res) => {
   const result = await newUser.create();
 
   if (result.error) {
-    return res.json({ ok: false, message: "Error al crear la sala" });
+    return res.json({ ok: false, message: "Error al crear el usuario" });
   } else {
-    return res.json(result);
+    return res.json({ ok: true, message: "Usuario creado correctamente" });
   }
 };
 
