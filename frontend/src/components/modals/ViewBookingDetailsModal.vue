@@ -59,16 +59,62 @@
         </v-card-text>
       </v-card>
     </v-dialog>
-    <v-dialog v-model="deleteDialog" max-width="400">
-      <v-card class="pa-4 deleteDialog">
-        <v-card-title class="text-h6">Confirmar eliminación</v-card-title>
-        <v-card-text>
-          ¿Está seguro que desea eliminar la reserva "{{ booking.title }}"? Esta acción no se puede deshacer.
+    <v-dialog v-model="deleteDialog" max-width="400" transition="dialog-bottom-transition">
+      <v-card class="delete-dialog rounded-lg">
+        <div class="delete-header">
+          <v-avatar color="error" size="50" class="elevation-2">
+            <i class="fa-solid fa-trash-can fa-lg"></i>
+          </v-avatar>
+        </div>
+        
+        <v-card-title class="text-h5 text-center pt-4 pb-0">¿Eliminar reserva?</v-card-title>
+        
+        <v-card-text class="text-center pt-4 pb-0">
+          <p class="mb-3">Está a punto de eliminar la siguiente reserva:</p>
+          
+          <div class="booking-info-box">
+            <div class="booking-info-title">
+              <i class="fa-solid fa-calendar-day mr-2"></i>
+              {{ booking.title }}
+            </div>
+            <div class="booking-info-details">
+              <div class="info-row">
+                <span class="info-label">Fecha:</span>
+                <span class="info-value">{{ formatedDate }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Hora:</span>
+                <span class="info-value">{{ startTime }} - {{ endTime }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Sala:</span>
+                <span class="info-value">{{ roomSelected.name }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <p class="text-caption text-error mt-4 mb-0">Esta acción no se puede deshacer.</p>
         </v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn color="grey-darken-1" variant="text" @click="deleteDialog = false">Cancelar</v-btn>
-          <v-btn color="error" variant="text" @click="handleDelete">Eliminar</v-btn>
+        
+        <v-card-actions class="pb-6 pt-3 px-6 justify-center">
+          <v-btn 
+            color="grey-darken-1"
+            variant="outlined"
+            class="mx-2"
+            min-width="120"
+            @click="deleteDialog = false"
+          >
+            Cancelar
+          </v-btn>
+          <v-btn
+            color="error"
+            variant="elevated"
+            min-width="120"
+            class="mx-2"
+            @click="handleDelete"
+          >
+            Eliminar
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -174,5 +220,64 @@ watch(internalDialog, (val) => {
   height: 14px;
   border-radius: 4px;
   margin-right: 8px;
+}
+
+.delete-dialog {
+  overflow: hidden;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
+}
+
+.delete-header {
+  display: flex;
+  justify-content: center;
+  padding-top: 20px;
+}
+
+.text-error {
+  color: #f44336;
+  font-weight: 600;
+}
+
+.booking-info-box {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  margin: 0 auto;
+  background-color: #f5f5f5;
+  text-align: left;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.booking-info-title {
+  background-color: #eeeeee;
+  padding: 10px 15px;
+  font-weight: 600;
+  border-bottom: 1px solid #e0e0e0;
+  color: #333;
+}
+
+.booking-info-details {
+  padding: 12px 15px;
+}
+
+.info-row {
+  display: flex;
+  margin-bottom: 6px;
+}
+
+.info-row:last-child {
+  margin-bottom: 0;
+}
+
+.info-label {
+  width: 70px;
+  font-weight: 500;
+  color: #666;
+}
+
+.info-value {
+  flex: 1;
+  font-weight: 500;
+  color: #333;
 }
 </style>
