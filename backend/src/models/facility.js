@@ -39,7 +39,7 @@ class Facility {
   }
 
   async list() {
-    const rows = await mysqlAdapter.query("SELECT uuid, name, color FROM kibooking_facilities", []);
+    const rows = await mysqlAdapter.query("SELECT uuid, name, color FROM kibooking_facilities WHERE enabled = 1", []);
     return rows;
   }
 

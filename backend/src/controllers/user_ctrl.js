@@ -1,3 +1,5 @@
+const bcryptjs = require("bcryptjs");
+
 const uuid = require("uuid");
 const User = require("../models/user");
 
@@ -6,7 +8,7 @@ const userCtrl = {};
 
 userCtrl.createUser = async (req, res) => {
 
-  if (!res.locals.user.isAdmin) {
+  if (!res.locals.user?.isAdmin) {
     return res.status(403).json({ ok: false, message: "No tienes permiso para crear usuarios" });
   }
   
@@ -84,6 +86,16 @@ userCtrl.logOut = async (req, res) => {
   const { token } = req.body;
 
   const result = await user.closeSession(token);
+  return res.json(result);
+};
+
+userCtrl.changePassword = async (req, res) => {
+  const user = new User(req.params.uuid);
+  const { password } = req.body;
+  if (!password) {
+    return res.status(400).json({ ok: false, message: "La contraseña es obligatoria" });
+  }
+  const result = await user.update({ password: bcryptjs.hashSync(password, 0) });
   return res.json(result);
 };
 

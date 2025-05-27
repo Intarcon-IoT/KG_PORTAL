@@ -106,6 +106,8 @@ class Booking {
       data.push(filter.to_time);
     }
 
+    sql += " ORDER BY b.start_date, b.start_time";
+
     return mysqlAdapter.query(sql, data);
   }
 

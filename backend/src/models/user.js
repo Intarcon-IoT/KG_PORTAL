@@ -37,9 +37,9 @@ class User {
     return result;
   }
 
-  async update() {
-    const data = this.getData();
-    const result = await mysqlAdapter.query("UPDATE kibooking_users SET ? WHERE uuid = ?", [data, this.uuid]);
+  async update(userData = null) {
+    const data = userData ?? this.getData();
+    const result = await mysqlAdapter.query(`UPDATE kibooking_users SET ? WHERE uuid = '${this.uuid}'`, data);
     return result;
   }
 
