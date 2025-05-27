@@ -41,7 +41,7 @@ class Room {
   }
 
   async list() {
-    const rows = await mysqlAdapter.query("SELECT uuid, facility_uuid, name, capacity FROM kibooking_rooms", []);
+    const rows = await mysqlAdapter.query("SELECT uuid, facility_uuid, name, capacity FROM kibooking_rooms WHERE enabled = 1", []);
     return rows;
   }
 

@@ -15,7 +15,7 @@ const router = createRouter({
       children: [
         {
           path: 'calendar',
-          name: 'Calendar',
+          name: 'Calendario',
           meta: { icon: 'fa fa-calendar' },
           component: () => import('../views/CalendarView.vue'),
         }
