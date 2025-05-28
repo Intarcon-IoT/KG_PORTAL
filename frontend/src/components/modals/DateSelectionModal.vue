@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="dialog" max-width="500" transition="dialog-bottom-transition">
+  <v-dialog v-model="dialog" max-width="500" transition="dialog-bottom-transition" persistent>
     <v-card class="pa-4 rounded-xl">
       <v-card-title class="d-flex align-center position-relative text-subtitle-1 font-weight-medium text-grey-darken-3">
         <i class="fa-solid fa-arrow-left position-absolute start-5 fa-lg back-icon" @click="goBack"></i>

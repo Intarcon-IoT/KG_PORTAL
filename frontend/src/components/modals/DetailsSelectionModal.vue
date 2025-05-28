@@ -1,84 +1,54 @@
 <template>
-  <v-dialog v-model="dialog" max-width="600" transition="dialog-bottom-transition">
+  <v-dialog v-model="dialog" max-width="600" transition="dialog-bottom-transition" persistent>
     <v-card class="pa-4 rounded-xl">
       <v-card-title class="d-flex align-center position-relative text-subtitle-1 font-weight-medium text-grey-darken-3">
-        <i class="fa-solid fa-arrow-left position-absolute start-5 fa-lg back-icon" @click="goBack"></i>
-        <div class="w-100 text-center">Detalles de la Reserva</div>
-        <i class="fa-solid fa-xmark position-absolute fa-lg close-icon" @click="dialog = false"></i>
+        <i v-if="!isEditMode" class="fa-solid fa-arrow-left position-absolute start-5 fa-lg back-icon" @click="goBack"></i>
+        <div class="w-100 text-center">{{ isEditMode ? 'Editar Reserva' : 'Detalles de la Reserva' }}</div>
+        <i class="fa-solid fa-xmark position-absolute fa-lg close-icon" @click="cancelAndClose"></i>
       </v-card-title>
       <v-card-text class="dialog-content">
         <v-container>
           <v-row>
             <v-col cols="12">
-              <v-select
-                v-model="form.facility_uuid"
-                :items="props.installations"
-                item-title="name"
-                item-value="uuid"
-                label="Edificio"
-                @update:modelValue="onFacilityChange"
-              />
+              <v-select v-model="form.facility_uuid" :items="props.installations" item-title="name" item-value="uuid"
+                label="Edificio" @update:modelValue="onFacilityChange" />
             </v-col>
           </v-row>
           <v-row>
             <v-col cols="12">
-              <v-select
-                v-model="form.room_uuid"
-                :items="availableRooms"
-                item-title="name"
-                item-value="uuid"
-                label="Sala"
-              />
+              <v-select v-model="form.room_uuid" :items="availableRooms" item-title="name" item-value="uuid"
+                label="Sala" />
             </v-col>
           </v-row>
           <v-row>
             <v-col cols="6">
-              <v-text-field
-                v-model="form.dateFrom"
-                label="Desde"
-                type="date"
-                :min="today"
-              />
+              <v-text-field v-model="form.dateFrom" label="Desde" type="date" :min="today" />
             </v-col>
             <v-col cols="6">
-              <v-select
-                v-model="form.timeFrom"
-                label="Desde"
-                :items="timeIntervals"
-              />
+              <v-select v-model="form.timeFrom" label="Desde" :items="timeIntervals" />
             </v-col>
           </v-row>
           <v-row>
             <v-col cols="6">
-              <v-text-field
-                v-model="form.dateTo"
-                label="Hasta"
-                type="date"
-                :min="form.dateFrom || today"
-              />
+              <v-text-field v-model="form.dateTo" label="Hasta" type="date" :min="form.dateFrom || today" />
             </v-col>
             <v-col cols="6">
-              <v-select
-                v-model="form.timeTo"
-                label="Hasta"
-                :items="timeIntervals"
-              />
+              <v-select v-model="form.timeTo" label="Hasta" :items="timeIntervals" />
             </v-col>
           </v-row>
           <v-row>
             <v-col cols="12">
-              <v-text-field
+              <v-text-field 
                 v-model="form.title"
-                label="Título de la Reserva"
+                label="Título de la Reserva *"
+                :rules="[v => !!v || 'El título es obligatorio']"
+                required
               />
             </v-col>
           </v-row>
           <v-row>
             <v-col cols="12">
-              <v-textarea
-                v-model="form.details"
-                label="Detalles de la Reserva"
-              />
+              <v-textarea v-model="form.details" label="Detalles de la Reserva" />
             </v-col>
           </v-row>
         </v-container>
@@ -86,7 +56,7 @@
       <v-card-actions>
         <v-spacer />
         <v-btn color="primary" @click="confirmReservation" class="confirm-btn">
-          Confirmar Reserva
+          {{ isEditMode ? 'Actualizar Reserva' : 'Confirmar Reserva' }}
         </v-btn>
       </v-card-actions>
     </v-card>
@@ -94,7 +64,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useNotificationStore } from '@/store';
 
 const notificationStore = useNotificationStore()
@@ -104,15 +74,22 @@ const props = defineProps({
   bookingsList: Array,
   dialog: Boolean,
   installations: Array,
-  rooms: Array
+  rooms: Array,
+  isEditMode: {
+    default: false
+  },
+  editBooking: {
+    default: () => ({})
+  }
 })
 
-const emit = defineEmits(['update:dialog', 'confirmBooking', 'back'])
+const emit = defineEmits(['update:dialog', 'confirmBooking', 'back', 'cancelEdit'])
 
 const today = new Date().toISOString().substring(0, 10)
 const availableRooms = ref([])
 const timeIntervals = generateTimeIntervals()
 const dialog = ref(props.dialog)
+const isEditMode = computed(() => props.isEditMode)
 
 const form = ref({
   facility_uuid: '',
@@ -128,6 +105,15 @@ const form = ref({
 function goBack() {
   emit('update:dialog', false)
   emit('back')
+}
+
+function cancelAndClose() {
+  dialog.value = false
+  emit('update:dialog', false)
+  
+  if (isEditMode.value) {
+    emit('cancelEdit')
+  }
 }
 
 function generateTimeIntervals() {
@@ -177,26 +163,51 @@ function confirmReservation() {
   if (!isValidDateTimeRange()) {
     notificationStore.notifyWarning('La fecha/hora de finalización no puede ser anterior a la de inicio.');
     return
-}
+  }
 
+  if (!form.value.title.trim()) {
+    notificationStore.notifyWarning('El título de la reserva es obligatorio.');
+    return;
+  }
+
+  // isEditMode = false;
   emit('update:dialog', false)
-  emit('confirmBooking', { ...form.value })
+  emit('confirmBooking', { ...form.value, isEditCompleted: isEditMode.value })
 }
 
 watch(() => props.dialog, (val) => {
   dialog.value = val
 
   if (val) {
-    form.value.facility_uuid = props.booking.facility.uuid || ''
-    form.value.room_uuid = props.booking.room.uuid || ''
-    form.value.dateFrom = toDateString(props.booking.date) || ''
-    form.value.timeFrom = props.booking.time || ''
-    form.value.dateTo = toDateString(props.booking.date) || ''
-    form.value.timeTo = addOneHour(props.booking.time || '00:00')
-    form.value.title = ''
-    form.value.details = ''
+    if (props.isEditMode && props.editBooking) {
+      const roomData = props.rooms.find(room => room.uuid === props.editBooking.room_uuid) || {}
+      const facilityUuid = roomData.facility_uuid
 
-    availableRooms.value = props.rooms.filter(room => room.facility_uuid === props.booking.facility.uuid)
+      const formatTime = (time) => time ? time.split(':').slice(0, 2).join(':') : '';
+
+      form.value.facility_uuid = facilityUuid || ''
+      form.value.room_uuid = props.editBooking.room_uuid || ''
+      form.value.dateFrom = toDateString(props.editBooking.start_date) || ''
+      form.value.timeFrom = formatTime(props.editBooking.start_time) || ''
+      form.value.dateTo = toDateString(props.editBooking.end_date) || ''
+      form.value.timeTo = formatTime(props.editBooking.end_time) || ''
+      form.value.title = props.editBooking.title || ''
+      form.value.details = props.editBooking.details || ''
+      console.log(isEditMode.value, props.editBooking)
+
+      availableRooms.value = props.rooms.filter(room => room.facility_uuid === facilityUuid)
+    } else {
+      form.value.facility_uuid = props.booking.facility?.uuid || ''
+      form.value.room_uuid = props.booking.room?.uuid || ''
+      form.value.dateFrom = toDateString(props.booking.date) || ''
+      form.value.timeFrom = props.booking.time || ''
+      form.value.dateTo = toDateString(props.booking.date) || ''
+      form.value.timeTo = addOneHour(props.booking.time || '00:00')
+      form.value.title = ''
+      form.value.details = ''
+
+      availableRooms.value = props.rooms.filter(room => room.facility_uuid === props.booking.facility?.uuid)
+    }
   }
 })
 

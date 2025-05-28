@@ -71,8 +71,13 @@
                 <v-tooltip
                   activator="parent"
                   location="end"
+                  class="custom-tooltip"
+                  max-width="300"
                 >
-                  {{event.title}} ({{formatTime(event.start_time)}} - {{formatTime(event.end_time)}})
+                        <div class="tooltip-content">
+        <div class="tooltip-title">{{ event.title }}</div>
+        <div class="tooltip-time">{{ formatTime(event.start_time) }} - {{ formatTime(event.end_time) }}</div>
+      </div>
                 </v-tooltip>
                 {{ formatTime(event.start_time) }} - {{ formatTime(event.end_time) }}
                 <br />
@@ -237,6 +242,30 @@ function formatTime(time) {
   display: flex;
   flex-direction: column;
   justify-content: center;
+}
+
+.custom-tooltip .v-overlay__content {
+  max-width: 300px !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  white-space: normal !important;
+}
+
+.tooltip-content {
+  padding: 4px;
+}
+
+.tooltip-title {
+  font-weight: bold;
+  word-break: break-word;
+  max-width: 100%;
+  line-height: 1.3;
+  margin-bottom: 4px;
+}
+
+.tooltip-time {
+  font-size: 0.9em;
+  opacity: 0.9;
 }
 
 .capacity-badge {

@@ -1,7 +1,6 @@
 const mysqlAdapter = require("../utils/mysqlAdapter");
 
 class Booking {
-
   constructor(uuid, user_uuid) {
     this.uuid = uuid;
     this.user_uuid = user_uuid;
@@ -38,27 +37,39 @@ class Booking {
     };
     return data;
   }
-  
+
   async create() {
     const data = this.get();
-    const result = await mysqlAdapter.query("INSERT INTO kibooking_bookings set ? ", data);
+    const result = await mysqlAdapter.query(
+      "INSERT INTO kibooking_bookings set ? ",
+      data
+    );
     return result;
   }
 
   async update() {
     const data = this.get();
-    const result = await mysqlAdapter.query("UPDATE kibooking_bookings set ? WHERE uuid = ?", [data, this.uuid]);
+    delete data.uuid;
+    delete data.user_uuid;
+
+    const result = await mysqlAdapter.query(
+      "UPDATE kibooking_bookings set ? WHERE uuid = ?",
+      [data, this.uuid]
+    );
     return result;
   }
 
   async delete() {
-    const result = await mysqlAdapter.query("DELETE FROM kibooking_bookings WHERE uuid = ?", [this.uuid]);
+    const result = await mysqlAdapter.query(
+      "DELETE FROM kibooking_bookings WHERE uuid = ?",
+      [this.uuid]
+    );
     return result;
   }
 
   async list(filter = {}) {
     let data = [];
-    let sql = `SELECT b.uuid, b.user_uuid, b.room_uuid, b.start_date, b.end_date, b.start_time, b.end_time, b.title, b.details, u.name 
+    let sql = `SELECT b.uuid, b.user_uuid, b.room_uuid, b.start_date, b.end_date, b.start_time, b.end_time, b.title, b.details, b.updated_ts, u.name 
                                             FROM kibooking_bookings AS b 
                                             LEFT JOIN kibooking_users AS u ON u.uuid = b.user_uuid 
                                             WHERE 1`;
@@ -113,8 +124,9 @@ class Booking {
 
   read(filter = {}) {
     let data = [];
-    let sql = "SELECT uuid, user_uuid, room_uuid, start_date, end_date, start_time, end_time, title, details FROM kibooking_bookings WHERE 1";
-    
+    let sql =
+      "SELECT uuid, user_uuid, room_uuid, start_date, end_date, start_time, end_time, title, details, updated_ts FROM kibooking_bookings WHERE 1";
+
     if (Object.keys(filter).length === 0) {
       sql += " AND uuid = ?";
       data.push(this.uuid);
@@ -126,7 +138,7 @@ class Booking {
     }
 
     return mysqlAdapter.query(sql, data);
-  };
+  }
 }
 
 module.exports = Booking;
