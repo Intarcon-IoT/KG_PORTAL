@@ -37,5 +37,7 @@ app.use("/users", require("./routes/users"));
 app.use("/bookings", require("./routes/bookings"));
 app.use("/system", require("./routes/system"));
 
+app.use("/v0/rooms", require("./routes/v0/rooms"));
+
 
 module.exports = app;

@@ -1,5 +1,6 @@
 const uuid = require("uuid");
 const Room = require("../models/room");
+const LegacyRoom = require("../models/Legacy/legacyRoom");
 
 const roomCtrl = {};
 
@@ -91,6 +92,15 @@ roomCtrl.deleteRoom = async (req, res) => {
   } else {
     return res.json({ ok: true, message: "Sala eliminada correctamente" });
   }
+};
+
+roomCtrl.getCurrentInfoRoom = async (req, res) => {
+  const uuid = req.params.uuid;
+
+  const room = new LegacyRoom(uuid);
+  const currentInfoRoom = await room.getCurrentInfoRoom();
+
+  return res.json(currentInfoRoom);
 };
 
 module.exports = roomCtrl;
