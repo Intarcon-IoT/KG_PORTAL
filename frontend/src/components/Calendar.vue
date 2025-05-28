@@ -3,10 +3,10 @@
     <div class="sidebar">
       <v-card flat class="pa-2">
         <MiniMonthView 
-          :selected-date="selectedDate"
-          @dateSelected="selectedDate = $event"
+          :selected-date="selectedDate" 
+          @dateSelected="selectedDate = $event" 
           @previous="navigatePrevious"
-          @next="navigateNext"
+          @next="navigateNext" 
         />
       </v-card>
       <!-- <v-card flat class="pa-2 mt-4">
@@ -16,23 +16,25 @@
         />
       </v-card> -->
       <v-card flat class="pa-2 mt-4">
-        <ResourceFilter
-          v-if="installationsList.length > 0"
+        <ResourceFilter 
+          v-if="installationsList.length > 0" 
           :installationsList="installationsList"
-          @update:selectedFacilitiesUuid="handlerSelectedFacilitiesFilter"
+          @update:selectedFacilitiesUuid="handlerSelectedFacilitiesFilter" 
         />
         <!-- selectedBuildingIds -->
       </v-card>
       <v-card flat class="pa-2 mt-4">
-        <UserOnlySwitch v-model="showOnlyMine" />
+        <UserOnlySwitch 
+          v-model="showOnlyMine" 
+        />
       </v-card>
     </div>
     <div class="main-content">
-      <CalendarHeader
-        :view="currentView"
-        @previous="navigatePrevious"
-        @next="navigateNext"
-        @today="goToToday"
+      <CalendarHeader 
+        :view="currentView" 
+        @previous="navigatePrevious" 
+        @next="navigateNext" 
+        @today="goToToday" 
       />
       <div class="calendar-body">
         <!-- <DayView
@@ -41,14 +43,14 @@
           :resources="filteredResources"
           :events="allEvents"
         /> -->
-        <WeekView
-          v-if="currentView === 'week'"
-          :selected-date="selectedDate"
+        <WeekView 
+          v-if="currentView === 'week'" 
+          :selected-date="selectedDate" 
           :selectedFacilities="selectedFacilities"
-          :selectedRooms="selectedRooms"
-          :bookingsList="bookingsList"
+          :selectedRooms="selectedRooms" 
+          :bookingsList="bookingsList" 
           @booking_click="handleBookingDetailsView"
-          @empty_cell_click="handleNewBookingFromCalendar"
+          @empty_cell_click="handleNewBookingFromCalendar" 
         />
         <!-- <MonthView
           v-if="currentView === 'month'"
@@ -60,11 +62,10 @@
           :events="allEvents"
         /> -->
       </div>
-      <v-btn
-        class="fab-add-event"
-        icon
-        color="primary"
-        @click="showFacilityModal = true"
+      <v-btn 
+        class="fab-add-event" 
+        icon color="primary" 
+        @click="showFacilityModal = true" 
         elevation="6"
       >
         <i class="fa-solid fa-plus"></i>
@@ -74,13 +75,13 @@
         :installations="installationsList"
         @next="handleSelectedFacility"
       />
-      <RoomSelectionModal
+      <RoomSelectionModal 
         v-model:dialog="showRoomModal"
         :rooms="availableRooms"
         @next="handleRoomSelected"
         @back="handleBackToFacilityModal"
       />
-      <DateSelectionModal
+      <DateSelectionModal 
         v-model:dialog="showDateModal"
         :booking="bookingsList"
         :selectedRoom="booking.room"
@@ -88,20 +89,24 @@
         @next="handleDateSelected"
         @back="handleBackToRoomModal"
       />
-      <DetailsSelectionModal
-        v-model:dialog="showDetailsModal"
+      <DetailsSelectionModal 
+        v-model:dialog="showDetailsModal" 
         :booking="booking"
         :bookingsList="bookingsList"
         :installations="installationsList"
         :rooms="roomsList"
+        :isEditMode="isEditingMode"
+        :editBooking="selectedEditBooking"
         @back="handleBackToDateModal"
         @confirmBooking="handleBooking"
+        @cancelEdit="handleCancelEdit"
       />
-      <ViewBookingDetailsModal
+      <ViewBookingDetailsModal 
         v-model:dialog="showBookingDetailsModal"
         :booking="bookingDetails"
         :rooms="roomsList"
         :facilities="installationsList"
+        @edit="handleEditBooking"
         @delete="deleteBooking"
       />
     </div>
@@ -125,7 +130,7 @@ import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { v4 as uuidv4 } from 'uuid';
 import UserOnlySwitch from './filters/UserOnlySwitch.vue';
 import Request from "@/model/request";
-import { useNotificationStore,sessionStore } from '@/store';
+import { useNotificationStore, sessionStore } from '@/store';
 import { fa } from 'vuetify/locale';
 
 // SHOW MODALS
@@ -194,7 +199,7 @@ onMounted(async () => {
   await requestFacilities.http().then(res => {
     installationsList.value = res.sort((a, b) => a.name.localeCompare(b.name));;
   })
-  .catch(err => notificationStore.notifyError(err.message))
+    .catch(err => notificationStore.notifyError(err.message))
 
   const requestRooms = new Request({
     endpoint: 'rooms',
@@ -203,25 +208,43 @@ onMounted(async () => {
   await requestRooms.http().then(res => {
     roomsList.value = res;
   })
-  .catch(err => notificationStore.notifyError(err.message))
+    .catch(err => notificationStore.notifyError(err.message))
 
   loadBookings();
 });
 
 async function loadBookings() {
-    const request = new Request({
-      endpoint: 'bookings',
-      method: 'GET'
-    });
+  const request = new Request({
+    endpoint: 'bookings',
+    method: 'GET'
+  });
 
-    await request.http().then(res => {
-      bookingsList.value = res;
-    })
+  await request.http().then(res => {
+    bookingsList.value = res;
+  })
     .catch(err => notificationStore.notifyError(err.message))
 }
 
 // HANDLERS
+function resetBooking() {
+  booking.facility = null;
+  booking.room = null;
+  booking.date = null;
+  booking.time = null;
+  booking.title = null;
+  booking.details = null;
+  booking.user_uuid = null;
+}
+
+function handleCancelEdit() {
+  isEditingMode.value = false;
+  selectedEditBooking.value = null;
+}
+
 function handleNewBookingFromCalendar(room, date) {
+  resetBooking();
+  isEditingMode.value = false;
+  selectedEditBooking.value = null;
   booking.facility = installationsList.value.find(facility => facility.uuid === room.facility_uuid);
   booking.room = room;
   booking.date = date;
@@ -234,6 +257,8 @@ function handlerSelectedFacilitiesFilter(selectedFacilitiesArray) {
 
 function handleSelectedFacility(facility) {
   booking.facility = facility;
+  booking.title = null;
+  booking.details = null;
   availableRooms.value = roomsList.value.filter(room => room.facility_uuid === facility.uuid);
 
   showFacilityModal.value = false
@@ -271,62 +296,106 @@ function handleBackToDateModal() {
 }
 
 function handleBookingDetailsView(booking, room, isPast) {
+  resetBooking();
+  isEditingMode.value = false;
+  selectedEditBooking.value = null;
+  
   showBookingDetailsModal.value = true;
   bookingDetails.value = booking;
 
   bookingDetails.value.isReadOnly = isPast;
 }
 
-function handleBooking(bookingData) {
-  const newBooking = {
-    room_uuid: bookingData.room_uuid,
-    start_date: bookingData.dateFrom,
-    end_date: bookingData.dateTo,
-    start_time: bookingData.timeFrom,
-    end_time: bookingData.timeTo,
-    title: bookingData.title,
-    details: bookingData.details
-  };
-
-  saveBooking(newBooking);
-  notificationStore.notifySuccess('Reserva creada con éxito');
-}
-
 async function saveBooking(newBooking) {
-  const request = new Request({
-    endpoint: 'bookings',
-    method: 'POST',
-    body: JSON.stringify(newBooking),
-  });
+  try {
+    const request = new Request({
+      endpoint: 'bookings',
+      method: 'POST',
+      body: JSON.stringify(newBooking),
+    });
 
-  await request.http().then(res => {
-    loadBookings();
-  })
-  .catch(err => notificationStore.notifyError(err.message))
+    await request.http();
+    await loadBookings();  // Asegurarnos de recargar las reservas después de guardar
+    notificationStore.notifySuccess('Reserva creada con éxito');
+  } catch (err) {
+    console.error('Error al crear la reserva:', err);
+    notificationStore.notifyError(err.message || 'Error al crear la reserva');
+  }
 }
 
-// function editBooking(booking) {
-//   selectedEditBooking.value = booking;
-//   isEditingMode.value = true;
-//   showEditModal.value = true;
-// }
+function handleBooking(bookingData) {
+  const isEditCompleted = bookingData.isEditCompleted;
+  
+  // Eliminar la propiedad adicional antes de procesar
+  delete bookingData.isEditCompleted;
+  if (isEditingMode.value) {
+    updateBooking({
+      uuid: selectedEditBooking.value.uuid,
+      user_uuid: selectedEditBooking.value.user_uuid,
+      ...bookingData
+    });
+    // Resetear el modo de edición después de la actualización
+    isEditingMode.value = false;
+    selectedEditBooking.value = null;
+  } else {
+    const newBooking = {
+      room_uuid: bookingData.room_uuid,
+      start_date: bookingData.dateFrom,
+      end_date: bookingData.dateTo,
+      start_time: bookingData.timeFrom,
+      end_time: bookingData.timeTo,
+      title: bookingData.title,
+      details: bookingData.details
+    };
 
-// const updateBooking = async (updatedBooking) => {
-//   try {
-//     const request = new Request({
-//       endpoint: `bookings/${updatedBooking.uuid}`,
-//       method: 'PUT',
-//       body: JSON.stringify(updatedBooking)
-//     });
-    
-//     await request.http();
-//     notificationStore.notifySuccess('Reserva actualizada con éxito');
-//     loadBookings();
-//   } catch (error) {
-//     console.error('Error al actualizar la reserva:', error);
-//     notificationStore.notifyError('Error al actualizar la reserva');
-//   }
-// }
+    saveBooking(newBooking);
+  }
+}
+
+function handleEditBooking(bookingToEdit) {
+  selectedEditBooking.value = bookingToEdit;
+  isEditingMode.value = true;
+
+  // Preparar los datos para el modal de detalles
+  booking.facility = installationsList.value.find(facility =>
+    facility.uuid === roomsList.value.find(room =>
+      room.uuid === bookingToEdit.room_uuid)?.facility_uuid
+  );
+  booking.room = roomsList.value.find(room => room.uuid === bookingToEdit.room_uuid);
+  booking.date = bookingToEdit.start_date;
+  booking.time = bookingToEdit.start_time;
+  booking.title = bookingToEdit.title;
+  booking.details = bookingToEdit.details;
+  booking.user_uuid = bookingToEdit.user_uuid;
+
+  showBookingDetailsModal.value = false;
+  showDetailsModal.value = true;
+}
+
+const updateBooking = async (updatedBooking) => {
+  try {
+    const request = new Request({
+      endpoint: `bookings/${updatedBooking.uuid}`,
+      method: 'PUT',
+      body: JSON.stringify({
+        room_uuid: updatedBooking.room_uuid,
+        start_date: updatedBooking.dateFrom,
+        end_date: updatedBooking.dateTo,
+        start_time: updatedBooking.timeFrom,
+        end_time: updatedBooking.timeTo,
+        title: updatedBooking.title,
+        details: updatedBooking.details,
+      })
+    });
+
+    await request.http();
+    notificationStore.notifySuccess('Reserva actualizada con éxito');
+    loadBookings();
+  } catch (error) {
+    console.error('Error al actualizar la reserva:', error);
+    notificationStore.notifyError('Error al actualizar la reserva');
+  }
+}
 
 const deleteBooking = async (bookingId) => {
   try {
@@ -347,7 +416,7 @@ const deleteBooking = async (bookingId) => {
 
 // NAVIGATION
 function navigatePrevious() {
-  const d = new Date(selectedDate.value); 
+  const d = new Date(selectedDate.value);
   if (currentView.value === 'month') {
     d.setMonth(d.getMonth() - 1);
   } else if (currentView.value === 'week') {
@@ -413,7 +482,7 @@ watch(showOnlyMine, (val) => {
 }
 
 .main-content {
-  flex-grow: 1; 
+  flex-grow: 1;
   display: flex;
   flex-direction: column;
   height: 100%;

@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="internalDialog" max-width="500" transition="dialog-bottom-transition">
+  <v-dialog v-model="internalDialog" max-width="500" transition="dialog-bottom-transition" persistent>
     <v-card class="pa-4 rounded-xl">
       <v-card-title class="d-flex align-center position-relative text-subtitle-1 font-weight-medium text-grey-darken-3">
         <div class="w-100 text-center">Selecciona una instalación</div>
