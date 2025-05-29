@@ -7,27 +7,13 @@ const bookingCtrl = {};
 
 bookingCtrl.createBooking = async (req, res) => {
   try {
-    const { room_uuid, start_date, end_date, start_time, end_time, title } = req.body;
-
-    if (!room_uuid || !start_date || !end_date || !start_time || !end_time || !title) {
-      return res.status(400).json({ message: "El usuario, sala, fecha y hora, y título son obligatorios." });
-    }
-    if(new Date(start_date) > new Date(end_date)) {
-      return res.status(400).json({ message: "La fecha de inicio no puede ser posterior a la fecha de fin." });
-    }
-    if(new Date(start_time) >= new Date(end_time)) {
-      return res.status(400).json({ message: "La hora de inicio no puede ser igual o posterior a la hora de fin." });
-    }
-    if (new Date(start_date) < new Date() || new Date(end_date) < new Date()) {
-      return res.status(400).json({ message: "La fecha de inicio y de fin no pueden ser anteriores a la fecha actual." });
-    }
-
     const newBooking = new Booking(uuid.v4(), res.locals.user.uuid);
     newBooking.set(req.body);
 
-    const isValid = await newBooking.validRange();
-    if(!isValid) {
-      return res.status(400).json({ message: "La reserva se solapa con alguna ya existente" });
+    const validation = newBooking.validate();
+
+    if (!validation.valid) {
+      return res.status(400).json({ message: validation.error });
     }
 
     const result = await newBooking.create();
@@ -58,21 +44,6 @@ const filter = req.query;
   }
 };
 
-//TODO
-bookingCtrl.getBookingsByRoomAndDay = async (req, res) => {
-  const room_uuid = req.params.room_uuid;
-  const date = req.params.date;
-
-  const booking = new Booking();
-  const filter = { 'room_uuid': room_uuid, 'start_date': date };
-  const result = await booking.read(filter);
-
-  if (result.error) {
-    return res.json({ ok: false, message: "Error al obtener las reservas" });
-  } else {
-    return res.json(result);
-  }
-}
 
 bookingCtrl.getBooking = async (req, res) => {
   const uuid = req.params.uuid;
@@ -88,22 +59,6 @@ bookingCtrl.getBooking = async (req, res) => {
 };
 
 
-bookingCtrl.getBookingByUser = async (req, res) => {
-  const user_uuid = req.params.user_uuid;
-
-  const booking = new Booking();
-  const filter = { 'user_uuid': user_uuid };
-  const result = await booking.read(filter);
-
-  if (result.error) {
-    return res.json({ ok: false, message: "Error al obtener las reservas del usuario" });
-  } else {
-    return res.json(result);
-  }
-};
-
-
-//TODO: que solo los dueños o admin puedan editar y que dguarde lo anterior si no se cambia. 
 bookingCtrl.editBooking = async (req, res) => {
   const uuid = req.params.uuid;
 
@@ -115,6 +70,12 @@ bookingCtrl.editBooking = async (req, res) => {
   }
 
   booking.set(req.body);  
+
+  const validation = booking.validate();
+  if (!validation.valid) {
+    return res.status(400).json({ message: validation.error });
+  }
+
   const result = await booking.update();
 
   if (result.error) {

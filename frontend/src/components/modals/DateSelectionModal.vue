@@ -136,7 +136,7 @@ const weekRangeText = computed(() => {
 
 function goBack() {
   emit('update:dialog', false)
-  emit('back')
+  emit('back', props.bookingInfo.facility);
 }
 
 function goToPreviousWeek() {
@@ -182,8 +182,8 @@ function isBooked(hour) {
   const endOfBlock = moment(hour, 'HH:mm').add(1, 'hour');
 
   return bookingsOnDay.value.some(booking => {
-    const bookingStart = moment(booking.start_time, 'HH:mm:ss');
-    const bookingEnd = moment(booking.end_time, 'HH:mm:ss');
+    const bookingStart = moment(booking.start_time, 'HH:mm');
+    const bookingEnd = moment(booking.end_time, 'HH:mm');
 
     return bookingStart.isBefore(endOfBlock) && bookingEnd.isAfter(startOfBlock);
   });

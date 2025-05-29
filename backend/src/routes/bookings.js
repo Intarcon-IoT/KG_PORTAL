@@ -23,7 +23,4 @@ router.route("/:uuid")
   .put(editBooking)
   .delete(deleteBooking);
 
-router.route("/user/:user_uuid")
-  .get(getBookingByUser);
-
 module.exports = router;

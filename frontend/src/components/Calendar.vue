@@ -96,7 +96,6 @@
         :installations="installationsList"
         :rooms="roomsList"
         :isEditMode="isEditingMode"
-        :editBooking="selectedEditBooking"
         @back="handleBackToDateModal"
         @confirmBooking="handleBooking"
         @cancelEdit="handleCancelEdit"
@@ -127,11 +126,9 @@ import ViewBookingDetailsModal from './modals/ViewBookingDetailsModal.vue';
 import ResourceFilter from './filters/ResourceFilter.vue';
 import CalendarViewSelector from './calendar-navigation/CalendarViewSelector.vue';
 import { ref, reactive, computed, watch, onMounted } from 'vue';
-import { v4 as uuidv4 } from 'uuid';
 import UserOnlySwitch from './filters/UserOnlySwitch.vue';
 import Request from "@/model/request";
 import { useNotificationStore, sessionStore } from '@/store';
-import { fa } from 'vuetify/locale';
 
 // SHOW MODALS
 const showFacilityModal = ref(false);
@@ -139,7 +136,6 @@ const showRoomModal = ref(false);
 const showDateModal = ref(false);
 const showDetailsModal = ref(false);
 const showBookingDetailsModal = ref(false);
-const showEditModal = ref(false);
 
 // DATA
 const installationsList = ref([]);
@@ -149,7 +145,6 @@ const bookingsList = ref([]);
 // MODALS DATA
 const availableRooms = ref([]);
 const bookingDetails = ref(null);
-const selectedEditBooking = ref(null);
 const isEditingMode = ref(false);
 
 // STORE
@@ -183,10 +178,15 @@ const selectedDate = ref(new Date());
 
 // OBJETO RESERVA TEMPORAL
 const booking = reactive({
+  uuid: null,
   facility: null,
   room: null,
   date: null,
   time: null,
+  dateTo: null,
+  timeTo: null,
+  title: null,
+  details: null,
 });
 
 
@@ -197,7 +197,7 @@ onMounted(async () => {
     method: 'GET'
   });
   await requestFacilities.http().then(res => {
-    installationsList.value = res.sort((a, b) => a.name.localeCompare(b.name));;
+    installationsList.value = res.sort((a, b) => a.name.localeCompare(b.name));
   })
     .catch(err => notificationStore.notifyError(err.message))
 
@@ -227,24 +227,19 @@ async function loadBookings() {
 
 // HANDLERS
 function resetBooking() {
+  booking.uuid = null;
   booking.facility = null;
   booking.room = null;
   booking.date = null;
   booking.time = null;
+  booking.dateTo = null;
+  booking.timeTo = null;
   booking.title = null;
   booking.details = null;
-  booking.user_uuid = null;
-}
-
-function handleCancelEdit() {
-  isEditingMode.value = false;
-  selectedEditBooking.value = null;
 }
 
 function handleNewBookingFromCalendar(room, date) {
   resetBooking();
-  isEditingMode.value = false;
-  selectedEditBooking.value = null;
   booking.facility = installationsList.value.find(facility => facility.uuid === room.facility_uuid);
   booking.room = room;
   booking.date = date;
@@ -278,7 +273,8 @@ function handleRoomSelected(room) {
   showDateModal.value = true
 }
 
-function handleBackToRoomModal() {
+function handleBackToRoomModal(facility) {
+  availableRooms.value = roomsList.value.filter(room => room.facility_uuid === facility.uuid);
   showDateModal.value = false
   showRoomModal.value = true
 }
@@ -295,10 +291,9 @@ function handleBackToDateModal() {
   showDateModal.value = true
 }
 
-function handleBookingDetailsView(booking, room, isPast) {
+function handleBookingDetailsView(booking, isPast) {
   resetBooking();
   isEditingMode.value = false;
-  selectedEditBooking.value = null;
   
   showBookingDetailsModal.value = true;
   bookingDetails.value = booking;
@@ -306,37 +301,20 @@ function handleBookingDetailsView(booking, room, isPast) {
   bookingDetails.value.isReadOnly = isPast;
 }
 
-async function saveBooking(newBooking) {
-  try {
-    const request = new Request({
-      endpoint: 'bookings',
-      method: 'POST',
-      body: JSON.stringify(newBooking),
-    });
-
-    await request.http();
-    await loadBookings();  // Asegurarnos de recargar las reservas después de guardar
-    notificationStore.notifySuccess('Reserva creada con éxito');
-  } catch (err) {
-    console.error('Error al crear la reserva:', err);
-    notificationStore.notifyError(err.message || 'Error al crear la reserva');
-  }
-}
-
 function handleBooking(bookingData) {
-  const isEditCompleted = bookingData.isEditCompleted;
-  
-  // Eliminar la propiedad adicional antes de procesar
-  delete bookingData.isEditCompleted;
   if (isEditingMode.value) {
-    updateBooking({
-      uuid: selectedEditBooking.value.uuid,
-      user_uuid: selectedEditBooking.value.user_uuid,
-      ...bookingData
-    });
-    // Resetear el modo de edición después de la actualización
+    const newBooking = {
+      uuid: bookingData.uuid,
+      room_uuid: bookingData.room_uuid,
+      start_date: bookingData.dateFrom,
+      end_date: bookingData.dateTo,
+      start_time: bookingData.timeFrom,
+      end_time: bookingData.timeTo,
+      title: bookingData.title,
+      details: bookingData.details
+    };
+    updateBooking(newBooking);
     isEditingMode.value = false;
-    selectedEditBooking.value = null;
   } else {
     const newBooking = {
       room_uuid: bookingData.room_uuid,
@@ -347,29 +325,9 @@ function handleBooking(bookingData) {
       title: bookingData.title,
       details: bookingData.details
     };
-
     saveBooking(newBooking);
   }
-}
-
-function handleEditBooking(bookingToEdit) {
-  selectedEditBooking.value = bookingToEdit;
-  isEditingMode.value = true;
-
-  // Preparar los datos para el modal de detalles
-  booking.facility = installationsList.value.find(facility =>
-    facility.uuid === roomsList.value.find(room =>
-      room.uuid === bookingToEdit.room_uuid)?.facility_uuid
-  );
-  booking.room = roomsList.value.find(room => room.uuid === bookingToEdit.room_uuid);
-  booking.date = bookingToEdit.start_date;
-  booking.time = bookingToEdit.start_time;
-  booking.title = bookingToEdit.title;
-  booking.details = bookingToEdit.details;
-  booking.user_uuid = bookingToEdit.user_uuid;
-
-  showBookingDetailsModal.value = false;
-  showDetailsModal.value = true;
+  resetBooking();
 }
 
 const updateBooking = async (updatedBooking) => {
@@ -377,15 +335,7 @@ const updateBooking = async (updatedBooking) => {
     const request = new Request({
       endpoint: `bookings/${updatedBooking.uuid}`,
       method: 'PUT',
-      body: JSON.stringify({
-        room_uuid: updatedBooking.room_uuid,
-        start_date: updatedBooking.dateFrom,
-        end_date: updatedBooking.dateTo,
-        start_time: updatedBooking.timeFrom,
-        end_time: updatedBooking.timeTo,
-        title: updatedBooking.title,
-        details: updatedBooking.details,
-      })
+      body: JSON.stringify(updatedBooking)
     });
 
     await request.http();
@@ -397,9 +347,50 @@ const updateBooking = async (updatedBooking) => {
   }
 }
 
+async function saveBooking(newBooking) {
+  try {
+    const request = new Request({
+      endpoint: 'bookings',
+      method: 'POST',
+      body: JSON.stringify(newBooking),
+    });
+
+    await request.http();
+    await loadBookings();
+    notificationStore.notifySuccess('Reserva creada con éxito');
+  } catch (err) {
+    console.error('Error al crear la reserva:', err);
+    notificationStore.notifyError(err.message || 'Error al crear la reserva');
+  }
+}
+
+function handleEditBooking(bookingToEdit) {
+  isEditingMode.value = true;
+
+  booking.uuid = bookingToEdit.uuid;
+  booking.facility = installationsList.value.find(facility =>
+    facility.uuid === roomsList.value.find(room =>
+      room.uuid === bookingToEdit.room_uuid)?.facility_uuid
+  );
+  booking.room = roomsList.value.find(room => room.uuid === bookingToEdit.room_uuid);
+  booking.date = bookingToEdit.start_date;
+  booking.time = bookingToEdit.start_time;
+  booking.dateTo = bookingToEdit.end_date;
+  booking.timeTo = bookingToEdit.end_time;
+  booking.title = bookingToEdit.title;
+  booking.details = bookingToEdit.details;
+
+  showBookingDetailsModal.value = false;
+  showDetailsModal.value = true;
+}
+
+function handleCancelEdit() {
+  isEditingMode.value = false;
+  resetBooking();
+}
+
 const deleteBooking = async (bookingId) => {
   try {
-    // Llamada a tu API para eliminar la reserva usando Request
     const request = new Request({
       endpoint: `bookings/${bookingId}`,
       method: 'DELETE'
