@@ -7,14 +7,28 @@ const bookingCtrl = {};
 
 bookingCtrl.createBooking = async (req, res) => {
   try {
-    const { room_uuid, start_date, end_date, start_time, end_time, title, details } = req.body;
+    const { room_uuid, start_date, end_date, start_time, end_time, title } = req.body;
 
     if (!room_uuid || !start_date || !end_date || !start_time || !end_time || !title) {
       return res.status(400).json({ message: "El usuario, sala, fecha y hora, y título son obligatorios." });
     }
+    if(new Date(start_date) > new Date(end_date)) {
+      return res.status(400).json({ message: "La fecha de inicio no puede ser posterior a la fecha de fin." });
+    }
+    if(new Date(start_time) >= new Date(end_time)) {
+      return res.status(400).json({ message: "La hora de inicio no puede ser igual o posterior a la hora de fin." });
+    }
+    if (new Date(start_date) < new Date() || new Date(end_date) < new Date()) {
+      return res.status(400).json({ message: "La fecha de inicio y de fin no pueden ser anteriores a la fecha actual." });
+    }
 
     const newBooking = new Booking(uuid.v4(), res.locals.user.uuid);
     newBooking.set(req.body);
+
+    const isValid = await newBooking.validRange();
+    if(!isValid) {
+      return res.status(400).json({ message: "La reserva se solapa con alguna ya existente" });
+    }
 
     const result = await newBooking.create();
 

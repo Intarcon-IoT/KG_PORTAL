@@ -164,9 +164,7 @@ async function updateBookingByDaySelectedList(day){
     method: 'GET',
     params: {
       start_date: day,
-      room_uuid: props.bookingInfo.room.uuid,
-      time_from: '00:00',
-      time_to: '23:59'
+      room_uuid: props.bookingInfo.room.uuid
     }
   });
   await requestBookingByDay.http().then(res => {
@@ -180,13 +178,14 @@ function isBooked(hour) {
     return false;
   }
 
-  const current = moment(hour, 'HH:mm');
-  
-  return bookingsOnDay.value.some(booking => {
-    const start = moment(booking.start_time, 'HH:mm');
-    const end = moment(booking.end_time, 'HH:mm');
+  const startOfBlock = moment(hour, 'HH:mm');
+  const endOfBlock = moment(hour, 'HH:mm').add(1, 'hour');
 
-    return current.isSameOrAfter(start) && current.isBefore(end);
+  return bookingsOnDay.value.some(booking => {
+    const bookingStart = moment(booking.start_time, 'HH:mm:ss');
+    const bookingEnd = moment(booking.end_time, 'HH:mm:ss');
+
+    return bookingStart.isBefore(endOfBlock) && bookingEnd.isAfter(startOfBlock);
   });
 }
 
@@ -208,7 +207,6 @@ watch(dialog, (val) => {
   }
 
   if (val && !props.bookingInfo?.date) {
-    console.log('No hay fecha seleccionada');
     selectedDate.value = moment().format('YYYY-MM-DD');
     updateBookingByDaySelectedList(moment().format('YYYY-MM-DD'));
   }
