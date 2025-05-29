@@ -119,6 +119,11 @@ class Booking {
 
     sql += " ORDER BY b.start_date, b.start_time";
 
+        // LIMIT FILTER
+    if (filter.first_only) {
+      sql += " LIMIT 1";
+    }
+
     return mysqlAdapter.query(sql, data);
   }
 
@@ -138,6 +143,78 @@ class Booking {
     }
 
     return mysqlAdapter.query(sql, data);
+  };
+
+  async validRange() {
+    // Usar directamente las propiedades del objeto
+    const roomUuid = this.room_uuid;
+    const newStartDate = this.start_date;
+    const newEndDate = this.end_date;
+    const newStartTime = this.start_time;
+    const newEndTime = this.end_time;
+
+    // Verificar que tenemos todos los datos necesarios
+    if (!roomUuid || !newStartDate || !newEndDate || !newStartTime || !newEndTime) {
+      console.error('Faltan datos necesarios para validar el rango');
+      return {
+        available: false,
+        conflicts: [],
+        error: 'Datos incompletos para realizar la validación'
+      };
+    }
+
+    // Consulta para buscar solapamientos
+    const sql = `
+      SELECT 
+        uuid, start_date, end_date, start_time, end_time, title 
+      FROM 
+        kibooking_bookings 
+      WHERE 
+        room_uuid = ? 
+        AND (
+          /* Caso 1: La reserva existente se solapa con la nueva reserva */
+          (
+            /* La fecha de inicio de la reserva existente está dentro del rango de la nueva */
+            (start_date BETWEEN ? AND ?) 
+            OR 
+            /* La fecha de fin de la reserva existente está dentro del rango de la nueva */
+            (end_date BETWEEN ? AND ?)
+            OR
+            /* La nueva reserva está contenida completamente en una existente */
+            (? BETWEEN start_date AND end_date)
+          )
+          AND
+          (
+            /* La hora de inicio de la reserva existente está dentro del rango de la nueva */
+            (start_time < ? AND end_time > ?)
+            OR
+            /* La hora de fin de la reserva existente está dentro del rango de la nueva */
+            (start_time < ? AND end_time > ?)
+            OR
+            /* La nueva reserva está completamente dentro de los horarios de una existente */
+            (start_time <= ? AND end_time >= ?)
+            OR
+            /* La nueva reserva contiene completamente a una existente */
+            (? <= start_time AND ? >= end_time)
+          )
+        )
+    `;
+
+    const queryParams = [
+      roomUuid, 
+      newStartDate, newEndDate,  // caso 1-1 -> Fecha inicio existente dentro de nueva
+      newStartDate, newEndDate,  // caso 1-2 -> Fecha fin existente dentro de nueva
+      newStartDate,              // caso 1-3 -> Nueva dentro de existente
+      newEndTime, newStartTime,  // caso 2-1 -> Hora inicio
+      newEndTime, newStartTime,  // caso 2-2 -> Hora fin
+      newStartTime, newEndTime,  // caso 2-3 -> Nueva dentro de existente
+      newStartTime, newEndTime   // caso 2-4 -> Existente dentro de nueva
+    ];
+
+    const result = await mysqlAdapter.query(sql, queryParams);
+    
+    // Devuelve true si no hay conflictos
+    return result.length === 0;
   }
 }
 

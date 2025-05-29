@@ -10,45 +10,100 @@
         <v-container>
           <v-row>
             <v-col cols="12">
-              <v-select v-model="form.facility_uuid" :items="props.installations" item-title="name" item-value="uuid"
-                label="Edificio" @update:modelValue="onFacilityChange" />
-            </v-col>
-          </v-row>
-          <v-row>
-            <v-col cols="12">
-              <v-select v-model="form.room_uuid" :items="availableRooms" item-title="name" item-value="uuid"
-                label="Sala" />
-            </v-col>
-          </v-row>
-          <v-row>
-            <v-col cols="6">
-              <v-text-field v-model="form.dateFrom" label="Desde" type="date" :min="today" />
-            </v-col>
-            <v-col cols="6">
-              <v-select v-model="form.timeFrom" label="Desde" :items="timeIntervals" />
-            </v-col>
-          </v-row>
-          <v-row>
-            <v-col cols="6">
-              <v-text-field v-model="form.dateTo" label="Hasta" type="date" :min="form.dateFrom || today" />
-            </v-col>
-            <v-col cols="6">
-              <v-select v-model="form.timeTo" label="Hasta" :items="timeIntervals" />
-            </v-col>
-          </v-row>
-          <v-row>
-            <v-col cols="12">
-              <v-text-field 
-                v-model="form.title"
-                label="Título de la Reserva *"
-                :rules="[v => !!v || 'El título es obligatorio']"
-                required
+              <v-select
+                v-model="bookingInfo.facility_uuid"
+                :items="props.installations"
+                item-title="name"
+                item-value="uuid"
+                label="Edificio"
+                @update:modelValue="onFacilityChange"
               />
             </v-col>
           </v-row>
           <v-row>
             <v-col cols="12">
-              <v-textarea v-model="form.details" label="Detalles de la Reserva" />
+              <v-select
+                v-model="bookingInfo.room_uuid"
+                :items="availableRooms"
+                item-title="name"
+                item-value="uuid"
+                label="Sala"
+              />
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col cols="6">
+              <v-text-field
+                v-model="bookingInfo.dateFrom"
+                label="Desde"
+                type="date"
+                :min="today"
+                @click="goBack"
+              />
+            </v-col>
+            <v-col cols="6">
+              <!-- SELECT TIME FROM -->
+              <v-select
+                v-model="bookingInfo.timeFrom"
+                label="Desde"
+                :items="timeIntervalsFrom"
+                item-title= "hour"
+                item-value="hour"
+                @update:modelValue="onChangeTimeFrom"
+              >
+                <template #item="{ props, item }">
+                  <v-list-item
+                    v-bind="props"
+                    :disabled="item.raw.disabled"
+                    :class="{ 'text-red': item.raw.disabled }"
+                  />
+                </template>
+              </v-select>
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col cols="6">
+              <v-text-field
+                v-model="bookingInfo.dateTo"
+                label="Hasta"
+                type="date"
+                :min="bookingInfo.dateFrom || today"
+                :max="firstBookingFromTimeFrom?.start_date ? moment(firstBookingFromTimeFrom.start_date).format('YYYY-MM-DD') : undefined"
+                @update:modelValue="onChangeDateTo"
+              />
+            </v-col>
+            <v-col cols="6">
+              <v-select
+                v-model="bookingInfo.timeTo"
+                label="Hasta"
+                item-title= "hour"
+                item-value="hour"
+                :items="timeIntervalsTo"
+              >
+                <template #item="{ props, item }">
+                  <v-list-item
+                    v-bind="props"
+                    :disabled="item.raw.disabled"
+                    :class="{ 'text-red': item.raw.disabled }"
+                  />
+                </template>
+              </v-select>
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col cols="12">
+              <v-text-field
+                v-model="bookingInfo.title"
+                label="Título de la Reserva"
+              />
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col cols="12">
+              <v-textarea
+                v-model="bookingInfo.details"
+                label="Detalles de la Reserva"
+              />
             </v-col>
           </v-row>
         </v-container>
@@ -66,13 +121,13 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
 import { useNotificationStore } from '@/store';
-
-const notificationStore = useNotificationStore()
+import moment from 'moment';
+import Request from "@/model/request";
 
 const props = defineProps({
+  dialog: Boolean,
   booking: Object,
   bookingsList: Array,
-  dialog: Boolean,
   installations: Array,
   rooms: Array,
   isEditMode: {
@@ -85,13 +140,20 @@ const props = defineProps({
 
 const emit = defineEmits(['update:dialog', 'confirmBooking', 'back', 'cancelEdit'])
 
-const today = new Date().toISOString().substring(0, 10)
-const availableRooms = ref([])
-const timeIntervals = generateTimeIntervals()
 const dialog = ref(props.dialog)
+const notificationStore = useNotificationStore()
+const today = new Date().toISOString().substring(0, 10)
+
+const timeIntervalsFrom = ref(generateTimeIntervals())
+const timeIntervalsTo = ref(generateTimeIntervals())
+
+const availableRooms = ref([])
+const bookingOnRange = ref([]);
+
+const firstBookingFromTimeFrom = ref('');
 const isEditMode = computed(() => props.isEditMode)
 
-const form = ref({
+const bookingInfo = ref({
   facility_uuid: '',
   room_uuid: '',
   dateFrom: '',
@@ -116,16 +178,155 @@ function cancelAndClose() {
   }
 }
 
+function onChangeDateTo() {
+  updateBookingByRangeSelected()
+}
+
+function onChangeTimeFrom() {
+  updateTimeIntervalsByBookingOnRange()
+  updateTimeSelectedTo()
+}
+
+function onFacilityChange(newFacilityUuid) {
+  availableRooms.value = props.rooms.filter(room => room.facility_uuid === newFacilityUuid) || []
+  bookingInfo.value.room_uuid = ''
+}
+
 function generateTimeIntervals() {
   const intervals = []
   for (let hour = 0; hour < 24; hour++) {
     for (let minute = 0; minute < 60; minute += 15) {
-      const formattedHour = hour.toString().padStart(2, '0')
-      const formattedMinute = minute.toString().padStart(2, '0')
-      intervals.push(`${formattedHour}:${formattedMinute}`)
+      const time = moment({ hour, minute }).format('HH:mm')
+      intervals.push({
+        hour: time,
+        disabled: false
+      })
     }
   }
   return intervals
+}
+
+function updateTimeIntervalsByBookingOnRange() {
+  const updatedFrom = generateTimeIntervals();
+  const updatedTo = generateTimeIntervals();
+
+  updatedFrom.forEach(interval => {
+    interval.disabled = isBookedFrom(interval.hour);
+  });
+
+  let bookingFind = false;
+  let timeFromReached = false;
+  const isSameDate = bookingInfo.value.dateFrom === bookingInfo.value.dateTo;
+
+  updatedTo.forEach(interval => {
+    if (!timeFromReached && isSameDate) {
+      interval.disabled = true;
+      timeFromReached = interval.hour === bookingInfo.value.timeFrom;
+    } else if (!bookingFind) {
+      interval.disabled = isBookedTo(interval.hour);
+      bookingFind = isBookedTo(interval.hour);
+    }else {
+      interval.disabled = true;
+    }
+  });
+
+  timeIntervalsFrom.value = updatedFrom;
+  timeIntervalsTo.value = updatedTo;
+
+  if( isBookedTo(bookingInfo.value.timeTo) ) {
+    bookingInfo.value.timeTo = moment(firstBookingFromTimeFrom.value.start_time, 'HH:mm:ss').format('HH:mm');
+  }
+}
+
+function isBookedFrom(hour) {
+  if (!bookingOnRange.value || bookingOnRange.value.length === 0 || !bookingInfo.value.dateFrom) {
+    return false;
+  }
+
+  const formattedDate = moment(bookingInfo.value.dateFrom).format('YYYY-MM-DD');
+  const currentDateTime = moment(`${formattedDate}T${hour}`);
+
+  return bookingOnRange.value.some(booking => {
+    const startDate = moment(booking.start_date).format('YYYY-MM-DD');
+    const endDate = moment(booking.end_date || booking.start_date).format('YYYY-MM-DD');
+    
+    const startDateTime = moment(`${startDate}T${booking.start_time}`);
+    const endDateTime = moment(`${endDate}T${booking.end_time}`);
+    
+    return currentDateTime.isSameOrAfter(startDateTime) && currentDateTime.isBefore(endDateTime);
+  });
+}
+
+function isBookedTo(hour) {
+  if (!bookingOnRange.value || bookingOnRange.value.length === 0 || !bookingInfo.value.dateTo) {
+    return false;
+  }
+
+  const formattedDate = moment(bookingInfo.value.dateTo).format('YYYY-MM-DD');
+  const currentDateTime = moment(`${formattedDate}T${hour}`);
+
+  return bookingOnRange.value.some(booking => {
+    const startDate = moment(booking.start_date).format('YYYY-MM-DD');
+    const endDate = moment(booking.end_date || booking.start_date).format('YYYY-MM-DD');
+    
+    const startDateTime = moment(`${startDate}T${booking.start_time}`);
+    const endDateTime = moment(`${endDate}T${booking.end_time}`);
+    
+    return currentDateTime.isAfter(startDateTime) && currentDateTime.isSameOrBefore(endDateTime);
+  });
+}
+
+
+function updateTimeSelectedTo() {
+  const defaultTo = addOneHour(bookingInfo.value.timeFrom);
+  const defaultMoment = moment(defaultTo, 'HH:mm');
+
+  const conflict = bookingOnRange.value.find(booking => {
+    const start = moment(booking.start_time, 'HH:mm');
+    const end = moment(booking.end_time, 'HH:mm');
+    return defaultMoment.isSameOrAfter(start) && defaultMoment.isSameOrBefore(end);
+  });
+
+  if (conflict) {
+    bookingInfo.value.timeTo = moment(conflict.start_time, 'HH:mm').format('HH:mm');
+  } else {
+    bookingInfo.value.timeTo = defaultTo;
+  }
+}
+
+async function nextBooking(dateFrom, timeFrom) {
+  const requestBookingByDay = new Request({
+    endpoint: 'bookings',
+    method: 'GET',
+    params: {
+      room_uuid: bookingInfo.value.room_uuid,
+      from_date: dateFrom,
+      from_time: timeFrom,
+      first_only: true
+    }
+  });
+  await requestBookingByDay.http().then(res => {
+    firstBookingFromTimeFrom.value = res[0];
+    console.log('firstBookingFromTimeFrom', firstBookingFromTimeFrom.value)
+  })
+  .catch(err => notificationStore.notifyError(err.message))
+}
+
+async function updateBookingByRangeSelected(){
+
+  const requestBookingByDay = new Request({
+    endpoint: 'bookings',
+    method: 'GET',
+    params: {
+      room_uuid: bookingInfo.value.room_uuid,
+      from_date: bookingInfo.value.dateFrom,
+      to_date: bookingInfo.value.dateTo,
+    }
+  });
+  await requestBookingByDay.http().then(res => {
+    bookingOnRange.value = res;
+  })
+  .catch(err => notificationStore.notifyError(err.message))
 }
 
 function addOneHour(hour) {
@@ -143,72 +344,52 @@ function toDateString(date) {
   return d.toISOString().split('T')[0]
 }
 
-function isValidDateTimeRange() {
-  if (!form.value.dateFrom || !form.value.timeFrom || !form.value.dateTo || !form.value.timeTo) {
-    return false
-  }
-
-  const from = new Date(`${form.value.dateFrom}T${form.value.timeFrom}`)
-  const to = new Date(`${form.value.dateTo}T${form.value.timeTo}`)
-
-  return to >= from
-}
-
-function onFacilityChange(newFacilityUuid) {
-  availableRooms.value = props.rooms.filter(room => room.facility_uuid === newFacilityUuid) || []
-  form.value.room_uuid = ''
-}
-
 function confirmReservation() {
-  if (!isValidDateTimeRange()) {
-    notificationStore.notifyWarning('La fecha/hora de finalización no puede ser anterior a la de inicio.');
-    return
+
+  let isValid = true;
+
+  if( isBookedFrom(bookingInfo.value.timeFrom) ||isBookedTo(bookingInfo.value.timeTo)) {
+    notificationStore.notifyWarning('La hora de inicio o finalización ya está reservada.');
+    isValid = false;
+  }
+  if(bookingInfo.value.room_uuid === '') {
+    notificationStore.notifyWarning('Por favor, seleccione una sala.');
+    isValid = false;
+  }
+  if(bookingInfo.value.title.trim() === '') {
+    notificationStore.notifyWarning('Por favor, introduzca un título para la reserva.');
+    isValid = false;
   }
 
-  if (!form.value.title.trim()) {
-    notificationStore.notifyWarning('El título de la reserva es obligatorio.');
-    return;
+  if(isValid){
+    emit('update:dialog', false)
+    emit('confirmBooking', { ...bookingInfo.value , isEditCompleted: isEditMode.value })
   }
-
-  // isEditMode = false;
-  emit('update:dialog', false)
-  emit('confirmBooking', { ...form.value, isEditCompleted: isEditMode.value })
 }
 
-watch(() => props.dialog, (val) => {
+watch(() => props.dialog, async (val) => {
   dialog.value = val
 
   if (val) {
-    if (props.isEditMode && props.editBooking) {
-      const roomData = props.rooms.find(room => room.uuid === props.editBooking.room_uuid) || {}
-      const facilityUuid = roomData.facility_uuid
+    bookingInfo.value.facility_uuid = props.booking.facility.uuid || ''
+    bookingInfo.value.room_uuid = props.booking.room.uuid || ''
+    bookingInfo.value.dateFrom = toDateString(props.booking.date) || ''
+    bookingInfo.value.timeFrom = props.booking.time || ''
+    bookingInfo.value.dateTo = toDateString(props.booking.date) || ''
+    bookingInfo.value.timeTo = addOneHour(props.booking.time || '00:00')
+    bookingInfo.value.title = ''
+    bookingInfo.value.details = ''
 
-      const formatTime = (time) => time ? time.split(':').slice(0, 2).join(':') : '';
+    availableRooms.value = props.rooms.filter(room => room.facility_uuid === props.booking.facility.uuid)
 
-      form.value.facility_uuid = facilityUuid || ''
-      form.value.room_uuid = props.editBooking.room_uuid || ''
-      form.value.dateFrom = toDateString(props.editBooking.start_date) || ''
-      form.value.timeFrom = formatTime(props.editBooking.start_time) || ''
-      form.value.dateTo = toDateString(props.editBooking.end_date) || ''
-      form.value.timeTo = formatTime(props.editBooking.end_time) || ''
-      form.value.title = props.editBooking.title || ''
-      form.value.details = props.editBooking.details || ''
-      console.log(isEditMode.value, props.editBooking)
-
-      availableRooms.value = props.rooms.filter(room => room.facility_uuid === facilityUuid)
-    } else {
-      form.value.facility_uuid = props.booking.facility?.uuid || ''
-      form.value.room_uuid = props.booking.room?.uuid || ''
-      form.value.dateFrom = toDateString(props.booking.date) || ''
-      form.value.timeFrom = props.booking.time || ''
-      form.value.dateTo = toDateString(props.booking.date) || ''
-      form.value.timeTo = addOneHour(props.booking.time || '00:00')
-      form.value.title = ''
-      form.value.details = ''
-
-      availableRooms.value = props.rooms.filter(room => room.facility_uuid === props.booking.facility?.uuid)
-    }
+    await nextBooking(bookingInfo.value.dateFrom, bookingInfo.value.timeFrom) // Calculamos la primera reserva
+    await updateBookingByRangeSelected()
+    updateTimeSelectedTo()
   }
+})
+
+watch(bookingOnRange, () => {
+  updateTimeIntervalsByBookingOnRange()
 })
 
 watch(dialog, (val) => {
