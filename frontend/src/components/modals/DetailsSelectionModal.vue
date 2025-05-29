@@ -133,14 +133,13 @@ const props = defineProps({
   isEditMode: {
     default: false
   },
-  editBooking: {
-    default: () => ({})
-  }
 })
 
 const emit = defineEmits(['update:dialog', 'confirmBooking', 'back', 'cancelEdit'])
 
 const dialog = ref(props.dialog)
+const isEditMode = computed(() => props.isEditMode)
+const firstEditLoad = ref(true)
 const notificationStore = useNotificationStore()
 const today = new Date().toISOString().substring(0, 10)
 
@@ -151,9 +150,9 @@ const availableRooms = ref([])
 const bookingOnRange = ref([]);
 
 const firstBookingFromTimeFrom = ref('');
-const isEditMode = computed(() => props.isEditMode)
 
 const bookingInfo = ref({
+  uuid: '',
   facility_uuid: '',
   room_uuid: '',
   dateFrom: '',
@@ -170,7 +169,6 @@ function goBack() {
 }
 
 function cancelAndClose() {
-  dialog.value = false
   emit('update:dialog', false)
   
   if (isEditMode.value) {
@@ -246,6 +244,18 @@ function isBookedFrom(hour) {
   const formattedDate = moment(bookingInfo.value.dateFrom).format('YYYY-MM-DD');
   const currentDateTime = moment(`${formattedDate}T${hour}`);
 
+  if( isEditMode.value){
+    const startDate = moment(bookingInfo.value.dateFrom).format('YYYY-MM-DD');
+    const endDate = moment(bookingInfo.value.dateTo).format('YYYY-MM-DD');
+    
+    const startDateTime = moment(`${startDate}T${bookingInfo.value.timeFrom}`);
+    const endDateTime = moment(`${endDate}T${bookingInfo.value.timeTo}`);
+
+    if (currentDateTime.isSameOrAfter(startDateTime) && currentDateTime.isBefore(endDateTime)) {
+      return false;
+    }
+  }
+
   return bookingOnRange.value.some(booking => {
     const startDate = moment(booking.start_date).format('YYYY-MM-DD');
     const endDate = moment(booking.end_date || booking.start_date).format('YYYY-MM-DD');
@@ -265,6 +275,18 @@ function isBookedTo(hour) {
   const formattedDate = moment(bookingInfo.value.dateTo).format('YYYY-MM-DD');
   const currentDateTime = moment(`${formattedDate}T${hour}`);
 
+  if( isEditMode.value){
+    const startDate = moment(bookingInfo.value.dateFrom).format('YYYY-MM-DD');
+    const endDate = moment(bookingInfo.value.dateTo).format('YYYY-MM-DD');
+    
+    const startDateTime = moment(`${startDate}T${bookingInfo.value.timeFrom}`);
+    const endDateTime = moment(`${endDate}T${bookingInfo.value.timeTo}`);
+
+    if (currentDateTime.isAfter(startDateTime) && currentDateTime.isSameOrBefore(endDateTime)) {
+      return false;
+    }
+  }
+
   return bookingOnRange.value.some(booking => {
     const startDate = moment(booking.start_date).format('YYYY-MM-DD');
     const endDate = moment(booking.end_date || booking.start_date).format('YYYY-MM-DD');
@@ -275,7 +297,6 @@ function isBookedTo(hour) {
     return currentDateTime.isAfter(startDateTime) && currentDateTime.isSameOrBefore(endDateTime);
   });
 }
-
 
 function updateTimeSelectedTo() {
   const defaultTo = addOneHour(bookingInfo.value.timeFrom);
@@ -363,7 +384,7 @@ function confirmReservation() {
 
   if(isValid){
     emit('update:dialog', false)
-    emit('confirmBooking', { ...bookingInfo.value , isEditCompleted: isEditMode.value })
+    emit('confirmBooking', { ...bookingInfo.value })
   }
 }
 
@@ -371,20 +392,31 @@ watch(() => props.dialog, async (val) => {
   dialog.value = val
 
   if (val) {
-    bookingInfo.value.facility_uuid = props.booking.facility.uuid || ''
-    bookingInfo.value.room_uuid = props.booking.room.uuid || ''
-    bookingInfo.value.dateFrom = toDateString(props.booking.date) || ''
-    bookingInfo.value.timeFrom = props.booking.time || ''
-    bookingInfo.value.dateTo = toDateString(props.booking.date) || ''
-    bookingInfo.value.timeTo = addOneHour(props.booking.time || '00:00')
-    bookingInfo.value.title = ''
-    bookingInfo.value.details = ''
+    bookingInfo.value.facility_uuid = props.booking.facility.uuid
+    bookingInfo.value.room_uuid = props.booking.room.uuid
+    bookingInfo.value.dateFrom = toDateString(props.booking.date)
+    bookingInfo.value.timeFrom = moment(props.booking.time, 'HH:mm').format('HH:mm')
+
+    if(isEditMode.value && firstEditLoad.value ) {
+      bookingInfo.value.uuid = props.booking.uuid
+      bookingInfo.value.dateTo = toDateString(props.booking.dateTo)
+      bookingInfo.value.timeTo = moment(props.booking.timeTo, 'HH:mm').format('HH:mm')
+      bookingInfo.value.title = props.booking.title
+      bookingInfo.value.details = props.booking.details
+      firstEditLoad.value = false
+    } else {
+      bookingInfo.value.dateTo = toDateString(props.booking.date)
+      bookingInfo.value.timeTo = addOneHour(props.booking.time)
+    }
 
     availableRooms.value = props.rooms.filter(room => room.facility_uuid === props.booking.facility.uuid)
 
-    await nextBooking(bookingInfo.value.dateFrom, bookingInfo.value.timeFrom) // Calculamos la primera reserva
+    await nextBooking(bookingInfo.value.dateFrom, bookingInfo.value.timeFrom)
     await updateBookingByRangeSelected()
-    updateTimeSelectedTo()
+
+    if(!isEditMode.value) {
+      updateTimeSelectedTo()
+    }
   }
 })
 

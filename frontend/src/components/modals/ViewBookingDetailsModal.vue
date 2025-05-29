@@ -32,7 +32,8 @@
         <v-card-text class="pa-0">
           <div class="info-line mb-2">
             <i class="fa-solid fa-calendar-days mr-3"></i>
-            <span>{{ formatedDate }} {{ startTime }} - {{ endTime }}</span>
+            <span v-if="formatedDate == formatedDateTo">{{ formatedDate }} {{ startTime }} - {{ endTime }}</span>
+            <span v-else>{{ formatedDate }} - {{ startTime }}<br>{{ formatedDateTo }} - {{ endTime }}</span>
           </div>
 
           <div class="info-line mb-2">
@@ -149,12 +150,16 @@ const formatedDate = computed(() => {
   return moment(props.booking.start_date).format('dddd, D MMMM YYYY')
 })
 
+const formatedDateTo = computed(() => {
+  return moment(props.booking.end_date).format('dddd, D MMMM YYYY')
+})
+
 const startTime = computed(() => {
-  return moment(props.booking.start_time, 'HH:mm:ss').format('H:mm')
+  return moment(props.booking.start_time, 'HH:mm').format('HH:mm')
 })
 
 const endTime = computed(() => {
-  return moment(props.booking.end_time, 'HH:mm:ss').format('H:mm')
+  return moment(props.booking.end_time, 'HH:mm').format('HH:mm')
 })
 
 const roomSelected = computed(() => {

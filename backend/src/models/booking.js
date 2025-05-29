@@ -145,6 +145,41 @@ class Booking {
     return mysqlAdapter.query(sql, data);
   };
 
+  validate() {
+
+    if (!this.room_uuid || !this.start_date || !this.end_date || !this.start_time || !this.end_time) {
+      return {
+        valid: false,
+        error: 'El usuario, sala, fecha, hora, y título son obligatorios'
+      };
+    }
+    if (new Date(this.start_date) > new Date(this.end_date)) {
+      return {
+        valid: false,
+        error: 'La fecha de inicio no puede ser posterior a la fecha de fin'
+      };
+    }
+    if (this.start_time >= this.end_time) {
+      return {
+        valid: false,
+        error: 'La hora de inicio no puede ser igual o posterior a la hora de fin'
+      };
+    }
+    if (new Date(this.start_date) < new Date() || new Date(this.end_date) < new Date()) {
+      return {
+        valid: false,
+        error: 'La fecha de inicio y de fin no pueden ser anteriores a la fecha actual'
+      };
+    }
+    if (!this.validRange()) {
+      return {
+        valid: false,
+        error: 'La reserva se solapa con alguna ya existente'
+      };
+    }
+    return { valid: true };
+  }
+
   async validRange() {
     // Usar directamente las propiedades del objeto
     const roomUuid = this.room_uuid;
