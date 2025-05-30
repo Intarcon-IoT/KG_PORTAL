@@ -153,22 +153,20 @@ class Booking {
         error: 'El usuario, sala, fecha, hora, y título son obligatorios'
       };
     }
-    if (new Date(this.start_date) > new Date(this.end_date)) {
+
+    const startDateTime = new Date(`${this.start_date}T${this.start_time}`);
+    const endDateTime = new Date(`${this.end_date}T${this.end_time}`);
+
+    if (startDateTime > endDateTime) {
       return {
         valid: false,
         error: 'La fecha de inicio no puede ser posterior a la fecha de fin'
       };
     }
-    if (this.start_time >= this.end_time) {
+    if (startDateTime < new Date()) {
       return {
         valid: false,
-        error: 'La hora de inicio no puede ser igual o posterior a la hora de fin'
-      };
-    }
-    if (new Date(this.start_date) < new Date() || new Date(this.end_date) < new Date()) {
-      return {
-        valid: false,
-        error: 'La fecha de inicio y de fin no pueden ser anteriores a la fecha actual'
+        error: 'La fecha de inicio no pueden ser anteriores a la fecha actual'
       };
     }
     if (!this.validRange()) {
