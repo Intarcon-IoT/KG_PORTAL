@@ -1,5 +1,6 @@
 const mysqlAdapter = require("../../utils/mysqlAdapter");
 const Booking = require("../booking");
+const moment = require('moment');
 
 class LegacyRoom {
   constructor(uuid) {
@@ -47,14 +48,19 @@ class LegacyRoom {
 
       // 3a) Is this the ongoing meeting?
       if (!currentBooking && st <= current_time && current_time < et) {
-        currentBooking = { start_time: st, end_time: et, title, name: usr };
+        currentBooking = { 
+          start_time: moment(st, 'HH:mm:ss').format('HH:mm'), 
+          end_time: moment(et, 'HH:mm:ss').format('HH:mm'), 
+          title, 
+          name: usr 
+        };
 
         // 3b) Next is simply the very next item in the array (if present)
         const nx = bookings[i + 1];
         if (nx) {
           nextBooking = {
-            start_time: nx.start_time,
-            end_time: nx.end_time,
+            start_time: moment(nx.start_time, 'HH:mm:ss').format('HH:mm'),
+            end_time: moment(nx.end_time, 'HH:mm:ss').format('HH:mm'),
             title: nx.title,
             name: nx.name
           };
@@ -65,7 +71,11 @@ class LegacyRoom {
       // 3c) Otherwise, if a future meeting, track the soonest one
       else if (st > current_time) {
         if (!nextBooking || lt(st, nextBooking.start_time)) {
-          nextBooking = { start_time: st, end_time: et, title, name: usr };
+          nextBooking = { 
+            start_time: moment(st, 'HH:mm:ss').format('HH:mm'),
+            end_time: moment(et, 'HH:mm:ss').format('HH:mm'), 
+            title, 
+            name: usr };
         }
       }
     }

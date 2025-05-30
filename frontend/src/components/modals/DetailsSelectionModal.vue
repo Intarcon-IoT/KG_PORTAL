@@ -396,13 +396,13 @@ watch(() => props.dialog, async (val) => {
     bookingInfo.value.room_uuid = props.booking.room.uuid
     bookingInfo.value.dateFrom = toDateString(props.booking.date)
     bookingInfo.value.timeFrom = moment(props.booking.time, 'HH:mm').format('HH:mm')
+    bookingInfo.value.title = props.booking.title
+    bookingInfo.value.details = props.booking.details
 
     if(isEditMode.value && firstEditLoad.value ) {
       bookingInfo.value.uuid = props.booking.uuid
       bookingInfo.value.dateTo = toDateString(props.booking.dateTo)
       bookingInfo.value.timeTo = moment(props.booking.timeTo, 'HH:mm').format('HH:mm')
-      bookingInfo.value.title = props.booking.title
-      bookingInfo.value.details = props.booking.details
       firstEditLoad.value = false
     } else {
       bookingInfo.value.dateTo = toDateString(props.booking.date)
