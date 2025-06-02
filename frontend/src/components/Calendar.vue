@@ -32,6 +32,7 @@
     <div class="main-content">
       <CalendarHeader 
         :view="currentView" 
+        :selectedDate="selectedDate" 
         @previous="navigatePrevious" 
         @next="navigateNext" 
         @today="goToToday" 

@@ -21,7 +21,7 @@
           'day-cell': true,
           'other-month': !day.isCurrentMonth,
           'is-selected': day.isSelected,
-          'is-today': day.isToday && !day.isSelected // No solapar 'hoy' si está seleccionado
+          'is-today': day.isToday && !day.isSelected
         }"
       >
         {{ day.number }}
@@ -40,7 +40,6 @@ const props = defineProps({
 
 const currentDate = ref(new Date(props.selectedDate));
 
-// Actualizar `currentDate` si cambia `props.selectedDate` externamente
 watch(() => props.selectedDate, (newVal) => {
   currentDate.value = new Date(newVal);
 });
@@ -70,14 +69,25 @@ const daysOfMonth = computed(() => {
   selectedDayTime.setHours(0, 0, 0, 0);
 
   let firstDayOfWeek = firstOfMonth.getDay();
-  if (firstDayOfWeek === 0) firstDayOfWeek = 6; else firstDayOfWeek -= 1;
-
+  if (firstDayOfWeek === 0){
+    firstDayOfWeek = 6;
+  } else {
+    firstDayOfWeek -= 1;
+  }
+  // Días del mes anterior
   const daysInPreviousMonth = new Date(year.value, month.value, 0).getDate();
   for (let i = firstDayOfWeek - 1; i >= 0; i--) {
     const dayDate = new Date(year.value, month.value - 1, daysInPreviousMonth - i);
-    days.push({ number: dayDate.getDate(), isCurrentMonth: false, isSelected: false, isToday: false });
+    dayDate.setHours(0, 0, 0, 0);
+    days.push({
+      number: dayDate.getDate(),
+      isCurrentMonth: false,
+      isSelected: dayDate.getTime() === selectedDayTime.getTime(),
+      isToday: dayDate.getTime() === today.getTime(),
+      date: dayDate,
+    });
   }
-
+  // Días del mes actual
   const daysInThisMonth = new Date(year.value, month.value + 1, 0).getDate();
   for (let day = 1; day <= daysInThisMonth; day++) {
     const loopDate = new Date(year.value, month.value, day);
@@ -90,35 +100,40 @@ const daysOfMonth = computed(() => {
       date: loopDate,
     });
   }
-
+  // Días del mes siguiente
   const totalCells = 42;
   let nextDay = 1;
   while (days.length < totalCells) {
     const dayDate = new Date(year.value, month.value + 1, nextDay++);
-    days.push({ number: dayDate.getDate(), isCurrentMonth: false, isSelected: false, isToday: false });
+    dayDate.setHours(0, 0, 0, 0);
+    days.push({
+      number: dayDate.getDate(),
+      isCurrentMonth: false,
+      isSelected: dayDate.getTime() === selectedDayTime.getTime(),
+      isToday: dayDate.getTime() === today.getTime(),
+      date: dayDate,
+    });
   }
 
   return days;
 });
 
 function selectDay(day) {
-  if (!day.isCurrentMonth) return;
   emit('dateSelected', day.date);
 }
 </script>
-
 
 <style scoped>
 .mini-month-view {
   padding: 10px;
   font-family: sans-serif;
-  font-size: 0.8em; /* Más pequeño */
+  font-size: 0.8em;
   border: 1px solid #eee;
   border-radius: 4px;
   background-color: #fff;
 }
 
-.month-name{
+.month-name {
   margin: 0 15px;
   cursor: default;
 }
@@ -145,7 +160,7 @@ function selectDay(day) {
 .day-cell {
   padding: 4px 2px;
   border-radius: 3px;
-  line-height: 1.5; /* Mejor espaciado vertical */
+  line-height: 1.5;
   cursor: pointer;
 }
 
@@ -154,13 +169,12 @@ function selectDay(day) {
 }
 
 .is-today {
-  /* background-color: #eaf6ff; */
-  color:#007bff;
+  color: #007bff;
   font-weight: bold;
 }
 
 .nav-button:hover {
-    color: #007bff;
+  color: #007bff;
 }
 
 .is-selected {
