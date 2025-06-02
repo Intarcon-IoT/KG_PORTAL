@@ -79,7 +79,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
 import Request from "@/model/request";
 import { useNotificationStore } from '@/store';
 import moment from 'moment';
@@ -100,10 +100,7 @@ const notificationStore = useNotificationStore();
 const dialog = ref();
 const selectedDate = ref(props.bookingInfo.date);
 const bookingsOnDay = ref([]);
-
-const today = new Date();
-const offset = today.getDay() === 0 ? -6 : 1 - today.getDay();
-const baseDate = ref(new Date(today.setDate(today.getDate() + offset)));
+const baseDate = ref(null);
 
 const hours = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
 
@@ -135,7 +132,7 @@ const weekRangeText = computed(() => {
 })
 
 function goBack() {
-  emit('update:dialog', false)
+  dialog.value = false;
   emit('back', props.bookingInfo.facility);
 }
 
@@ -194,28 +191,50 @@ watch(selectedDate, (val) => {
 }) 
 
 watch(() => props.dialog, (val) => {
-  dialog.value = val
-})
+  dialog.value = val;
 
-watch(dialog, (val) => {
-  emit('update:dialog', val);
+  if (val) {
+    const formattedDate = props.bookingInfo.date 
+      ? moment(props.bookingInfo.date).format('YYYY-MM-DD')
+      : moment().format('YYYY-MM-DD');
 
-  if (val && props.bookingInfo?.date) {
-    const formattedDate = moment(props.bookingInfo.date).format('YYYY-MM-DD');
     selectedDate.value = formattedDate;
+    setWeekFromDate(formattedDate);
     updateBookingByDaySelectedList(formattedDate);
   }
+});
 
-  if (val && !props.bookingInfo?.date) {
-    selectedDate.value = moment().format('YYYY-MM-DD');
-    updateBookingByDaySelectedList(moment().format('YYYY-MM-DD'));
+watch(dialog, (val) => {
+  if (val !== props.dialog) {
+    emit('update:dialog', val);
   }
 
   if (!val) {
     bookingsOnDay.value = [];
-    selectedDate.value = null;
   }
 });
+
+onMounted(() => {
+  if (props.bookingInfo.date) {
+    const formattedDate = moment(props.bookingInfo.date).format('YYYY-MM-DD');
+    setWeekFromDate(formattedDate);
+  } else {
+    setWeekFromDate(null);
+  }
+});
+
+function setWeekFromDate(dateString) {
+  if (!dateString) {
+    const today = new Date();
+    const offset = today.getDay() === 0 ? -6 : 1 - today.getDay();
+    baseDate.value = new Date(new Date(today).setDate(today.getDate() + offset));
+  } else {
+    const targetDate = new Date(dateString);
+    const dayOfWeek = targetDate.getDay();
+    const offset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    baseDate.value = new Date(new Date(targetDate).setDate(targetDate.getDate() + offset));
+  }
+}
 </script>
 
 <style scoped>

@@ -181,6 +181,7 @@ function onChangeDateTo() {
 }
 
 function onChangeTimeFrom() {
+  nextBooking(bookingInfo.value.dateFrom, bookingInfo.value.timeFrom)
   updateTimeIntervalsByBookingOnRange()
   updateTimeSelectedTo()
 }
@@ -328,7 +329,6 @@ async function nextBooking(dateFrom, timeFrom) {
   });
   await requestBookingByDay.http().then(res => {
     firstBookingFromTimeFrom.value = res[0];
-    console.log('firstBookingFromTimeFrom', firstBookingFromTimeFrom.value)
   })
   .catch(err => notificationStore.notifyError(err.message))
 }
