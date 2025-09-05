@@ -30,6 +30,9 @@
             Iniciar sesión
           </div>
         </v-btn>
+        <div class="forgot-password-container">
+          <a href="#" class="forgot-password-link" @click.prevent="handlerForgotPassword()">¿Olvidaste tu contraseña?</a>
+        </div>
       </div>
     </v-form>
   </main>
@@ -88,14 +91,18 @@ export default {
           notificationStore.notifyError('Error al iniciar sesión')
         )
         .finally(() => reload.value = false)
+    }
 
+    const handlerForgotPassword = () => {
+      router.push('/forgot-password');
     }
 
     return {
       credentials,
       handlerSubmit,
       show_password,
-      reload
+      reload,
+      handlerForgotPassword
     }
   }
 }
@@ -104,7 +111,7 @@ export default {
 <style lang="css" scoped>
 .main-login {
   width: 40vw;
-  height: 50vh;
+  height: fit-content;
   margin: auto;
   background-color: var(--white-transparent-xs);
   margin-top: 25vh;
@@ -121,7 +128,6 @@ export default {
   display: grid;
   grid-template-rows: 1fr .34fr;
 }
-
 
 .logo-parent {
   display: flex;
@@ -184,7 +190,6 @@ export default {
   }
 }
 
-
 @media (width < 900px) {
   .main-login {
     width: 85vw;
@@ -219,5 +224,17 @@ export default {
   color: var(--white-color);
   border-radius: 50px;
   width: 100%;
+}
+
+.forgot-password-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.forgot-password-link {
+  color: var(--primary-color);
+  text-decoration: underline;
+  cursor: pointer;
 }
 </style>
