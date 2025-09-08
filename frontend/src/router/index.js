@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { layout } from '@/components'
-import { sessionGuard } from './guard'
+import { sessionGuard, resetPasswordGuard } from './guard'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -27,6 +27,19 @@ const router = createRouter({
       meta: { show: false },
       component: () => import('@/views/login/login-view.vue')
     },
+    {
+      path: '/forgot-password',
+      name: 'Forgot Password',
+      meta: { show: false },
+      component: () => import('@/views/login/password-recovery-view.vue')
+    },
+    {
+      path: '/reset-password',
+      name: 'Reset Password',
+      meta: { show: false },
+      component: () => import('@/views/login/set-new-password-view.vue'),
+      beforeEnter: resetPasswordGuard
+    }
   ]
 })
 

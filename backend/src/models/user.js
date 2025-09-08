@@ -3,6 +3,9 @@ const mysqlAdapter = require("../utils/mysqlAdapter");
 const cache = require('../utils/cacheAdapter');
 const { createCacheToken } = require("../utils/userToken");
 const moment = require("moment");
+const logger = require('../utils/logger').init();
+const mailerAdapter = require('../utils/mailerAdapter');
+const { passwordResetTemplate } = require('../utils/emailTemplates/passwordResetTemplate');
 
 class User {
   constructor(uuid) {
@@ -39,6 +42,11 @@ class User {
 
   async update(userData = null) {
     const data = userData ?? this.getData();
+
+    if (data.password) {
+      data.password = bcryptjs.hashSync(data.password, 0);
+    }
+
     const result = await mysqlAdapter.query(`UPDATE kibooking_users SET ? WHERE uuid = '${this.uuid}'`, data);
     return result;
   }
@@ -117,6 +125,31 @@ class User {
     return { ok: true };
   }
 
+  async sendPasswordResetEmail(email) {
+    const APP_URL = process.env.APP_URL;
+    const expirationTime = 600;
+
+    try {
+      const userInfo = await this.read({ email });
+
+      if (userInfo) {
+        const token = createCacheToken();
+        cache.setRedis(token, userInfo, true, expirationTime);
+
+        const resetLink = `${APP_URL}/reset-password?token=${token}`;
+        const template = passwordResetTemplate(
+          resetLink,
+          Math.floor(expirationTime / 60),
+          userInfo.name
+        );
+        await mailerAdapter.sendMail({ to: email, template });
+      } else {
+        logger.warn(`Password reset requested for non-existing user: ${email}`);
+      }
+    } catch (err) {
+      logger.error("Password reset error - " + JSON.stringify(err, null, 2));
+    }
+  }
 }
 
 module.exports = User;
