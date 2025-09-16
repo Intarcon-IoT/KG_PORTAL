@@ -4,7 +4,7 @@ const router = Router();
 const {
   signIn, logOut, loadSession,
   getUsers, getUser, changePassword,
-  createUser
+  createUser, deleteUser, updateUser
 } = require("../controllers/user_ctrl");
 
 const { AuthMiddleware } = require('../middlewares/authMiddleware');
@@ -24,8 +24,7 @@ router.route("/")
 
 router.route("/:uuid")
   .get(AuthMiddleware, getUser)
-
-  router.route("/:uuid/changepassword")
-  .patch(AuthMiddleware, changePassword)
+  .delete(AuthMiddleware, deleteUser)
+  .put(AuthMiddleware, updateUser);
 
 module.exports = router;
