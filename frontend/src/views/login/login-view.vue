@@ -13,15 +13,23 @@
       </div>
     </div>
 
-    <v-form @submit.prevent="(v) => handlerSubmit(v)">
+    <v-form v-model="valid" @submit.prevent="(v) => handlerSubmit(v)">
       <div class="form">
         <kiInput label="Correo" column>
-          <kiTextField placeholder="correo" v-model="credentials.email" />
+          <kiTextField 
+            placeholder="correo" 
+            v-model="credentials.email" 
+            :rules="[validate.required, validate.email]"
+          />
         </kiInput>
 
         <kiInput label="Contraseña" column>
-          <kiTextField placeholder="contraseña" :type="show_password ? 'text' : 'password'" v-model="credentials.password"
+          <kiTextField 
+            placeholder="contraseña"
+            v-model="credentials.password" 
+            :type="show_password ? 'text' : 'password'"      
             :append-inner-icon="show_password ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'"
+            :rules="[validate.required]"       
             @click:append-inner="show_password = !show_password" />
         </kiInput>
 
@@ -30,6 +38,9 @@
             Iniciar sesión
           </div>
         </v-btn>
+        <div class="forgot-password-container">
+          <a class="forgot-password-link" @click.prevent="handlerForgotPassword()">¿Olvidaste tu contraseña?</a>
+        </div>
       </div>
     </v-form>
   </main>
@@ -42,6 +53,7 @@ import { ref } from 'vue';
 import { sessionStore } from '@/store';
 import router from '@/router';
 import { useNotificationStore } from '@/store';
+import validate from '@/utils/validate';
 
 export default {
   name: 'LoginView',
@@ -52,17 +64,23 @@ export default {
   },
   setup() {
     const notificationStore = useNotificationStore();
-
     const session = sessionStore();
-    const reload = ref(false);
 
-    let show_password = ref(false);
+    const valid = ref(false);
+    const reload = ref(false);
+    const show_password = ref(false);
+
     const credentials = ref({
       email: '',
       password: ''
     });
 
-    const handlerSubmit = (data) => {
+    const handlerSubmit = async (data) => {   
+      const ok = valid.value
+      if (!ok){
+        return
+      }
+
       const credentials = {
         email: data.target[0].value,
         password: data.target[1].value
@@ -85,17 +103,23 @@ export default {
         router.push('/calendar')
       })
         .catch(err =>
-          notificationStore.notifyError('Error al iniciar sesión')
+          notificationStore.notifyError('Credenciales no válidas')
         )
         .finally(() => reload.value = false)
+    }
 
+    const handlerForgotPassword = () => {
+      router.push('/forgot-password');
     }
 
     return {
       credentials,
       handlerSubmit,
       show_password,
-      reload
+      reload,
+      handlerForgotPassword,
+      valid,
+      validate,
     }
   }
 }
@@ -104,7 +128,7 @@ export default {
 <style lang="css" scoped>
 .main-login {
   width: 40vw;
-  height: 50vh;
+  height: fit-content;
   margin: auto;
   background-color: var(--white-transparent-xs);
   margin-top: 25vh;
@@ -121,7 +145,6 @@ export default {
   display: grid;
   grid-template-rows: 1fr .34fr;
 }
-
 
 .logo-parent {
   display: flex;
@@ -184,7 +207,6 @@ export default {
   }
 }
 
-
 @media (width < 900px) {
   .main-login {
     width: 85vw;
@@ -219,5 +241,17 @@ export default {
   color: var(--white-color);
   border-radius: 50px;
   width: 100%;
+}
+
+.forgot-password-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.forgot-password-link {
+  color: var(--primary-color);
+  text-decoration: underline;
+  cursor: pointer;
 }
 </style>

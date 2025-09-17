@@ -3,6 +3,10 @@ const mysqlAdapter = require("../utils/mysqlAdapter");
 const cache = require('../utils/cacheAdapter');
 const { createCacheToken } = require("../utils/userToken");
 const moment = require("moment");
+const logger = require('../utils/logger').init();
+const mailerAdapter = require('../utils/mailerAdapter');
+const { passwordResetTemplate } = require('../utils/emailTemplates/passwordResetTemplate');
+const { newUserTemplate } = require('../utils/emailTemplates/newUserTemplate');
 
 class User {
   constructor(uuid) {
@@ -39,12 +43,25 @@ class User {
 
   async update(userData = null) {
     const data = userData ?? this.getData();
+
+    if (data.password) {
+      data.password = bcryptjs.hashSync(data.password, 0);
+    }
+
     const result = await mysqlAdapter.query(`UPDATE kibooking_users SET ? WHERE uuid = '${this.uuid}'`, data);
     return result;
   }
 
+  async getDeletionImpact() {
+    const [row] = await mysqlAdapter.query(
+      'SELECT COUNT(*) AS bookings FROM kibooking_bookings WHERE user_uuid=?', [this.uuid]
+    );
+    return { ok: true, bookings: row.bookings };
+  }
+
   async delete() {
-    return mysqlAdapter.query("DELETE FROM kibooking_users WHERE uuid = ?", [this.uuid]);
+    const result = await mysqlAdapter.query("DELETE FROM kibooking_users WHERE uuid = ?", [this.uuid]);
+    return result;
   }
 
   async list() {
@@ -75,8 +92,7 @@ class User {
       return { ok: false, message: "Error en la operación" };
     }
 
-    const userStored = result[0];
-
+    const userStored = result[0];    
     if (!userStored) {
       return { login: false, message: "Usuario no encontrado." };
     } else {
@@ -117,6 +133,45 @@ class User {
     return { ok: true };
   }
 
+  async sendPasswordResetEmail(email) {
+    const APP_URL = process.env.APP_URL;
+    const expirationTime = 600;
+
+    try {
+      const userInfoArray = await this.read({ email });
+      const userInfo = userInfoArray[0];
+
+      if (userInfo) {
+        const token = createCacheToken();
+        cache.setRedis(token, userInfo, true, expirationTime);
+
+        const resetLink = `${APP_URL}/reset-password?token=${token}`;
+        const template = passwordResetTemplate(
+          resetLink,
+          Math.floor(expirationTime / 60),
+          userInfo.name
+        );
+        await mailerAdapter.sendMail({ to: email, template });
+      } else {
+        logger.warn(`Password reset requested for non-existing user: ${email}`);
+      }
+    } catch (err) {
+      logger.error("Password reset error - " + JSON.stringify(err, null, 2));
+    }
+  }
+
+  async sendUserCredentialsEmail(password) {
+    const template = newUserTemplate(this.name, this.mail, password);
+    await mailerAdapter.sendMail({ to: this.mail, template });
+  }
+
+  async checkPassword(currentPassword) {
+    const user = await this.read();
+    if (!user || user.length === 0) {
+      return false;
+    }
+    return await bcryptjs.compare(currentPassword, user[0].password);
+  }
 }
 
 module.exports = User;
