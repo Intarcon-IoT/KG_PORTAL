@@ -6,7 +6,7 @@
         <v-text-field
           v-model="form.name"
           label="Nombre"
-          :rules="[req]"
+          :rules="[validate.required]"
           clearable
         />
       </v-col>
@@ -15,7 +15,7 @@
         <v-text-field
           v-model="form.mail"
           label="Email"
-          :rules="[req, emailRule]"
+          :rules="[validate.required, validate.email]"
           type="email"
           clearable
         />
@@ -43,7 +43,7 @@
               v-model="form.currentPassword"
               label="Contraseña actual"
               :type="showCurrentPassword ? 'text' : 'password'"
-              :rules="[form.password ? req : () => true]"
+              :rules="[form.password ? validate.required : () => true]"
               :append-inner-icon="showCurrentPassword ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'"
               @click:append-inner="showCurrentPassword = !showCurrentPassword"
             />
@@ -57,7 +57,7 @@
               v-model="form.password"
               label="Nueva contraseña"
               :type="showPassword ? 'text' : 'password'"
-              :rules="passwordRules"
+              :rules="[validate.password]"
               :append-inner-icon="showPassword ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'"
               @click:append-inner="showPassword = !showPassword"
             />
@@ -68,7 +68,7 @@
               v-model="form.confirmPassword"
               label="Confirmar contraseña"
               :type="showConfirmPassword ? 'text' : 'password'"
-              :rules="confirmPasswordRules"
+              :rules="validate.confirmPassword(form.password)"
               :append-inner-icon="showConfirmPassword ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'"
               @click:append-inner="showConfirmPassword = !showConfirmPassword"
             />
@@ -90,7 +90,8 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, watchEffect } from 'vue'
+import { reactive, ref, watchEffect } from 'vue'
+import validate from '@/utils/useValidationRules'
 
 const props = defineProps({
   mode: {
@@ -133,16 +134,6 @@ watchEffect(() => {
   form.confirmPassword = ''
   form.currentPassword = ''
 })
-
-// reglas
-const req = (v) => (!!v || v === false) ? true : 'Requerido'
-const emailRule = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) || 'Email no válido'
-const passwordRules =  [(v) => !v || v.length >= 8 || 'Mínimo 8 caracteres']
-const confirmPasswordRules = computed(() => [
-  (v) => !form.password || !!v || 'Confirmación requerida',
-  (v) => !form.password || v === form.password || 'Las contraseñas no coinciden'
-])
-
 
 function buildFormData() {
   if (props.context === 'admin') {

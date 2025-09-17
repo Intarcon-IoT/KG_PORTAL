@@ -4,15 +4,21 @@
       <kiLogo/>
       <p>Establezca su nueva contraseña</p>
     </div>
-    <v-form @submit.prevent="handlerSubmit">
+    <v-form v-model="valid" @submit.prevent="handlerSubmit">
       <div class="form">
         <kiInput column>
-          <kiTextField placeholder="nueva contraseña" :type="show_password_1 ? 'text' : 'password'"
+          <kiTextField 
+            placeholder="Nueva contraseña" 
+            :type="show_password_1 ? 'text' : 'password'"
             v-model="password_1"
+            :rules="[validate.required, validate.password]"
             :append-inner-icon="show_password_1 ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'"
             @click:append-inner="show_password_1 = !show_password_1" />
-          <kiTextField placeholder="confirme la nueva contraseña" :type="show_password_2 ? 'text' : 'password'" 
+          <kiTextField 
+            placeholder="Confirme la nueva contraseña" 
+            :type="show_password_2 ? 'text' : 'password'" 
             v-model="password_2"
+            :rules="validate.confirmPassword(password_1)"
             :append-inner-icon="show_password_2 ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'"
             @click:append-inner="show_password_2 = !show_password_2" />
         </kiInput>
@@ -35,6 +41,7 @@ import { sessionStore } from '@/store';
 import { useRoute } from 'vue-router';
 import Request from "@/model/request";
 import router from '@/router';
+import validate from '../../utils/useValidationRules';
 
 export default {
   name: 'LoginView',
@@ -46,50 +53,52 @@ export default {
   setup() {
     const notificationStore = useNotificationStore();
     const session = sessionStore();
-
     const route = useRoute();
     const token = route.query.token;
 
-    let show_password_1 = ref(false);
-    let show_password_2 = ref(false);
+    const valid = ref(false);
+    const show_password_1 = ref(false);
+    const show_password_2 = ref(false);
     const password_1 = ref('');
     const password_2 = ref('');
 
     const handlerSubmit = async() => {
+      const ok = valid.value
+      if (!ok){
+        return
+      }
+      if (password_1.value !== password_2.value) {
+        return;
+      }
 
-      if (password_1.value === password_2.value && password_1.value.length > 0) {
+      try {
+        session.auth.token = token;
 
-        try{
-          session.auth.token = token;
+        const request = new Request({
+          endpoint: 'password-reset/reset-password',
+          method: 'PUT',
+          body: JSON.stringify({ newPassword: password_1.value })
+        });
+        await request.http();
 
-          const request = new Request({
-            endpoint: 'password-reset/reset-password',
-            method: 'PUT',
-            body: JSON.stringify({ newPassword: password_1.value })
-          });
-          await request.http();
+        session.auth.token = '';
 
-          session.auth.token = '';
-
-          notificationStore.notifySuccess('Contraseña actualizada con éxito');
-          router.push('/login');
-          
-        } catch (error) {
-          return notificationStore.notifyError('Error al actualizar la contraseña');
-        }
-      } else {
-        notificationStore.notifyError('Las contraseñas no coinciden');
-        password_1.value = '';
-        password_2.value = '';
+        notificationStore.notifySuccess('Contraseña actualizada con éxito');
+        router.push('/login');
+        
+      } catch (error) {
+        notificationStore.notifyError('Error al actualizar la contraseña');
       }
     }
 
     return {
+      valid,
+      validate,
       handlerSubmit,
       show_password_1,
       show_password_2,
       password_1,
-      password_2
+      password_2,
     }
   }
 }

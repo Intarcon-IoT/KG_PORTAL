@@ -31,6 +31,13 @@ userCtrl.createUser = async (req, res) => {
   }
 };
 
+userCtrl.getDeletionImpact = async (req, res) => {
+  const { uuid } = req.params;
+  const user = new User(uuid);
+  const result = await user.getDeletionImpact();
+  return res.json(result);
+};
+
 userCtrl.deleteUser = async (req, res) => {
   if (!res.locals.user?.isAdmin) {
     return res.status(403).json({ ok: false, message: "No tienes permiso para eliminar usuarios" });

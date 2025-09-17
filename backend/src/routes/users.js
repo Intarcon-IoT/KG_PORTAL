@@ -3,7 +3,7 @@ const router = Router();
 
 const {
   signIn, logOut, loadSession,
-  getUsers, getUser, changePassword,
+  getUsers, getUser, getDeletionImpact,
   createUser, deleteUser, updateUser
 } = require("../controllers/user_ctrl");
 
@@ -26,5 +26,8 @@ router.route("/:uuid")
   .get(AuthMiddleware, getUser)
   .delete(AuthMiddleware, deleteUser)
   .put(AuthMiddleware, updateUser);
+
+router.route("/:uuid/deletion-impact")
+  .get(AuthMiddleware, getDeletionImpact);
 
 module.exports = router;
