@@ -15,6 +15,8 @@ import * as components from 'vuetify/components';
 import * as directives from 'vuetify/directives';
 import { aliases, fa } from 'vuetify/iconsets/fa'
 
+import { sessionStore, useNotificationStore } from '@/store';
+
 import './style/globals.css'
 
 const vuetify = createVuetify({
@@ -27,11 +29,29 @@ const vuetify = createVuetify({
   },
 });
 
-// Create Pinia store
-const pinia = createPinia()
-const app = createApp(App)
+const initializeApp = async () => {
 
-app.use(router);
-app.use(pinia);
-app.use(vuetify);
-app.mount('#app');
+  const pinia = createPinia()
+  const app = createApp(App)
+
+  app.use(pinia);
+
+  const session = sessionStore();
+  const notificationStore = useNotificationStore();
+
+  try {
+    await session.auth.loadAuth();
+  } catch(err) {
+    session.auth.logout();
+    notificationStore.notifyError(err.message);
+    router.push({ name:'Log In'});
+  }
+
+  app.use(router);
+  app.use(vuetify);
+  app.mount('#app');
+};
+
+initializeApp().catch(err => {
+  console.error('Error during app initialization:', err);
+});

@@ -5,6 +5,7 @@ import { kiVersion } from "@/components/system";
 import { RouterLink, RouterView } from "vue-router";
 import { ref } from "vue";
 import router from "@/router";
+import { sessionStore } from "@/store";
 
 export default {
   name: "layout",
@@ -16,22 +17,36 @@ export default {
     RouterView,
   },
   setup() {
-    const drawer = ref(false); // ⬅️ drawer cerrado por defecto
+    const drawer = ref(false);
+    const session = sessionStore();
 
     // Generar el listado de rutas
     const router_list = new Map();
     for (const route of router.getRoutes()) {
-      if (route.meta.show !== false) {
+      if (route.meta.show !== false &&
+        (!route.meta.role ||
+          route.meta.role !== "admin" ||
+          (route.meta.role === "admin" &&
+            session.auth.user?.isAdmin))
+      ) {
+        const filteredChildren = (route.children || [])
+          .filter((child) =>
+            !child.meta?.role ||
+            child.meta?.role !== "admin" ||
+            (child.meta?.role === "admin" && session.auth.user?.isAdmin)
+          )
+          .map((child) => ({
+            name: child.name,
+            path: route.path + "/" + child.path,
+            role: child.meta?.role ?? null,
+          }));
+
         router_list.set(route.name, {
           name: route.name,
           path: route.path,
           icon: route.meta.icon,
           role: route.meta.role,
-          children: (route.children || []).map((child) => ({
-            name: child.name,
-            path: route.path + "/" + child.path,
-            role: child.meta?.role ?? null,
-          })),
+          children: filteredChildren,
         });
       }
     }
@@ -84,9 +99,9 @@ export default {
                         class="fa-solid fa-calendar-days menu-calendar"
                         :icon="route.icon"
                       ></i>
-                      <v-list-item-title class="menu-calendar">{{
-                        route.name
-                      }}</v-list-item-title>
+                      <v-list-item-title class="menu-calendar menu-item-title">
+                        {{ route.name }}
+                      </v-list-item-title>
                     </v-list-item>
                   </template>
                   <router-link
@@ -108,9 +123,9 @@ export default {
                     <template #prepend>
                       <v-icon :icon="route.icon" class="menu-calendar" />
                     </template>
-                    <v-list-item-title class="menu-calendar">{{
-                      route.name
-                    }}</v-list-item-title>
+                    <v-list-item-title class="menu-calendar menu-item-title">
+                      {{ route.name }}
+                    </v-list-item-title>
                   </v-list-item>
                 </router-link>
               </template>
@@ -189,5 +204,18 @@ export default {
 .app-version {
   text-align: center;
   margin-bottom: 20px;
+}
+
+.menu-item-title {
+  white-space: normal !important; /* Permitir múltiples líneas */
+  overflow: visible; /* Evitar truncamiento */
+  line-height: 1.2; /* Ajustar espaciado entre líneas */
+  word-break: break-word; /* Permitir quiebre de palabras */
+}
+
+/* Aumentar ligeramente el padding para acomodar múltiples líneas */
+.v-list-item {
+  padding-top: 8px;
+  padding-bottom: 8px;
 }
 </style>

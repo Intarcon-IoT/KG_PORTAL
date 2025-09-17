@@ -13,6 +13,7 @@ import router from '@/router';
     },
     setup() {
       const auth = sessionStore().auth;
+      const session = sessionStore();
       const notificationStore = useNotificationStore();
 
       const isActive = ref(false);
@@ -26,10 +27,16 @@ import router from '@/router';
         })
       }
 
+      const handleMyAccount = () => {
+        router.push({ name: 'Mi Cuenta' });
+      }
+
       return {
         isActive,
         handleLogout,
-        email
+        handleMyAccount,
+        email,
+        session
       }
     }
   }
@@ -59,6 +66,13 @@ import router from '@/router';
             <div>
               <!-- <kiVersion/> -->
               <strong class="user-email">{{ email }}</strong>
+            </div>
+          </v-list-item>
+
+          <v-list-item @click="handleMyAccount()" class="list-item">
+            <div class="list-item-flex wh-max">
+              <v-icon icon="fas fa-user" size="small"></v-icon>
+              <v-list-item-title>Mi Cuenta</v-list-item-title>
             </div>
           </v-list-item>
 
@@ -126,14 +140,14 @@ import router from '@/router';
 }
 
 .list-item div {
-  justify-content: space-between;
+  justify-content: flex-start; 
 }
 
 .list-item-flex {
   display: flex;
   align-items: center;
   flex-wrap: nowrap;
-  gap: -5rem;
+  gap: 12px;
 }
   
 .chips {
@@ -150,5 +164,4 @@ import router from '@/router';
   border-bottom: 1px solid #eee;
   margin-bottom: 8px;
 }
-
 </style>

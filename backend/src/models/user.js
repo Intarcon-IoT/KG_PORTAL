@@ -6,6 +6,7 @@ const moment = require("moment");
 const logger = require('../utils/logger').init();
 const mailerAdapter = require('../utils/mailerAdapter');
 const { passwordResetTemplate } = require('../utils/emailTemplates/passwordResetTemplate');
+const { newUserTemplate } = require('../utils/emailTemplates/newUserTemplate');
 
 class User {
   constructor(uuid) {
@@ -52,7 +53,8 @@ class User {
   }
 
   async delete() {
-    return mysqlAdapter.query("DELETE FROM kibooking_users WHERE uuid = ?", [this.uuid]);
+    const result = await mysqlAdapter.query("DELETE FROM kibooking_users WHERE uuid = ?", [this.uuid]);
+    return result;
   }
 
   async list() {
@@ -83,8 +85,7 @@ class User {
       return { ok: false, message: "Error en la operación" };
     }
 
-    const userStored = result[0];
-
+    const userStored = result[0];    
     if (!userStored) {
       return { login: false, message: "Usuario no encontrado." };
     } else {
@@ -149,6 +150,19 @@ class User {
     } catch (err) {
       logger.error("Password reset error - " + JSON.stringify(err, null, 2));
     }
+  }
+
+  async sendUserCredentialsEmail(password) {
+    const template = newUserTemplate(this.name, this.mail, password);
+    await mailerAdapter.sendMail({ to: this.mail, template });
+  }
+
+  async checkPassword(currentPassword) {
+    const user = await this.read();
+    if (!user || user.length === 0) {
+      return false;
+    }
+    return await bcryptjs.compare(currentPassword, user[0].password);
   }
 }
 
