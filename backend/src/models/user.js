@@ -52,6 +52,13 @@ class User {
     return result;
   }
 
+  async getDeletionImpact() {
+    const [row] = await mysqlAdapter.query(
+      'SELECT COUNT(*) AS bookings FROM kibooking_bookings WHERE user_uuid=?', [this.uuid]
+    );
+    return { ok: true, bookings: row.bookings };
+  }
+
   async delete() {
     const result = await mysqlAdapter.query("DELETE FROM kibooking_users WHERE uuid = ?", [this.uuid]);
     return result;
@@ -131,7 +138,8 @@ class User {
     const expirationTime = 600;
 
     try {
-      const userInfo = await this.read({ email });
+      const userInfoArray = await this.read({ email });
+      const userInfo = userInfoArray[0];
 
       if (userInfo) {
         const token = createCacheToken();

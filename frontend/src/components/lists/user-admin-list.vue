@@ -90,15 +90,16 @@
         </v-card-title>
 
         <v-card-text class="pa-0">
+          <div class="info-line mb-2" v-if="deletionImpact > 0">
+            <i class="fa-solid fa-envelope mr-3"></i>
+            <span>Este usuario tiene <strong>{{ deletionImpact }} reservas asociadas</strong>. Al eliminarlo tambien se borrarán todas sus reservas.</span>
+          </div>
+
           <div class="info-line mb-3">
             <i class="fa-solid fa-circle-exclamation mr-3"></i>
             <span>¿Está seguro de que desea eliminar al usuario <strong>{{ userToDelete?.name }}</strong>?</span>
           </div>
           
-          <div class="info-line mb-2">
-            <i class="fa-solid fa-envelope mr-3"></i>
-            <span>{{ userToDelete?.mail }}</span>
-          </div>
         </v-card-text>
         
         <v-card-actions class="pa-0 mt-5">
@@ -118,6 +119,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { sessionStore } from '@/store';
+import Request from '@/model/request';
 
 const props = defineProps({
   users: {
@@ -136,6 +138,7 @@ const emit = defineEmits(['edit', 'delete']);
 const session = sessionStore();
 const currentUserId = computed(() => session.auth.user?.uuid);
 const search = ref('');
+const deletionImpact = ref(0);
 
 const headers = [
   { title: 'Nombre', key: 'name', sortable: true },
@@ -147,7 +150,20 @@ const headers = [
 const deleteDialog = ref(false);
 const userToDelete = ref(null);
 
-const handleDelete = (user) => {
+const handleDelete = async(user) => {
+  try {
+    const request = new Request({
+      endpoint: `users/${user.uuid}/deletion-impact`,
+      method: 'GET'
+    });
+    const response = await request.http();
+    deletionImpact.value = response.bookings;
+
+  }catch (error) {
+    console.error('Error fetching deletion impact:', error);
+  }
+
+
   userToDelete.value = user;
   deleteDialog.value = true;
 };
