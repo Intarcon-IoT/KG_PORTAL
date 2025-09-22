@@ -1,5 +1,4 @@
 const LegacyRoom = require("../models/Legacy/legacyRoom");
-const Room = require("../models/room");
 
 const middlewares = {
   /**

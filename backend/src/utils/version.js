@@ -1,7 +1,7 @@
 const version = {};
 
 const MAYOR = '2025';
-const MINOR = '05';
+const MINOR = '09';
 const PATCH = '1';
 
 version.getVersion = () => {
