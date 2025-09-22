@@ -7,7 +7,7 @@ const {
   createUser, deleteUser, updateUser
 } = require("../controllers/user_ctrl");
 
-const { AuthMiddleware } = require('../middlewares/authMiddleware');
+const { AuthMiddleware, AdminMiddleware } = require('../middlewares/authMiddleware');
 
 router.route('/sign-in')
   .post(signIn);
@@ -19,15 +19,15 @@ router.route('/log-out')
   .post(AuthMiddleware, logOut);
 
 router.route("/")
-  .get(AuthMiddleware, getUsers)
-  .post(AuthMiddleware, createUser);
+  .get(AuthMiddleware, AdminMiddleware, getUsers)
+  .post(AuthMiddleware, AdminMiddleware, createUser);
 
 router.route("/:uuid")
   .get(AuthMiddleware, getUser)
-  .delete(AuthMiddleware, deleteUser)
+  .delete(AuthMiddleware, AdminMiddleware, deleteUser)
   .put(AuthMiddleware, updateUser);
 
 router.route("/:uuid/deletion-impact")
-  .get(AuthMiddleware, getDeletionImpact);
+  .get(AuthMiddleware, AdminMiddleware, getDeletionImpact);
 
 module.exports = router;

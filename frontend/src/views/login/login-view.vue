@@ -53,7 +53,7 @@ import { ref } from 'vue';
 import { sessionStore } from '@/store';
 import router from '@/router';
 import { useNotificationStore } from '@/store';
-import validate from '@/utils/validate';
+import validate from '@/utils/useValidationRules'
 
 export default {
   name: 'LoginView',

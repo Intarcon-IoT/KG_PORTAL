@@ -15,6 +15,16 @@ const middlewares = {
     } else {
       res.status(403).json({ ok: false, message: 'Sorry but you are not authorized' });
     }
+  },
+  /**
+   * Middleware que comprueba si el usuario es administrador
+   * Debe usarse después de AuthMiddleware
+   */
+  AdminMiddleware: async function (req, res, next) {
+    if (res.locals.user && res.locals.user.isAdmin) {
+      return next();
+    }
+    res.status(403).json({ ok: false, message: 'Sorry but you are not authorized as admin' });
   }
 };
 module.exports = middlewares;
