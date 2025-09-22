@@ -15,7 +15,7 @@ class Room {
     return this;
   }
 
-  get() {
+  getData() {
     return {
       uuid: this.uuid,
       facility_uuid: this.facility_uuid,
