@@ -1,33 +1,99 @@
-const bcryptjs = require("bcryptjs");
-
 const uuid = require("uuid");
 const User = require("../models/user");
+const generateRandomPassword = require("../utils/passwordGenerator");
+
+const ALLOWED_FIELDS = ["name", "mail", "isAdmin", "password", "currentPassword"];
 
 const userCtrl = {};
 
 
 userCtrl.createUser = async (req, res) => {
+  const { name, mail } = req.body;
 
   if (!res.locals.user?.isAdmin) {
     return res.status(403).json({ ok: false, message: "No tienes permiso para crear usuarios" });
   }
-  
-  const { name, mail, password } = req.body;
-
-  if ( !mail || !name || !password) {
-    return res.send({ message: "El nombre de usuario, mail, name y pass son obligatorios" });
+  if ( !mail || !name ) {
+    return res.send({ message: "El nombre de usuario y mail son obligatorios" });
   }
 
+  const randomPassword = generateRandomPassword(8);
+  req.body.password = randomPassword;
   const newUser = new User(uuid.v4());
-
   newUser.set(req.body);
-
   const result = await newUser.create();
 
   if (result.error) {
     return res.json({ ok: false, message: "Error al crear el usuario" });
   } else {
+    await newUser.sendUserCredentialsEmail(randomPassword);
     return res.json({ ok: true, message: "Usuario creado correctamente" });
+  }
+};
+
+userCtrl.getDeletionImpact = async (req, res) => {
+  const { uuid } = req.params;
+  const user = new User(uuid);
+  const result = await user.getDeletionImpact();
+  return res.json(result);
+};
+
+userCtrl.deleteUser = async (req, res) => {
+  if (!res.locals.user?.isAdmin) {
+    return res.status(403).json({ ok: false, message: "No tienes permiso para eliminar usuarios" });
+  }
+  const uuid = req.params.uuid;
+  const user = new User(uuid);
+  const result = await user.delete();
+
+  if (result.affectedRows === 0) {
+    return res.status(404).json({ ok: false, message: "Error al eliminar el usuario" });
+  } else {
+    return res.json({ ok: true, message: "Usuario eliminado correctamente" });
+  }
+};
+
+userCtrl.updateUser = async (req, res) => {
+  //Validación de campos permitidos
+  const keys = Object.keys(req.body);
+  const notAllowed = keys.filter(k => !ALLOWED_FIELDS.includes(k));
+  if (notAllowed.length > 0) {
+    return res.status(400).json({ ok: false, message: `Campos no permitidos: ${notAllowed.join(", ")}` });
+  }
+
+  //Validación de permisos
+  if (!res.locals.user?.isAdmin && res.locals.user?.uuid !== req.params.uuid) {
+    return res.status(403).json({ ok: false, message: "No tienes permiso para actualizar el usuario" });
+  }
+  if (req.body.password && res.locals.user?.uuid !== req.params.uuid) {
+    return res.status(403).json({ ok: false, message: "No tienes permiso para actualizar la contraseña" });
+  }
+  if (req.body.isAdmin && !res.locals.user?.isAdmin) {
+    return res.status(403).json({ ok: false, message: "No tienes permiso para actualizar el rol de administrador" });
+  }
+
+  // Validacion de la contraseña actual
+  if (req.body.password) {
+    if (!req.body.currentPassword) {
+      return res.status(400).json({ ok: false, message: "La contraseña actual es obligatoria para cambiar la contraseña" });
+    }else{
+      const userForPasswordCheck = new User(req.params.uuid);
+      const isPasswordValid = await userForPasswordCheck.checkPassword(req.body.currentPassword);
+      if (!isPasswordValid) {
+        return res.json({ ok: false, message: "Error al actualizar el usuario" });
+      }
+      delete req.body.currentPassword;
+    }
+  }
+
+  const uuid = req.params.uuid;
+  const user = new User(uuid);
+  const result = await user.update(req.body);
+
+  if (result.affectedRows === 0) {
+    return res.json({ ok: false, message: "Error al actualizar el usuario" });
+  } else {
+    return res.json({ ok: true, message: "Usuario actualizado correctamente" });
   }
 };
 
@@ -86,16 +152,6 @@ userCtrl.logOut = async (req, res) => {
   const { token } = req.body;
 
   const result = await user.closeSession(token);
-  return res.json(result);
-};
-
-userCtrl.changePassword = async (req, res) => {
-  const user = new User(req.params.uuid);
-  const { password } = req.body;
-  if (!password) {
-    return res.status(400).json({ ok: false, message: "La contraseña es obligatoria" });
-  }
-  const result = await user.update({ password: bcryptjs.hashSync(password, 0) });
   return res.json(result);
 };
 

@@ -1,7 +1,7 @@
 const mysqlAdapter = require("../utils/mysqlAdapter");
 
 class Booking {
-  constructor(uuid, user_uuid) {
+  constructor(uuid, user_uuid = "") {
     this.uuid = uuid;
     this.user_uuid = user_uuid;
     this.room_uuid = "";
@@ -145,17 +145,44 @@ class Booking {
     return mysqlAdapter.query(sql, data);
   };
 
-  validate() {
-
-    if (!this.room_uuid || !this.start_date || !this.end_date || !this.start_time || !this.end_time) {
+  async validate() {
+    // Validar campos obligatorios 
+      if (!this.room_uuid || !this.start_date || !this.end_date || !this.start_time || !this.end_time || !this.title) {
+        return {
+          valid: false,
+          error: 'La sala, fecha, hora, y título son obligatorios'
+        };
+      }
+    // Validar formato de fecha (YYYY-MM-DD) o (YYYY-MM-DDTHH:MM:SSZ) para manejo de base de datos
+    const dateRegex = /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)?$/
+    const toIsoString = v => v instanceof Date ? v.toISOString() : String(v).trim()
+    if (!dateRegex.test(toIsoString(this.start_date)) || !dateRegex.test(toIsoString(this.end_date))) {
       return {
         valid: false,
-        error: 'El usuario, sala, fecha, hora, y título son obligatorios'
+        error: 'El formato de fecha debe ser YYYY-MM-DD'
+      };
+    }
+    // Validar formato de hora (HH:MM)
+    const timeRegex = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
+    if (!timeRegex.test(this.start_time) || !timeRegex.test(this.end_time)) {
+      return {
+        valid: false,
+        error: 'El formato de hora debe ser HH:MM (24h)'
+      };
+    }
+    // Validar longitud máxima del título
+    if (this.title.length > 255) {
+      return {
+        valid: false,
+        error: 'El título no puede exceder los 255 caracteres'
       };
     }
 
     const startDateTime = new Date(`${this.start_date}T${this.start_time}`);
     const endDateTime = new Date(`${this.end_date}T${this.end_time}`);
+    const now = new Date();
+    now.setSeconds(0);
+    now.setMilliseconds(0);
 
     if (startDateTime > endDateTime) {
       return {
@@ -163,13 +190,14 @@ class Booking {
         error: 'La fecha de inicio no puede ser posterior a la fecha de fin'
       };
     }
-    if (startDateTime < new Date()) {
+    if (startDateTime < now) {
       return {
         valid: false,
-        error: 'La fecha de inicio no pueden ser anteriores a la fecha actual'
+        error: 'La fecha de inicio no puede ser anterior a la fecha actual'
       };
     }
-    if (!this.validRange()) {
+    const validRange = await this.validRange();
+    if (!validRange) {
       return {
         valid: false,
         error: 'La reserva se solapa con alguna ya existente'
@@ -231,6 +259,7 @@ class Booking {
             (? <= start_time AND ? >= end_time)
           )
         )
+        AND uuid != ?  /* Excluir la reserva actual en caso de edición */
     `;
 
     const queryParams = [
@@ -241,7 +270,8 @@ class Booking {
       newEndTime, newStartTime,  // caso 2-1 -> Hora inicio
       newEndTime, newStartTime,  // caso 2-2 -> Hora fin
       newStartTime, newEndTime,  // caso 2-3 -> Nueva dentro de existente
-      newStartTime, newEndTime   // caso 2-4 -> Existente dentro de nueva
+      newStartTime, newEndTime,   // caso 2-4 -> Existente dentro de nueva
+      this.uuid  // Excluir la reserva actual en caso de edición
     ];
 
     const result = await mysqlAdapter.query(sql, queryParams);

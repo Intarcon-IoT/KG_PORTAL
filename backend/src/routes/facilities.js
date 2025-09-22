@@ -6,17 +6,17 @@ const {
   createFacility, editFacility, deleteFacility
 } = require("../controllers/facility_ctrl");
 
-const { AuthMiddleware } = require('../middlewares/authMiddleware');
+const { AuthMiddleware, AdminMiddleware } = require('../middlewares/authMiddleware');
 
 router.use(AuthMiddleware);
 
 router.route("/")
   .get(getFacilities)
-  .post(createFacility);
+  .post(AdminMiddleware, createFacility);
 
 router.route("/:uuid")
   .get(getFacility)
-  .put(editFacility)
-  .delete(deleteFacility);
+  .put(AdminMiddleware, editFacility)
+  .delete(AdminMiddleware, deleteFacility);
 
 module.exports = router;

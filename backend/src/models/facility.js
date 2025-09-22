@@ -45,7 +45,7 @@ class Facility {
 
   read(filter = {}) {
     let data = [];
-    let sql = "SELECT uuid, name, color FROM kibooking_facilities WHERE uuid = ?";
+    let sql = "SELECT uuid, name, color FROM kibooking_facilities WHERE 1 = 1";
     if (Object.keys(filter).length === 0) {
       sql += " AND uuid = ?";
       data.push(this.uuid);

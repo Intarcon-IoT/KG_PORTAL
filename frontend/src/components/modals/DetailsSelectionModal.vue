@@ -377,7 +377,7 @@ function confirmReservation() {
     notificationStore.notifyWarning('Por favor, seleccione una sala.');
     isValid = false;
   }
-  if(bookingInfo.value.title.trim() === '') {
+  if(!bookingInfo.value.title || bookingInfo.value.title.trim() === '') {
     notificationStore.notifyWarning('Por favor, introduzca un título para la reserva.');
     isValid = false;
   }
