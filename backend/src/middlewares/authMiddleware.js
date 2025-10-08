@@ -13,7 +13,7 @@ const middlewares = {
 
       next();
     } else {
-      res.status(403).json({ ok: false, message: 'Sorry but you are not authorized' });
+      res.status(401).json({ ok: false, message: 'Not valid token' });
     }
   },
   /**
