@@ -1,5 +1,6 @@
 import { ErrorResponse, ErrorRequest } from "@/model";
 import { sessionStore } from '@/store';
+import router from '@/router';
 
 export default class Request {
 
@@ -21,7 +22,12 @@ export default class Request {
     400: event => {
       throw new ErrorResponse(event.body.message);
     },
-    401: event => {      
+    401: event => {  
+      const session = sessionStore();
+      session.auth.resetCredentials();
+      localStorage.removeItem('session');
+      router.push({ name: 'Log In' });
+      
       throw new ErrorResponse(event.body.message);
     },
     403: event => {      
