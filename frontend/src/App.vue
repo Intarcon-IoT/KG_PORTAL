@@ -1,11 +1,17 @@
-<script>
+<script setup>
+import { onMounted, onUnmounted } from 'vue';
+import { useSyncStore } from '@/store';
 import { RouterView } from 'vue-router';
 
-export default {
-  components: {
-    RouterView
-  },
-}
+const syncStore = useSyncStore();
+
+onMounted(() => {
+  syncStore.initSync();
+});
+
+onUnmounted(() => {
+  syncStore.cleanup();
+});
 </script>
 
 <template>

@@ -51,8 +51,8 @@ function bookingStatusTemplate({ nombre = "Usuario", status, booking }) {
           <img src="https://keyter-intarcon.com/wp-content/uploads/2025/04/KEYTER-GROUP-300x75.png" alt="KEYTER Group" />
         </div>
 
-        <h2>Hola ${nombre},</h2>
-        <p>Tu reserva ha sido procesada:</p>
+        <h2>Estimado/a ${nombre},</h2>
+        <p>Nos dirigimos a usted para informarle de que su solicitud de reserva ha sido procesada.</p>
 
         <div class="status-box">${statusText}</div>
 
@@ -60,33 +60,35 @@ function bookingStatusTemplate({ nombre = "Usuario", status, booking }) {
         <ul>
           <li><strong>Sala:</strong> ${booking.room_name}</li>
           <li><strong>Fecha:</strong> ${date}</li>
-          <li><strong>Hora inicio:</strong> ${startTime}</li>
-          <li><strong>Hora fin:</strong> ${endTime}</li>
+          <li><strong>Hora de inicio:</strong> ${startTime}</li>
+          <li><strong>Hora de finalización:</strong> ${endTime}</li>
           <li><strong>Título:</strong> ${booking.title || "Sin título"}</li>
-          ${booking.details ? `<li><strong>Detalles:</strong> ${booking.details}</li>` : ""}
+          ${booking.details ? `<li><strong>Observaciones:</strong> ${booking.details}</li>` : ""}
         </ul>
 
-        <p>Si tienes alguna duda, contacta con administración.</p>
-        <p>Un saludo,<br><strong>KEYTER Group</strong></p>
+        <p>Para cualquier consulta adicional, le rogamos que contacte con el departamento de administración.</p>
+        <p>Atentamente,<br><strong>KEYTER Group</strong></p>
       </div>
     </body>
   </html>
   `;
 
   const text = `
-Hola ${nombre},
+Estimado/a ${nombre},
 
-Tu reserva ha sido ${statusText}.
+Le informamos de que su solicitud de reserva ha sido ${statusText}.
 
-Detalles:
+Detalles de la reserva:
 - Sala: ${booking.room_name}
 - Fecha: ${date}
-- Inicio: ${startTime}
-- Fin: ${endTime}
+- Hora de inicio: ${startTime}
+- Hora de finalización: ${endTime}
 - Título: ${booking.title || "Sin título"}
-${booking.details ? `- Detalles: ${booking.details}` : ""}
+${booking.details ? `- Observaciones: ${booking.details}` : ""}
 
-Un saludo,
+Para cualquier consulta adicional, puede ponerse en contacto con el departamento de administración.
+
+Atentamente,
 KEYTER Group
 `;
 

@@ -1,7 +1,7 @@
 <script>
 import { ref } from 'vue';
 import kiLogo from './ki-logo.vue'
-import { sessionStore, useNotificationStore } from '@/store';
+import { sessionStore, useNotificationStore, useBookingStore } from '@/store';
 import router from '@/router';
 // import { kiVersion } from '@/components/system';
 
@@ -17,6 +17,7 @@ import router from '@/router';
       const notificationStore = useNotificationStore();
 
       const isActive = ref(false);
+      const bookingStore = useBookingStore();
 
       const email = ref(auth.user?.mail);
 
@@ -36,7 +37,9 @@ import router from '@/router';
         handleLogout,
         handleMyAccount,
         email,
-        session
+        session,
+        bookingStore,
+        handleGoToValidation: () => router.push({ name: 'Validar Reservas' })
       }
     }
   }
@@ -51,6 +54,27 @@ import router from '@/router';
       </button>
     </div>
     <v-spacer />
+
+    <v-badge
+      v-if="session.auth.user?.isAdmin"
+      :content="bookingStore.pendingCount"
+      :model-value="bookingStore.pendingCount > 0"
+      color="error"
+      overlap
+      class="mr-4"
+    >
+      <v-btn
+        icon
+        variant="tonal"
+        color="blue-grey-darken-3"
+        density="comfortable"
+        @click="handleGoToValidation"
+        title="Validaciones pendientes"
+      >
+        <v-icon icon="fa-solid fa-inbox"></v-icon>
+      </v-btn>
+    </v-badge>
+
     <v-btn class="btn-dropdown bg-primary" rounded="xl" color="white">
       <div class="dropdown">
         <v-icon icon="fas fa-user"></v-icon>

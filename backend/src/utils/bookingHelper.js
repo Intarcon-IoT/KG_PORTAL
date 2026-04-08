@@ -6,7 +6,7 @@ const {
   sendOverlappingRejectedEmails,
 } = require("./statusEmailHelper");
 
-const handleStatusChange = async ({ booking, previousStatus }) => {
+const handleStatusCheck = async ({ booking, previousStatus }) => {
   const newStatus = booking.status;
 
   if (newStatus === previousStatus) return;
@@ -19,7 +19,7 @@ const handleStatusChange = async ({ booking, previousStatus }) => {
     const isAvailable = await booking.validRange();
     if (!isAvailable) {
       throw new Error(
-        "No se puede aprobar la reserva porque se solapa con otra ya confirmada"
+        "No se puede aprobar la reserva porque se solapa con otra ya confirmada",
       );
     }
   }
@@ -42,11 +42,9 @@ const handleStatusChange = async ({ booking, previousStatus }) => {
     booking,
     roomName,
     status: newStatus,
-  }).catch((err) =>
-    console.error("Error enviando email:", err)
-  );
+  }).catch((err) => console.error("Error enviando email:", err));
 };
 
 module.exports = {
-  handleStatusChange,
+  handleStatusCheck,
 };

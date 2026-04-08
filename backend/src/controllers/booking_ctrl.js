@@ -1,7 +1,7 @@
 const uuid = require("uuid");
 const Booking = require("../models/booking");
 const Room = require("../models/room");
-const { handleStatusChange } = require("../utils/bookingHelper");
+const { handleStatusCheck } = require("../utils/bookingHelper");
 const bookingCtrl = {};
 
 bookingCtrl.createBooking = async (req, res) => {
@@ -19,9 +19,9 @@ bookingCtrl.createBooking = async (req, res) => {
     }
 
     if (res.locals.user.isAdmin || roomData[0].needsValidation === 0) {
-      newBooking.status = 'Approved';
+      newBooking.status = "Approved";
     } else {
-      newBooking.status = 'Pending';
+      newBooking.status = "Pending";
     }
 
     const validation = await newBooking.validate();
@@ -37,14 +37,14 @@ bookingCtrl.createBooking = async (req, res) => {
         .status(500)
         .json({ ok: false, message: "Error al crear la reserva." });
     } else {
-      if (newBooking.status === 'Approved') {
+      if (newBooking.status === "Approved") {
         await newBooking.rejectOverlapping();
       }
 
       return res.status(201).json({
         ok: true,
         message:
-          newBooking.status === 'Approved'
+          newBooking.status === "Approved"
             ? "Reserva creada y confirmada correctamente."
             : "Reserva creada. Pendiente de validación por un administrador.",
         status: newBooking.status,
@@ -100,7 +100,11 @@ bookingCtrl.editBooking = async (req, res) => {
     });
   }
 
-  if (!res.locals.user.isAdmin && req.body.status !== undefined && req.body.status !== saved[0].status) {
+  if (
+    !res.locals.user.isAdmin &&
+    req.body.status !== undefined &&
+    req.body.status !== saved[0].status
+  ) {
     return res.status(403).json({
       ok: false,
       message: "No puedes cambiar el estado de la reserva",
@@ -118,7 +122,7 @@ bookingCtrl.editBooking = async (req, res) => {
   }
 
   try {
-    await handleStatusChange({
+    await handleStatusCheck({
       booking,
       previousStatus,
     });
@@ -137,7 +141,7 @@ bookingCtrl.editBooking = async (req, res) => {
     return res.json({
       ok: true,
       message:
-        booking.status === 'Pending'
+        booking.status === "Pending"
           ? "Reserva actualizada y pendiente de validación por un administrador."
           : "Reserva actualizada correctamente.",
       status: booking.status,
