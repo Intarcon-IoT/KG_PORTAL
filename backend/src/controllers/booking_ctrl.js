@@ -1,6 +1,7 @@
 const uuid = require("uuid");
 const Booking = require("../models/booking");
 const Room = require("../models/room");
+const mysqlAdapter = require("../utils/mysqlAdapter");
 const { handleStatusCheck } = require("../utils/bookingHelper");
 const bookingCtrl = {};
 
@@ -173,6 +174,76 @@ bookingCtrl.deleteBooking = async (req, res) => {
     return res.json({ ok: false, message: "Error al eliminar la reserva" });
   } else {
     return res.json({ ok: true, message: "Reserva eliminada correctamente" });
+  }
+};
+
+bookingCtrl.createBulkBookings = async (req, res) => {
+  const { bookings } = req.body;
+  
+  if (!Array.isArray(bookings) || bookings.length === 0) {
+    return res.status(400).json({ ok: false, message: "No se proporcionaron reservas." });
+  }
+
+  const successfulBookings = [];
+
+  try {
+    await mysqlAdapter.runInTransaction(async () => {
+      for (const bookingData of bookings) {
+        const newBooking = new Booking(uuid.v4(), res.locals.user.uuid);
+        newBooking.set(bookingData);
+
+        const room = new Room(newBooking.room_uuid);
+        const roomData = await room.read({});
+
+        if (!roomData || roomData.length === 0) {
+          const error = new Error("La sala especificada no existe.");
+          error.isValidationError = true;
+          throw error;
+        }
+
+        if (res.locals.user.isAdmin || roomData[0].needsValidation === 0) {
+          newBooking.status = "Approved";
+        } else {
+          newBooking.status = "Pending";
+        }
+
+        const validation = await newBooking.validate();
+        if (!validation.valid) {
+          const error = new Error(validation.error);
+          error.isValidationError = true;
+          throw error;
+        }
+
+        const result = await newBooking.create();
+        if (result.error) {
+          const error = new Error("Error al crear la reserva.");
+          error.isValidationError = true;
+          throw error;
+        } else {
+          if (newBooking.status === "Approved") {
+            await newBooking.rejectOverlapping();
+          }
+          successfulBookings.push(newBooking);
+        }
+      }
+    });
+    
+    return res.status(201).json({
+      ok: true,
+      message: `Se han creado ${successfulBookings.length} reservas correctamente.`,
+      count: successfulBookings.length
+    });
+
+  } catch (error) {
+    if (error.isValidationError) {
+      return res.status(400).json({ 
+        ok: false, 
+        message: error.message
+      });
+    }
+    
+    console.error("Error en createBulkBookings:", error);
+    return res.status(500).json({ ok: false, message: "Error interno del servidor." });
   }
 };
 

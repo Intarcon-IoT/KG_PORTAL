@@ -69,16 +69,35 @@
     
     <v-data-table
       :headers="headers"
-      :items="filteredBookings"
+      :items="processedItems"
       :loading="loading"
       class="elevation-1 rounded-lg booking-table"
       density="comfortable"
       :no-data-text="loading ? 'Cargando reservas...' : 'No hay reservas pendientes de validación'"
+      show-expand
+      item-value="id"
     >
+      <template v-slot:item.data-table-expand="{ item, internalItem, isExpanded, toggleExpand }">
+        <v-btn
+          v-if="item.isGroup"
+          variant="text"
+          class="v-data-table__expand-icon"
+          :class="{ 'v-data-table__expand-icon--active': isExpanded(internalItem) }"
+          :icon="isExpanded(internalItem) ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'"
+          @click="toggleExpand(internalItem)"
+        ></v-btn>
+      </template>
       <template v-slot:item.title="{ item }">
         <div class="d-flex align-center">
-          <v-icon size="small" color="deep-purple" class="mr-2">fa-solid fa-calendar-day</v-icon>
-          <span class="font-weight-medium">{{ item.title }}</span>
+          <v-icon size="small" :color="item.isGroup ? 'primary' : 'deep-purple'" class="mr-2">
+            {{ item.isGroup ? 'fa-solid fa-layer-group' : 'fa-solid fa-calendar-day' }}
+          </v-icon>
+          <span class="font-weight-medium">
+            {{ item.title }}
+            <v-chip v-if="item.isGroup" size="x-small" color="primary" class="ml-2" variant="tonal">
+              Serie ({{ item.count }})
+            </v-chip>
+          </span>
         </div>
       </template>
 
@@ -101,12 +120,17 @@
       <template v-slot:item.user_name="{ item }">
         <div class="d-flex align-center">
           <v-icon size="small" color="blue-grey" class="mr-2">fa-solid fa-user</v-icon>
-          <span>{{ item.name }}</span>
+          <span>{{ item.username || item.name }}</span>
         </div>
       </template>
 
       <template v-slot:item.start_date="{ item }">
-        <span>{{ formatDate(item.start_date) }}</span>
+        <template v-if="item.isGroup">
+          <div class="text-caption">
+            {{ formatDate(item.start_date) }} - {{ formatDate(item.end_date) }}
+          </div>
+        </template>
+        <span v-else>{{ formatDate(item.start_date) }}</span>
       </template>
 
       <template v-slot:item.times="{ item }">
@@ -115,7 +139,7 @@
             {{ item.start_time.substring(0, 5) }} - {{ item.end_time.substring(0, 5) }}
           </v-chip>
 
-          <v-tooltip v-if="overlappingBookings.has(item.uuid)" text="Conflicto de horario">
+          <v-tooltip v-if="!item.isGroup && overlappingBookings.has(item.uuid)" text="Conflicto de horario">
             <template v-slot:activator="{ props }">
               <v-icon size="small" color="orange" v-bind="props">fa-solid fa-triangle-exclamation</v-icon>
             </template>
@@ -125,33 +149,54 @@
       
       <template v-slot:item.actions="{ item }">
         <div class="actions-container">
-          <v-tooltip text="Aprobar reserva">
+          <v-tooltip :text="item.isGroup ? 'Aprobar serie completa' : 'Aprobar reserva'">
             <template v-slot:activator="{ props }">
               <v-btn
                 icon
                 color="success"
                 variant="text"
                 v-bind="props"
-                @click="attemptApprove(item)"
+                @click="item.isGroup ? handleBatchAction(item, 'Approved') : attemptApprove(item)"
               >
-                <i class="fa-solid fa-circle-check"></i>
+                <i :class="item.isGroup ? 'fa-solid fa-check-double' : 'fa-solid fa-circle-check'"></i>
               </v-btn>
             </template>
           </v-tooltip>
-          <v-tooltip text="Rechazar reserva">
+          <v-tooltip :text="item.isGroup ? 'Rechazar serie completa' : 'Rechazar reserva'">
             <template v-slot:activator="{ props }">
               <v-btn
                 icon
                 color="error"
                 variant="text"
                 v-bind="props"
-                @click="handleStatusCheck(item, 'Rejected')"
+                @click="item.isGroup ? handleBatchAction(item, 'Rejected') : handleStatusCheck(item, 'Rejected')"
               >
-                <i class="fa-solid fa-circle-xmark"></i>
+                <i :class="item.isGroup ? 'fa-solid fa-ban' : 'fa-solid fa-circle-xmark'"></i>
               </v-btn>
             </template>
           </v-tooltip>
         </div>
+      </template>
+
+      <template v-slot:expanded-row="{ columns, item }">
+        <tr>
+          <td :colspan="columns.length" class="bg-grey-lighten-4 pa-0">
+            <div class="pa-4">
+              <div class="text-subtitle-2 mb-2">Fechas de la serie:</div>
+              <div class="d-flex flex-wrap gap-2">
+                <v-chip
+                  v-for="b in item.bookings"
+                  :key="b.uuid"
+                  size="small"
+                  variant="outlined"
+                  class="bg-white"
+                >
+                  {{ formatDate(b.start_date) }}
+                </v-chip>
+              </div>
+            </div>
+          </td>
+        </tr>
       </template>
 
       <template v-slot:no-data>
@@ -245,6 +290,52 @@ const filteredBookings = computed(() => {
   });
 });
 
+const processedItems = computed(() => {
+  const items = filteredBookings.value;
+  const groupsMap = new Map();
+  const independentItems = [];
+  const conflictsSet = overlappingBookings.value;
+
+  items.forEach(item => {
+    if (conflictsSet.has(item.uuid)) {
+      independentItems.push({ ...item, isGroup: false, id: item.uuid });
+    } else {
+      const key = `${item.user_uuid}-${item.room_uuid}-${item.title}-${item.details}-${item.start_time}-${item.end_time}`;
+      if (!groupsMap.has(key)) {
+        groupsMap.set(key, []);
+      }
+      groupsMap.get(key).push(item);
+    }
+  });
+
+  const finalItems = [...independentItems];
+  groupsMap.forEach((groupItems, key) => {
+    if (groupItems.length === 1) {
+      finalItems.push({ ...groupItems[0], isGroup: false, id: groupItems[0].uuid });
+    } else {
+      groupItems.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+      
+      finalItems.push({
+        isGroup: true,
+        id: `group-${key}`,
+        groupKey: key,
+        bookings: groupItems,
+        title: groupItems[0].title,
+        room_uuid: groupItems[0].room_uuid,
+        user_uuid: groupItems[0].user_uuid,
+        username: groupItems[0].name,
+        start_time: groupItems[0].start_time,
+        end_time: groupItems[0].end_time,
+        start_date: groupItems[0].start_date,
+        end_date: groupItems[groupItems.length - 1].start_date,
+        count: groupItems.length
+      });
+    }
+  });
+
+  return finalItems.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+});
+
 const getRoomName = (roomUuid) => {
   const room = props.rooms.find(r => r.uuid === roomUuid);
   return room ? room.name : 'Sala desconocida';
@@ -272,6 +363,13 @@ const formatDate = (dateString) => {
 
 const handleStatusCheck = (booking, status) => {
   emit('update-status', { uuid: booking.uuid, status });
+};
+
+const handleBatchAction = async (group, status) => {
+  const promises = group.bookings.map(b => {
+      return emit('update-status', { uuid: b.uuid, status });
+  });
+  await Promise.all(promises);
 };
 
 const selectedDateFormatted = computed(() => {

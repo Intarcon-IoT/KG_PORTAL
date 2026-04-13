@@ -126,12 +126,21 @@
               />
             </v-col>
           </v-row>
+          <v-row>
+            <v-col cols="12">
+              <v-checkbox
+                v-model="repeatBooking"
+                label="Repetir reserva"
+                density="compact"
+              />
+            </v-col>
+          </v-row>
         </v-container>
       </v-card-text>
       <v-card-actions>
         <v-spacer />
         <v-btn color="primary" @click="confirmReservation" class="confirm-btn">
-          {{ isEditMode ? 'Actualizar Reserva' : 'Confirmar Reserva' }}
+          {{ actionButtonText }}
         </v-btn>
       </v-card-actions>
     </v-card>
@@ -154,13 +163,14 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['update:dialog', 'confirmBooking', 'back', 'cancelEdit'])
+const emit = defineEmits(['update:dialog', 'confirmBooking', 'next', 'back', 'cancelEdit'])
 
 const dialog = ref(props.dialog)
 const isEditMode = computed(() => props.isEditMode)
 const notificationStore = useNotificationStore()
 const session = sessionStore();
 const today = new Date().toISOString().substring(0, 10)
+const repeatBooking = ref(false)
 
 const timeIntervalsFrom = ref(generateTimeIntervals())
 const timeIntervalsTo = ref(generateTimeIntervals())
@@ -180,6 +190,11 @@ const bookingInfo = ref({
   timeTo: '',
   title: '',
   details: ''
+})
+
+const actionButtonText = computed(() => {
+  if (isEditMode.value) return 'Actualizar Reserva'
+  return repeatBooking.value ? 'Configurar Repetición' : 'Crear Reserva'
 })
 
 function goBack() {
@@ -235,6 +250,14 @@ function updateTimeIntervalsByBookingOnRange() {
       interval.status = isBlocking(booking) ? 'Approved' : 'Rejected';
       interval.disabled = isBlocking(booking);
     }
+
+    if (!interval.disabled && bookingInfo.value.dateFrom === today) {
+      const now = moment();
+      const intervalTime = moment(`${today} ${interval.hour}`, 'YYYY-MM-DD HH:mm');
+      if (intervalTime.isBefore(now)) {
+        interval.disabled = true;
+      }
+    }
   });
 
   let confirmedBookingFound = false;
@@ -255,6 +278,14 @@ function updateTimeIntervalsByBookingOnRange() {
     } else {
       interval.disabled = true;
       interval.status = 'Approved';
+    }
+
+    if (!interval.disabled && bookingInfo.value.dateTo === today) {
+      const now = moment();
+      const intervalTime = moment(`${today} ${interval.hour}`, 'YYYY-MM-DD HH:mm');
+      if (intervalTime.isBefore(now)) {
+        interval.disabled = true;
+      }
     }
   });
 
@@ -396,6 +427,16 @@ function confirmReservation() {
     notificationStore.notifyWarning('Por favor, seleccione una sala.');
     isValid = false;
   }
+  
+  if (bookingInfo.value.dateFrom === today) {
+    const now = moment();
+    const startTime = moment(`${today} ${bookingInfo.value.timeFrom}`, 'YYYY-MM-DD HH:mm');
+    if (startTime.isBefore(now)) {
+      notificationStore.notifyWarning('La hora de inicio ya ha pasado.');
+      isValid = false;
+    }
+  }
+
   if(!bookingInfo.value.title || bookingInfo.value.title.trim() === '') {
     notificationStore.notifyWarning('Por favor, introduzca un título para la reserva.');
     isValid = false;
@@ -403,7 +444,15 @@ function confirmReservation() {
 
   if(isValid){
     emit('update:dialog', false)
-    emit('confirmBooking', { ...bookingInfo.value })
+    if (isEditMode.value) {
+      emit('confirmBooking', { ...bookingInfo.value })
+      return
+    }
+    if (repeatBooking.value) {
+      emit('next', { ...bookingInfo.value })
+    } else {
+      emit('confirmBooking', { ...bookingInfo.value })
+    }
   }
 }
 
@@ -411,6 +460,7 @@ watch(() => props.dialog, async (val) => {
   dialog.value = val
 
   if (val) {
+    repeatBooking.value = false
     bookingInfo.value.facility_uuid = props.booking.facility.uuid
     bookingInfo.value.room_uuid = props.booking.room.uuid
     bookingInfo.value.dateFrom = toDateString(props.booking.date)

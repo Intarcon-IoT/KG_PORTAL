@@ -98,8 +98,15 @@
         :rooms="roomsList"
         :isEditMode="isEditingMode"
         @back="handleBackToDateModal"
+        @next="handleNextToBulkModal"
         @confirmBooking="handleBooking"
         @cancelEdit="handleCancelEdit"
+      />
+      <BulkBookingModal
+        v-model:dialog="showBulkModal"
+        :initialBooking="bookingPayload"
+        @back="handleBackToDetailsModal"
+        @confirmBulkBooking="handleBulkBooking"
       />
       <ViewBookingDetailsModal 
         v-model:dialog="showBookingDetailsModal"
@@ -125,6 +132,7 @@ import FacilitySelectionModal from './modals/FacilitySelectionModal.vue';
 import RoomSelectionModal from './modals/RoomSelectionModal.vue';
 import DateSelectionModal from './modals/DateSelectionModal.vue';
 import DetailsSelectionModal from './modals/DetailsSelectionModal.vue';
+import BulkBookingModal from './modals/BulkBookingModal.vue';
 import ViewBookingDetailsModal from './modals/ViewBookingDetailsModal.vue';
 import ResourceFilter from './filters/ResourceFilter.vue';
 import CalendarViewSelector from './calendar-navigation/CalendarViewSelector.vue';
@@ -137,6 +145,7 @@ const showFacilityModal = ref(false);
 const showRoomModal = ref(false);
 const showDateModal = ref(false);
 const showDetailsModal = ref(false);
+const showBulkModal = ref(false);
 const showBookingDetailsModal = ref(false);
 
 // STORE
@@ -155,6 +164,7 @@ const { bookings: bookingsList } = storeToRefs(bookingStore);
 const availableRooms = ref([]);
 const bookingDetails = ref(null);
 const isEditingMode = ref(false);
+const bookingPayload = ref(null);
 
 //FILTER DATA
 const selectedFacilitiesUuid = ref([]);
@@ -269,6 +279,18 @@ function handleBackToDateModal() {
   showDateModal.value = true
 }
 
+function handleNextToBulkModal(bookingData) {
+  const room = roomsList.value.find(r => r.uuid === bookingData.room_uuid);
+  bookingPayload.value = { ...bookingData, needsValidation: room?.needsValidation === 1 };
+  showDetailsModal.value = false;
+  showBulkModal.value = true;
+}
+
+function handleBackToDetailsModal() {
+  showBulkModal.value = false;
+  showDetailsModal.value = true;
+}
+
 function handleBookingDetailsView(booking, isPast) {
   resetBooking();
   isEditingMode.value = false;
@@ -300,6 +322,26 @@ function handleBooking(bookingData) {
   resetBooking();
 }
 
+function handleBulkBooking(bookingsArray) {
+  const payloads = bookingsArray.map(b => ({
+    uuid: b.uuid,
+    room_uuid: b.room_uuid,
+    start_date: b.dateFrom,
+    end_date: b.dateTo,
+    start_time: b.timeFrom,
+    end_time: b.timeTo,
+    title: b.title,
+    details: b.details
+  }));
+
+  if (bookingsArray.length === 1 && bookingsArray[0].isSingle) {
+    bookingStore.createBooking(payloads[0]);
+  } else {
+    bookingStore.createBulkBookings(payloads, bookingsArray[0]?.needsValidation);
+  }
+  
+  resetBooking();
+}
 
 function handleEditBooking(bookingToEdit) {
   isEditingMode.value = true;
