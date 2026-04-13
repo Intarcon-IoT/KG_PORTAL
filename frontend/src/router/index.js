@@ -27,6 +27,13 @@ const router = createRouter({
           beforeEnter: (to, from, next) => adminGuard(to, from, next),
         },
         {
+          path: 'bookings-validation',
+          name: 'Validar Reservas',
+          meta: { role: 'admin', icon: 'fa fa-check-to-slot' },
+          component: () => import('../views/bookings/booking-validation-view.vue'),
+          beforeEnter: (to, from, next) => adminGuard(to, from, next),
+        },
+        {
           path: 'my-account',
           name: 'Mi Cuenta',
           meta: { show: false, icon: 'fa fa-user' },

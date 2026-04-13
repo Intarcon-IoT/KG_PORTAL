@@ -51,6 +51,14 @@
             <span>{{ booking.name }}</span>
           </div>
         </v-card-text>
+        <v-card-actions v-if="isAdmin && isPending" class="justify-center pb-4 pt-4">
+          <v-btn color="error" variant="outlined" class="mx-2" min-width="140" @click="handleStatusUpdate('Rejected')">
+            Rechazar reserva
+          </v-btn>
+          <v-btn color="success" variant="elevated" class="mx-2" min-width="140" @click="handleStatusUpdate('Approved')">
+            Aceptar reserva
+          </v-btn>
+        </v-card-actions>
       </v-card>
     </v-dialog>
     <v-dialog v-model="deleteDialog" max-width="400" transition="dialog-bottom-transition">
@@ -121,11 +129,19 @@ const props = defineProps({
   facilities: Array,
 })
 
-const emit = defineEmits(['update:dialog', 'edit', 'delete'])
+const emit = defineEmits(['update:dialog', 'edit', 'delete', 'status-update'])
 
 const session = sessionStore();
 const internalDialog = ref(props.dialog)
 const deleteDialog = ref(false)
+
+const isAdmin = computed(() => session.auth.user.isAdmin);
+const isPending = computed(() => props.booking && props.booking.status === 'Pending');
+
+const handleStatusUpdate = (status) => {
+  emit('status-update', { uuid: props.booking.uuid, status });
+  internalDialog.value = false;
+}
 
 const handleEdit = () => {
   internalDialog.value = false

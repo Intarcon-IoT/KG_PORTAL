@@ -34,6 +34,18 @@
         >
           <div class="resource-cell">
             <div 
+              v-if="room.needsValidation == 1"
+              class="validation-badge"
+            >
+              <v-tooltip
+                activator="parent"
+                location="end"
+              >
+                Las reservas en esta sala necesitan ser aprobadas por un administrador
+              </v-tooltip>
+              <i class="fa-solid fa-circle-exclamation"></i>
+            </div>
+            <div 
               class="capacity-badge" 
               :style="{ backgroundColor: `${facility.color}` }"
             >
@@ -65,7 +77,10 @@
                 :key="event.uuid"
                 :style="{ backgroundColor: `${facility.color}` }"
                 class="event-chip"
-                :class="{ 'past-event': isPastDay(day.date) }"
+                :class="{ 
+                  'past-event': isPastDay(day.date), 
+                  'pending-event': event.status === 'Pending' && !isPastDay(day.date) 
+                }"
                 @click.stop="() => emit('booking_click', event, resource, isPastDay(day.date))"
               >
                 <v-tooltip
@@ -74,11 +89,15 @@
                   class="custom-tooltip"
                   max-width="300"
                 >
-                        <div class="tooltip-content">
-        <div class="tooltip-title">{{ event.title }}</div>
-        <div class="tooltip-time">{{ formatTime(event.start_time) }} - {{ formatTime(event.end_time) }}</div>
-      </div>
+                  <div class="tooltip-content">
+                    <div v-if="event.status === 'Pending' && !isPastDay(day.date)" class="tooltip-status mb-2">
+                      <i class="fa-solid fa-clock-rotate-left mr-1"></i> Reserva pendiente de validación
+                    </div>
+                    <div class="tooltip-title">{{ event.title }}</div>
+                    <div class="tooltip-time">{{ formatTime(event.start_time) }} - {{ formatTime(event.end_time) }}</div>
+                  </div>
                 </v-tooltip>
+                <i v-if="event.status === 'Pending' && !isPastDay(day.date)" class="fa-solid fa-clock-rotate-left mr-1 event-status-icon"></i>
                 {{ formatTime(event.start_time) }} - {{ formatTime(event.end_time) }}
                 <br />
                 {{ event.title }}
@@ -281,6 +300,18 @@ function formatTime(time) {
   text-align: center;
 }
 
+.validation-badge {
+  position: absolute;
+  top: 7px;
+  right: 48px;
+  color: #d32f2f;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: help;
+}
+
 .room-info {
   display: flex;
   flex-direction: column;
@@ -325,6 +356,22 @@ function formatTime(time) {
 
 .event-chip:hover {
     opacity: 0.8;
+}
+
+.pending-event {
+  opacity: 0.6;
+}
+
+.event-status-icon {
+  font-size: 0.9em;
+}
+
+.tooltip-status {
+  font-weight: bold;
+  color: #fb8c00;
+  font-size: 0.85em;
+  display: flex;
+  align-items: center;
 }
 
 .resource-grid {
