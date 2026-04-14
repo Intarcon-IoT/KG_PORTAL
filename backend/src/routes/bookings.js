@@ -6,6 +6,7 @@ const {
   getBooking, 
   getBookingByUser,
   createBooking, 
+  createBulkBookings,
   editBooking, 
   deleteBooking
 } = require("../controllers/booking_ctrl");
@@ -17,6 +18,8 @@ router.use(AuthMiddleware);
 router.route("/")
   .get(getBookings)
   .post(createBooking);
+
+router.post("/bulk", createBulkBookings);
 
 router.route("/:uuid")
   .get(getBooking)

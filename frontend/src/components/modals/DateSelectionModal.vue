@@ -89,6 +89,8 @@
                   color="primary"
                   @click="selectHour(hour)"
                   elevation="6"
+                  :disabled="isHourPast(hour)"
+                  :class="{ 'past-hour-btn': isHourPast(hour) }"
                 >
                   <i class="fa-solid fa-plus fa-xs"></i>
                 </v-btn>
@@ -220,6 +222,12 @@ function hasPendingFromOther(hour) {
 
 function hasApproved(hour) {
   return getBookingsForHour(hour).some(b => b.status === 'Approved');
+}
+
+function isHourPast(hour) {
+  const now = moment();
+  const selected = moment(`${selectedDate.value} ${hour}`, 'YYYY-MM-DD HH:mm');
+  return selected.isBefore(now);
 }
 
 
@@ -372,5 +380,10 @@ function setWeekFromDate(dateString) {
 .reserved-badge:hover {
   transform: scale(1.02);
   box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.past-hour-btn {
+  opacity: 0.5;
+  filter: grayscale(1);
 }
 </style>

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import Request from "@/model/request";
 import { useNotificationStore } from './useNotificationStore';
+import { sessionStore } from './session';
 
 export const useBookingStore = defineStore('booking', {
   state: () => ({
@@ -24,6 +25,20 @@ export const useBookingStore = defineStore('booking', {
         notification.notifyError('Error al cargar reservas');
       } finally {
         this.loading = false;
+      }
+    },
+
+    async fetchBookingsByDateRange(room_uuid, from_date, to_date) {
+      try {
+        const request = new Request({
+          endpoint: 'bookings',
+          method: 'GET',
+          params: { room_uuid, from_date, to_date }
+        });
+        return await request.http();
+      } catch (error) {
+        console.error('Error fetching bookings by date range:', error);
+        throw error;
       }
     },
 
@@ -83,12 +98,39 @@ export const useBookingStore = defineStore('booking', {
         const response = await request.http();
         await this.fetchBookings();
         const notification = useNotificationStore();
-        notification.notifySuccess(response.body.message);
+        notification.notifySuccess(response.body?.message || response.message || 'Reserva creada con éxito');
 
       } catch (error) {
         console.error('Error creating booking:', error);
         const notification = useNotificationStore();
         notification.notifyError(error.message || 'Error al crear la reserva');
+        throw error;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async createBulkBookings(bookingsArray, needsValidation = false) {
+      this.loading = true;
+      const notification = useNotificationStore();
+      const session = sessionStore();
+      
+      try {
+        const request = new Request({
+          endpoint: 'bookings/bulk',
+          method: 'POST',
+          body: JSON.stringify({ bookings: bookingsArray }),
+        });
+
+        const response = await request.http();
+        await this.fetchBookings();
+        
+        const validMsg = (needsValidation && !session.auth.user?.isAdmin)? ' y están pendientes de validación por un administrador' : '';
+        notification.notifySuccess(`Se han creado ${bookingsArray.length} reservas correctamente${validMsg}`);
+      } catch (error) {
+        console.error('Error creating bulk bookings:', error);
+        notification.notifyError(error.message || 'Error al procesar las reservas en lote');
+        await this.fetchBookings();
         throw error;
       } finally {
         this.loading = false;
