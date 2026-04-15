@@ -3,6 +3,7 @@ const Booking = require("../models/booking");
 const Room = require("../models/room");
 const mysqlAdapter = require("../utils/mysqlAdapter");
 const { handleStatusCheck } = require("../utils/bookingHelper");
+const thirdPartyService = require("../utils/thirdPartyService");
 const bookingCtrl = {};
 
 bookingCtrl.createBooking = async (req, res) => {
@@ -41,7 +42,10 @@ bookingCtrl.createBooking = async (req, res) => {
       if (newBooking.status === "Approved") {
         await newBooking.rejectOverlapping();
       }
-
+      if(roomData[0].needsValidation === 0) {
+        const { user_uuid, status, ...cleanBooking } = newBooking;
+        await thirdPartyService.syncThirdParty(cleanBooking, 'insert');
+      }
       return res.status(201).json({
         ok: true,
         message:
@@ -86,9 +90,10 @@ bookingCtrl.getBooking = async (req, res) => {
 bookingCtrl.editBooking = async (req, res) => {
   const uuid = req.params.uuid;
   const booking = new Booking(uuid);
-
   const saved = await booking.read();
-
+  const room = new Room(saved[0].room_uuid);
+  const roomData = await room.read();
+  
   if (!saved || saved.length === 0) {
     return res
       .status(404)
@@ -139,6 +144,9 @@ bookingCtrl.editBooking = async (req, res) => {
   if (result.error) {
     return res.json({ ok: false, message: "Error al actualizar la reserva" });
   } else {
+    if(roomData[0].needsValidation === 0) {
+      await thirdPartyService.syncThirdParty(req.body, 'update');
+    }
     return res.json({
       ok: true,
       message:
@@ -155,6 +163,9 @@ bookingCtrl.deleteBooking = async (req, res) => {
 
   let booking = new Booking(uuid);
   const saved = await booking.read();
+  const room = new Room(saved[0].room_uuid);
+  const roomData = await room.read();
+  const { user_uuid, updated_ts, status, ...cleanBooking } = saved[0];
 
   if (!saved || saved.length === 0) {
     return res
@@ -173,6 +184,9 @@ bookingCtrl.deleteBooking = async (req, res) => {
   if (result.affectedRows === 0) {
     return res.json({ ok: false, message: "Error al eliminar la reserva" });
   } else {
+    if(roomData[0].needsValidation === 0) {
+      await thirdPartyService.syncThirdParty(cleanBooking, 'delete');
+    }
     return res.json({ ok: true, message: "Reserva eliminada correctamente" });
   }
 };
@@ -223,10 +237,17 @@ bookingCtrl.createBulkBookings = async (req, res) => {
           if (newBooking.status === "Approved") {
             await newBooking.rejectOverlapping();
           }
-          successfulBookings.push(newBooking);
+          const { user_uuid, status, ...cleanBooking } = newBooking;
+          successfulBookings.push({ booking: cleanBooking, needsSync: roomData[0].needsValidation === 0 });
         }
       }
     });
+
+    await Promise.all(
+      successfulBookings
+        .filter(item => item.needsSync)
+        .map(item => thirdPartyService.syncThirdParty(item.booking, 'insert'))
+    );
     
     return res.status(201).json({
       ok: true,
