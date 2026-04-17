@@ -1,20 +1,34 @@
 const cache = require('../utils/cacheAdapter');
-
+const thirdPartyConfig = require('../../configThirdParty.json');
 const middlewares = {
   /**
    * Middleware que comprueba la existencia de la sesión en Redis
    */
   AuthMiddleware: async function (req, res, next) {
     const token = req.headers.authorization ? req.headers.authorization.split(" ")[1] : null;
+    
+    if (!token) {
+      return res.status(401).json({ ok: false, message: 'No token provided' });
+    }
+
     const exist = await cache.getRedis(token, true);
 
-    if (exist) {
-      res.locals.user = JSON.parse(exist);
-
-      next();
-    } else {
-      res.status(401).json({ ok: false, message: 'Not valid token' });
+    if (exist && !exist.error) {
+      res.locals.user = typeof exist === 'string' ? JSON.parse(exist) : exist;
+      return next();
     }
+
+    const thirdParty = Object.values(thirdPartyConfig).find(tp => tp.api_token === token);
+    
+    if (thirdParty) {
+      res.locals.user = {
+        uuid: thirdParty.uuid,
+        isAdmin: false
+      };
+      return next();
+    }
+
+    res.status(401).json({ ok: false, message: 'Not valid token' });
   },
   /**
    * Middleware que comprueba si el usuario es administrador
