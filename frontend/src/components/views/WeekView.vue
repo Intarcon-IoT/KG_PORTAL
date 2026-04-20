@@ -79,7 +79,7 @@
                 class="event-chip"
                 :class="{ 
                   'past-event': isPastDay(day.date), 
-                  'pending-event': event.status === 'Pending' && !isPastDay(day.date) 
+                  'pending-event': event.status === BOOKING_STATUS.PENDING && !isPastDay(day.date) 
                 }"
                 @click.stop="() => emit('booking_click', event, resource, isPastDay(day.date))"
               >
@@ -90,14 +90,14 @@
                   max-width="300"
                 >
                   <div class="tooltip-content">
-                    <div v-if="event.status === 'Pending' && !isPastDay(day.date)" class="tooltip-status mb-2">
+                    <div v-if="event.status === BOOKING_STATUS.PENDING && !isPastDay(day.date)" class="tooltip-status mb-2">
                       <i class="fa-solid fa-clock-rotate-left mr-1"></i> Reserva pendiente de validación
                     </div>
                     <div class="tooltip-title">{{ event.title }}</div>
                     <div class="tooltip-time">{{ formatTime(event.start_time) }} - {{ formatTime(event.end_time) }}</div>
                   </div>
                 </v-tooltip>
-                <i v-if="event.status === 'Pending' && !isPastDay(day.date)" class="fa-solid fa-clock-rotate-left mr-1 event-status-icon"></i>
+                <i v-if="event.status === BOOKING_STATUS.PENDING && !isPastDay(day.date)" class="fa-solid fa-clock-rotate-left mr-1 event-status-icon"></i>
                 {{ formatTime(event.start_time) }} - {{ formatTime(event.end_time) }}
                 <br />
                 {{ event.title }}
@@ -113,6 +113,7 @@
 
 <script setup>
 import { computed } from 'vue';
+import { BOOKING_STATUS } from '@/utils/constants';
 
 const props = defineProps({
   selectedDate: Date,

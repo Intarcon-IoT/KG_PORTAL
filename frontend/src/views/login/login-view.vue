@@ -54,6 +54,7 @@ import { sessionStore } from '@/store';
 import router from '@/router';
 import { useNotificationStore } from '@/store';
 import validate from '@/utils/useValidationRules'
+import { ROLES } from '@/utils/constants';
 
 export default {
   name: 'LoginView',
@@ -90,7 +91,7 @@ export default {
 
       session.auth.login({
         ...credentials,
-        role: 'admin'
+        role: ROLES.ADMIN
       }).then(res => {
         session.setSession({
           session: true,

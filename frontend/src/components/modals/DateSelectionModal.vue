@@ -109,6 +109,7 @@ import { ref, watch, computed, onMounted } from 'vue'
 import Request from "@/model/request";
 import { useNotificationStore, sessionStore } from '@/store';
 import moment from 'moment';
+import { BOOKING_STATUS } from '@/utils/constants';
 
 const props = defineProps({ 
   dialog: Boolean,
@@ -217,11 +218,11 @@ function hasOwnBooking(hour) {
 }
 
 function hasPendingFromOther(hour) {
-  return getBookingsForHour(hour).some(b => b.user_uuid !== session.auth.user.uuid && b.status === 'Pending');
+  return getBookingsForHour(hour).some(b => b.user_uuid !== session.auth.user.uuid && b.status === BOOKING_STATUS.PENDING);
 }
 
 function hasApproved(hour) {
-  return getBookingsForHour(hour).some(b => b.status === 'Approved');
+  return getBookingsForHour(hour).some(b => b.status === BOOKING_STATUS.APPROVED);
 }
 
 function isHourPast(hour) {

@@ -3,6 +3,8 @@ import { ref } from 'vue';
 import kiLogo from './ki-logo.vue'
 import { sessionStore, useNotificationStore, useBookingStore } from '@/store';
 import router from '@/router';
+import { ROLES } from '@/utils/constants';
+
 // import { kiVersion } from '@/components/system';
 
   export default {
@@ -39,6 +41,7 @@ import router from '@/router';
         email,
         session,
         bookingStore,
+        ROLES,
         handleGoToValidation: () => router.push({ name: 'Validar Reservas' })
       }
     }
@@ -56,7 +59,7 @@ import router from '@/router';
     <v-spacer />
 
     <v-badge
-      v-if="session.auth.user?.isAdmin"
+      v-if="(session.auth.user?.role === ROLES.ADMIN || session.auth.user?.role === ROLES.GESTOR)"
       :content="bookingStore.pendingCount"
       :model-value="bookingStore.pendingCount > 0"
       color="error"

@@ -56,14 +56,14 @@
                     v-bind="props"
                     :disabled="item.raw.disabled"
                     :class="{ 
-                      'text-error': item.raw.status === 'Approved' || (item.raw.disabled && item.raw.status !== 'Rejected'),
-                      'text-warning': item.raw.status === 'Rejected' && !item.raw.disabled
+                      'text-error': item.raw.status === BOOKING_STATUS.APPROVED || (item.raw.disabled && item.raw.status !== BOOKING_STATUS.REJECTED),
+                      'text-warning': item.raw.status === BOOKING_STATUS.REJECTED && !item.raw.disabled
                     }"
                   >
-                    <template #prepend v-if="item.raw.status === 'Rejected' && !item.raw.disabled">
+                    <template #prepend v-if="item.raw.status === BOOKING_STATUS.REJECTED && !item.raw.disabled">
                       <v-icon icon="fa-solid fa-clock-rotate-left" color="warning" size="x-small" class="mr-2"></v-icon>
                     </template>
-                    <v-tooltip v-if="item.raw.status === 'Rejected' && !item.raw.disabled" activator="parent" location="end">
+                    <v-tooltip v-if="item.raw.status === BOOKING_STATUS.REJECTED && !item.raw.disabled" activator="parent" location="end">
                       Existe una reserva pendiente de validación en este tramo horario
                     </v-tooltip>
                   </v-list-item>
@@ -95,14 +95,14 @@
                     v-bind="props"
                     :disabled="item.raw.disabled"
                     :class="{ 
-                      'text-error': item.raw.status === 'Approved' || (item.raw.disabled && item.raw.status !== 'Rejected'),
-                      'text-warning': item.raw.status === 'Rejected' && !item.raw.disabled
+                      'text-error': item.raw.status === BOOKING_STATUS.APPROVED || (item.raw.disabled && item.raw.status !== BOOKING_STATUS.REJECTED),
+                      'text-warning': item.raw.status === BOOKING_STATUS.REJECTED && !item.raw.disabled
                     }"
                   >
-                    <template #prepend v-if="item.raw.status === 'Rejected' && !item.raw.disabled">
+                    <template #prepend v-if="item.raw.status === BOOKING_STATUS.REJECTED && !item.raw.disabled">
                       <v-icon icon="fa-solid fa-clock-rotate-left" color="warning" size="x-small" class="mr-2"></v-icon>
                     </template>
-                    <v-tooltip v-if="item.raw.status === 'Rejected' && !item.raw.disabled" activator="parent" location="end">
+                    <v-tooltip v-if="item.raw.status === BOOKING_STATUS.REJECTED && !item.raw.disabled" activator="parent" location="end">
                       Existe una reserva pendiente de validación en este tramo horario
                     </v-tooltip>
                   </v-list-item>
@@ -126,7 +126,7 @@
               />
             </v-col>
           </v-row>
-          <v-row>
+          <v-row v-if="!isEditMode">
             <v-col cols="12">
               <v-checkbox
                 v-model="repeatBooking"
@@ -152,6 +152,7 @@ import { ref, watch, computed } from 'vue'
 import { useNotificationStore, sessionStore } from '@/store';
 import moment from 'moment';
 import Request from "@/model/request";
+import { BOOKING_STATUS } from '@/utils/constants';
 
 const props = defineProps({
   dialog: Boolean,
@@ -233,7 +234,7 @@ function generateTimeIntervals() {
       intervals.push({
         hour: time,
         disabled: false,
-        status: 'Pending'
+        status: BOOKING_STATUS.PENDING
       })
     }
   }
@@ -247,7 +248,7 @@ function updateTimeIntervalsByBookingOnRange() {
   updatedFrom.forEach(interval => {
     const booking = getBookingAt(interval.hour, false, bookingInfo.value.dateFrom);
     if (booking) {
-      interval.status = isBlocking(booking) ? 'Approved' : 'Rejected';
+      interval.status = isBlocking(booking) ? BOOKING_STATUS.APPROVED : BOOKING_STATUS.REJECTED;
       interval.disabled = isBlocking(booking);
     }
 
@@ -271,13 +272,13 @@ function updateTimeIntervalsByBookingOnRange() {
     } else if (!confirmedBookingFound) {
       const booking = getBookingAt(interval.hour, true, bookingInfo.value.dateTo);
       if (booking) {
-        interval.status = isBlocking(booking) ? 'Approved' : 'Rejected';
+        interval.status = isBlocking(booking) ? BOOKING_STATUS.APPROVED : BOOKING_STATUS.REJECTED;
         interval.disabled = isBlocking(booking);
         confirmedBookingFound = isBlocking(booking);
       }
     } else {
       interval.disabled = true;
-      interval.status = 'Approved';
+      interval.status = BOOKING_STATUS.APPROVED;
     }
 
     if (!interval.disabled && bookingInfo.value.dateTo === today) {
@@ -302,7 +303,7 @@ function updateTimeIntervalsByBookingOnRange() {
 
 function isBlocking(booking) {
   if (!booking) return false;
-  return booking.status === 'Approved' || (booking.status === 'Pending' && booking.user_uuid === session.auth.user.uuid);
+  return booking.status === BOOKING_STATUS.APPROVED || (booking.status === BOOKING_STATUS.PENDING && booking.user_uuid === session.auth.user.uuid);
 }
 
 function getBookingAt(hour, isEndCheck, date) {

@@ -25,9 +25,10 @@
           </v-btn>
         </div>
         <user-form
-          context="admin"
+          :context="ROLES.ADMIN"
           :mode="formMode"
           :value="selectedUser"
+          :tenants="tenantsList"
           @saved="handleSaveUser"
           @cancel="handleCancelForm"
         />
@@ -51,6 +52,7 @@ import UserForm from '@/components/forms/user-form.vue';
 import UserAdminList from '@/components/lists/user-admin-list.vue';
 import { useNotificationStore } from '@/store';
 import Request from "@/model/request";
+import { ROLES } from '@/utils/constants';
 
 const notification = useNotificationStore();
 
@@ -60,11 +62,28 @@ const showUserForm = ref(false);
 const selectedUser = ref(null);
 const isEditing = ref(false);
 
+const tenantsList = ref([]);
+
 const formMode = computed(() => isEditing.value ? 'edit' : 'create');
 
 onMounted(() => {
   loadUsers();
+  loadTenants();
 });
+
+async function loadTenants() {
+  try {
+    const request = new Request({
+      endpoint: 'tenants',
+      method: 'GET'
+    });
+
+    const response = await request.http();
+    tenantsList.value = response || [];
+  } catch (error) {
+    notification.notifyError('Error al cargar tenants');
+  }
+}
 
 async function loadUsers() {
   loading.value = true;

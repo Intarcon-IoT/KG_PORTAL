@@ -72,6 +72,7 @@
 import { ref, watch, nextTick, computed } from 'vue'
 import { useNotificationStore, sessionStore, useBookingStore } from '@/store';
 import moment from 'moment';
+import { BOOKING_STATUS } from '@/utils/constants';
 
 const props = defineProps({
   dialog: Boolean,
@@ -263,11 +264,11 @@ async function verifyConflicts(datesToBook) {
 
             if (startSecToTest < bEndSec && endSecToTest > bStartSec) {
                 if (bookingInfo.value.needsValidation) {
-                  if (b.status === 'Approved' || (b.status === 'Pending' && b.user_uuid === session.auth.user.uuid)) {
+                  if (b.status === BOOKING_STATUS.APPROVED || (b.status === BOOKING_STATUS.PENDING && b.user_uuid === session.auth.user.uuid)) {
                     return true;
                   }
                 } else {
-                  if (b.status === 'Approved' || b.status === 'Pending') {
+                  if (b.status === BOOKING_STATUS.APPROVED || b.status === BOOKING_STATUS.PENDING) {
                     return true;
                   }
                 }

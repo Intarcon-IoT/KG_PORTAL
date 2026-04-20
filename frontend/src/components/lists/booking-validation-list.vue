@@ -156,7 +156,7 @@
                 color="success"
                 variant="text"
                 v-bind="props"
-                @click="item.isGroup ? handleBatchAction(item, 'Approved') : attemptApprove(item)"
+                @click="item.isGroup ? handleBatchAction(item, BOOKING_STATUS.APPROVED) : attemptApprove(item)"
               >
                 <i :class="item.isGroup ? 'fa-solid fa-check-double' : 'fa-solid fa-circle-check'"></i>
               </v-btn>
@@ -169,7 +169,7 @@
                 color="error"
                 variant="text"
                 v-bind="props"
-                @click="item.isGroup ? handleBatchAction(item, 'Rejected') : handleStatusCheck(item, 'Rejected')"
+                @click="item.isGroup ? handleBatchAction(item, BOOKING_STATUS.REJECTED) : handleStatusCheck(item, BOOKING_STATUS.REJECTED)"
               >
                 <i :class="item.isGroup ? 'fa-solid fa-ban' : 'fa-solid fa-circle-xmark'"></i>
               </v-btn>
@@ -222,6 +222,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import OverlappingBookingModal from '../modals/OverlappingBookingModal.vue';
+import { BOOKING_STATUS } from '@/utils/constants';
 
 const selectedDate = ref([]);
 const menu = ref(false);
@@ -439,13 +440,13 @@ const attemptApprove = (booking) => {
     modalBooking.value = booking;
     confirmModal.value = true;
   } else {
-    handleStatusCheck(booking, 'Approved');
+    handleStatusCheck(booking, BOOKING_STATUS.APPROVED);
   }
 };
 
 const confirmApproval = () => {
   if (!modalBooking.value) return;
-  handleStatusCheck(modalBooking.value, 'Approved');
+  handleStatusCheck(modalBooking.value, BOOKING_STATUS.APPROVED);
 
   modalBooking.value = null;
   confirmModal.value = false;
