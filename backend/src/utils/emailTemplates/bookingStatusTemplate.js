@@ -1,5 +1,7 @@
+const { BOOKING_STATUS } = require("../constants");
+
 function bookingStatusTemplate({ nombre = "Usuario", status, booking }) {
-  const isApproved = status === 'Approved';
+  const isApproved = status === BOOKING_STATUS.APPROVED;
   const subject = isApproved ? "Reserva aprobada ✅" : "Reserva rechazada ❌";
   const statusText = isApproved ? "APROBADA" : "RECHAZADA";
   const statusColor = isApproved ? "#5BB133" : "#dc3545";

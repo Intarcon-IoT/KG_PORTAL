@@ -1,5 +1,6 @@
 const Room = require("../models/room");
 const User = require("../models/user");
+const { BOOKING_STATUS } = require("./constants");
 
 const {
   sendBookingStatusEmail,
@@ -11,11 +12,11 @@ const handleStatusCheck = async ({ booking, previousStatus }) => {
 
   if (newStatus === previousStatus) return;
 
-  if (!["Approved", "Rejected"].includes(newStatus)) {
+  if (![BOOKING_STATUS.APPROVED, BOOKING_STATUS.REJECTED].includes(newStatus)) {
     throw new Error("Estado no válido");
   }
 
-  if (newStatus === "Approved") {
+  if (newStatus === BOOKING_STATUS.APPROVED) {
     const isAvailable = await booking.validRange();
     if (!isAvailable) {
       throw new Error(
@@ -33,7 +34,7 @@ const handleStatusCheck = async ({ booking, previousStatus }) => {
   const userData = userResult[0];
   const roomName = roomResult[0].name;
 
-  if (newStatus === "Approved") {
+  if (newStatus === BOOKING_STATUS.APPROVED) {
     const overlappingBookings = await booking.rejectOverlapping();
     await sendOverlappingRejectedEmails(overlappingBookings);
   }

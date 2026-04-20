@@ -85,7 +85,7 @@ class Booking {
 
   async list(filter = {}) {
     let data = [];
-    let sql = `SELECT b.uuid, b.user_uuid, b.room_uuid, b.start_date, b.end_date, b.start_time, b.end_time, b.title, b.details, b.status, b.updated_ts, u.name 
+    let sql = `SELECT b.uuid, b.user_uuid, b.room_uuid, b.start_date, b.end_date, b.start_time, b.end_time, b.title, b.details, b.status, b.updated_ts, u.name, u.tenant_uuid 
                                             FROM kibooking_bookings AS b 
                                             LEFT JOIN kibooking_users AS u ON u.uuid = b.user_uuid 
                                             WHERE 1`;
@@ -139,6 +139,11 @@ class Booking {
       sql += " AND b.status != 'Rejected'";
     }
 
+    if (filter.tenant_uuid) {
+      sql += " AND u.tenant_uuid = ?";
+      data.push(filter.tenant_uuid);
+    }
+
     // RANGE FILTER
     if (filter.from_date) {
       sql += " AND b.start_date >= ?";
@@ -170,15 +175,15 @@ class Booking {
   read(filter = {}) {
     let data = [];
     let sql =
-      "SELECT uuid, user_uuid, room_uuid, start_date, end_date, start_time, end_time, title, details, status, updated_ts FROM kibooking_bookings WHERE 1";
+      "SELECT b.uuid, b.user_uuid, b.room_uuid, b.start_date, b.end_date, b.start_time, b.end_time, b.title, b.details, b.status, b.updated_ts, u.tenant_uuid FROM kibooking_bookings b LEFT JOIN kibooking_users u ON b.user_uuid = u.uuid WHERE 1";
 
     if (Object.keys(filter).length === 0) {
-      sql += " AND uuid = ?";
+      sql += " AND b.uuid = ?";
       data.push(this.uuid);
     }
 
     if (filter.user_uuid) {
-      sql += " AND user_uuid = ?";
+      sql += " AND b.user_uuid = ?";
       data.push(filter.user_uuid);
     }
 
