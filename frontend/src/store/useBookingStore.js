@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import Request from "@/model/request";
 import { useNotificationStore } from './useNotificationStore';
 import { sessionStore } from './session';
+import { BOOKING_STATUS } from '@/utils/constants';
 
 export const useBookingStore = defineStore('booking', {
   state: () => ({
@@ -50,8 +51,9 @@ export const useBookingStore = defineStore('booking', {
           endpoint: 'bookings',
           method: 'GET',
           params: {
-            status_in: ['Pending'],
-            from_date: today
+            status_in: [BOOKING_STATUS.PENDING],
+            from_date: today,
+            filter_tenant: true
           }
         });
 
@@ -74,8 +76,9 @@ export const useBookingStore = defineStore('booking', {
           endpoint: 'bookings',
           method: 'GET',
           params: {
-            status_in: ['Pending'],
-            from_date: today
+            status_in: [BOOKING_STATUS.PENDING],
+            from_date: today,
+            filter_tenant: true
           }
         });
 
@@ -125,7 +128,7 @@ export const useBookingStore = defineStore('booking', {
         const response = await request.http();
         await this.fetchBookings();
         
-        const validMsg = (needsValidation && !session.auth.user?.isAdmin)? ' y están pendientes de validación por un administrador' : '';
+        const validMsg = (needsValidation && (session.auth.user?.role !== ROLES.ADMIN && session.auth.user?.role !== ROLES.GESTOR))? ' y están pendientes de validación por un administrador' : '';
         notification.notifySuccess(`Se han creado ${bookingsArray.length} reservas correctamente${validMsg}`);
       } catch (error) {
         console.error('Error creating bulk bookings:', error);
@@ -195,7 +198,7 @@ export const useBookingStore = defineStore('booking', {
         
         const index = this.bookings.findIndex(b => b.uuid === uuid);
         if (index !== -1) {
-          if (status === 'Pending') {
+          if (status === BOOKING_STATUS.PENDING) {
             this.bookings[index].status = status;
           } else {
             this.bookings = this.bookings.filter(b => b.uuid !== uuid);
@@ -205,7 +208,7 @@ export const useBookingStore = defineStore('booking', {
         await this.fetchPendingCount();
         
         const notification = useNotificationStore();
-        notification.notifySuccess(status === 'Approved' ? 'Reserva aprobada con éxito' : 'Reserva rechazada con éxito');
+        notification.notifySuccess(status === BOOKING_STATUS.APPROVED ? 'Reserva aprobada con éxito' : 'Reserva rechazada con éxito');
         return response;
       } catch (error) {
         console.error('Error updating booking status:', error);

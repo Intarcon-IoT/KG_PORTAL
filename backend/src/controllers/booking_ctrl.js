@@ -4,6 +4,7 @@ const Room = require("../models/room");
 const mysqlAdapter = require("../utils/mysqlAdapter");
 const { handleStatusCheck } = require("../utils/bookingHelper");
 const thirdPartyService = require("../utils/thirdPartyService");
+const { ROLES, BOOKING_STATUS } = require("../utils/constants");
 const bookingCtrl = {};
 
 bookingCtrl.createBooking = async (req, res) => {
@@ -20,10 +21,14 @@ bookingCtrl.createBooking = async (req, res) => {
         .json({ ok: false, message: "La sala especificada no existe." });
     }
 
-    if (res.locals.user.isAdmin || roomData[0].needsValidation === 0) {
-      newBooking.status = "Approved";
+    if (
+      res.locals.user.role === ROLES.ADMIN ||
+      res.locals.user.role === ROLES.GESTOR ||
+      roomData[0].needsValidation === 0
+    ) {
+      newBooking.status = BOOKING_STATUS.APPROVED;
     } else {
-      newBooking.status = "Pending";
+      newBooking.status = BOOKING_STATUS.PENDING;
     }
 
     const validation = await newBooking.validate();
@@ -39,7 +44,7 @@ bookingCtrl.createBooking = async (req, res) => {
         .status(500)
         .json({ ok: false, message: "Error al crear la reserva." });
     } else {
-      if (newBooking.status === "Approved") {
+      if (newBooking.status === BOOKING_STATUS.APPROVED) {
         await newBooking.rejectOverlapping();
       }
       if(roomData[0].needsValidation === 0) {
@@ -49,7 +54,7 @@ bookingCtrl.createBooking = async (req, res) => {
       return res.status(201).json({
         ok: true,
         message:
-          newBooking.status === "Approved"
+          newBooking.status === BOOKING_STATUS.APPROVED
             ? "Reserva creada y confirmada correctamente."
             : "Reserva creada. Pendiente de validación por un administrador.",
         status: newBooking.status,
@@ -62,7 +67,11 @@ bookingCtrl.createBooking = async (req, res) => {
 };
 
 bookingCtrl.getBookings = async (req, res) => {
-  const filter = req.query;
+  const filter = req.query || {};
+
+  if (res.locals.user?.role === ROLES.GESTOR && filter.filter_tenant) {
+    filter.tenant_uuid = res.locals.user.tenant_uuid;
+  }
 
   const booking = new Booking();
   const result = await booking.list(filter);
@@ -99,7 +108,13 @@ bookingCtrl.editBooking = async (req, res) => {
       .status(404)
       .json({ ok: false, message: "Reserva no encontrada" });
   }
-  if (saved[0].user_uuid !== res.locals.user.uuid && !res.locals.user.isAdmin) {
+  const isOwner = saved[0].user_uuid === res.locals.user.uuid;
+  const isAdmin = res.locals.user.role === ROLES.ADMIN;
+  const isGestorOfTenant =
+    res.locals.user.role === ROLES.GESTOR &&
+    res.locals.user.tenant_uuid === saved[0].tenant_uuid;
+
+  if (!isOwner && !isAdmin && !isGestorOfTenant) {
     return res.status(403).json({
       ok: false,
       message: "No tienes permiso para editar esta reserva",
@@ -107,7 +122,8 @@ bookingCtrl.editBooking = async (req, res) => {
   }
 
   if (
-    !res.locals.user.isAdmin &&
+    !isAdmin &&
+    !isGestorOfTenant &&
     req.body.status !== undefined &&
     req.body.status !== saved[0].status
   ) {
@@ -115,6 +131,13 @@ bookingCtrl.editBooking = async (req, res) => {
       ok: false,
       message: "No puedes cambiar el estado de la reserva",
     });
+  }
+
+  if (
+    (isAdmin || isGestorOfTenant) &&
+    (req.body.status === undefined || req.body.status === BOOKING_STATUS.PENDING)
+  ) {
+    req.body.status = BOOKING_STATUS.APPROVED;
   }
 
   booking.user_uuid = saved[0].user_uuid;
@@ -139,7 +162,7 @@ bookingCtrl.editBooking = async (req, res) => {
     });
   }
 
-  const result = await booking.update(res.locals.user.isAdmin);
+  const result = await booking.update(isAdmin || isGestorOfTenant);
 
   if (result.error) {
     return res.json({ ok: false, message: "Error al actualizar la reserva" });
@@ -150,7 +173,7 @@ bookingCtrl.editBooking = async (req, res) => {
     return res.json({
       ok: true,
       message:
-        booking.status === "Pending"
+        booking.status === BOOKING_STATUS.PENDING
           ? "Reserva actualizada y pendiente de validación por un administrador."
           : "Reserva actualizada correctamente.",
       status: booking.status,
@@ -172,7 +195,13 @@ bookingCtrl.deleteBooking = async (req, res) => {
       .status(404)
       .json({ ok: false, message: "Reserva no encontrada" });
   }
-  if (saved[0].user_uuid !== res.locals.user.uuid && !res.locals.user.isAdmin) {
+  const isOwner = saved[0].user_uuid === res.locals.user.uuid;
+  const isAdmin = res.locals.user.role === ROLES.ADMIN;
+  const isGestorOfTenant =
+    res.locals.user.role === ROLES.GESTOR &&
+    res.locals.user.tenant_uuid === saved[0].tenant_uuid;
+
+  if (!isOwner && !isAdmin && !isGestorOfTenant) {
     return res.status(403).json({
       ok: false,
       message: "No tienes permiso para eliminar esta reserva",
@@ -215,10 +244,14 @@ bookingCtrl.createBulkBookings = async (req, res) => {
           throw error;
         }
 
-        if (res.locals.user.isAdmin || roomData[0].needsValidation === 0) {
-          newBooking.status = "Approved";
+        if (
+          res.locals.user.role === ROLES.ADMIN ||
+          res.locals.user.role === ROLES.GESTOR ||
+          roomData[0].needsValidation === 0
+        ) {
+          newBooking.status = BOOKING_STATUS.APPROVED;
         } else {
-          newBooking.status = "Pending";
+          newBooking.status = BOOKING_STATUS.PENDING;
         }
 
         const validation = await newBooking.validate();
@@ -234,7 +267,7 @@ bookingCtrl.createBulkBookings = async (req, res) => {
           error.isValidationError = true;
           throw error;
         } else {
-          if (newBooking.status === "Approved") {
+          if (newBooking.status === BOOKING_STATUS.APPROVED) {
             await newBooking.rejectOverlapping();
           }
           const { user_uuid, status, ...cleanBooking } = newBooking;

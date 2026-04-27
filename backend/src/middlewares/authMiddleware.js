@@ -1,5 +1,7 @@
 const cache = require('../utils/cacheAdapter');
 const thirdPartyConfig = require('../../configThirdParty.json');
+const { ROLES } = require("../utils/constants");
+
 const middlewares = {
   /**
    * Middleware que comprueba la existencia de la sesión en Redis
@@ -35,10 +37,17 @@ const middlewares = {
    * Debe usarse después de AuthMiddleware
    */
   AdminMiddleware: async function (req, res, next) {
-    if (res.locals.user && res.locals.user.isAdmin) {
+    if (res.locals.user && res.locals.user.role === ROLES.ADMIN) {
       return next();
     }
     res.status(403).json({ ok: false, message: 'Sorry but you are not authorized as admin' });
+  },
+
+  GestorMiddleware: async function (req, res, next) {
+    if (res.locals.user && (res.locals.user.role === ROLES.GESTOR || res.locals.user.role === ROLES.ADMIN)) {
+      return next();
+    }
+    res.status(403).json({ ok: false, message: 'Sorry but you are not authorized as gestor or admin' });
   }
 };
 module.exports = middlewares;

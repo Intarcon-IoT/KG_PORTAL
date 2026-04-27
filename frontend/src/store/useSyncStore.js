@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { useBookingStore } from './useBookingStore';
 import { sessionStore } from './session';
 import router from '@/router';
+import { ROLES } from '@/utils/constants';
 
 export const useSyncStore = defineStore('sync', {
   state: () => ({
@@ -45,7 +46,7 @@ export const useSyncStore = defineStore('sync', {
 
       if (!session.auth.user) return;
 
-      if (session.auth.user.isAdmin) {
+      if (session.auth.user.role === ROLES.ADMIN || session.auth.user.role === ROLES.GESTOR) {
         bookingStore.fetchPendingCount();
       }
 

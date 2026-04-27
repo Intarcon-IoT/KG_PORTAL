@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { layout } from '@/components'
-import { sessionGuard, resetPasswordGuard, adminGuard } from './guard'
+import { sessionGuard, resetPasswordGuard, adminGuard, gestorGuard } from './guard'
+import { ROLES } from '@/utils/constants';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -22,16 +23,16 @@ const router = createRouter({
         {
           path: 'users',
           name: 'Administrar Usuarios',
-          meta: { role: 'admin', icon: 'fa fa-users' },
+          meta: { role: [ROLES.ADMIN, ROLES.GESTOR], icon: 'fa fa-users' },
           component: () => import('../views/users/user-admin-view.vue'),
-          beforeEnter: (to, from, next) => adminGuard(to, from, next),
+          beforeEnter: (to, from, next) => gestorGuard(to, from, next),
         },
         {
           path: 'bookings-validation',
           name: 'Validar Reservas',
-          meta: { role: 'admin', icon: 'fa fa-check-to-slot' },
+          meta: { role: [ROLES.ADMIN, ROLES.GESTOR], icon: 'fa fa-check-to-slot' },
           component: () => import('../views/bookings/booking-validation-view.vue'),
-          beforeEnter: (to, from, next) => adminGuard(to, from, next),
+          beforeEnter: (to, from, next) => gestorGuard(to, from, next),
         },
         {
           path: 'my-account',

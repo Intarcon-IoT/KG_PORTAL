@@ -51,11 +51,11 @@
             <span>{{ booking.name }}</span>
           </div>
         </v-card-text>
-        <v-card-actions v-if="isAdmin && isPending" class="justify-center pb-4 pt-4">
-          <v-btn color="error" variant="outlined" class="mx-2" min-width="140" @click="handleStatusUpdate('Rejected')">
+        <v-card-actions v-if="canManageStatus && isPending" class="justify-center pb-4 pt-4">
+          <v-btn color="error" variant="outlined" class="mx-2" min-width="140" @click="handleStatusUpdate(BOOKING_STATUS.REJECTED)">
             Rechazar reserva
           </v-btn>
-          <v-btn color="success" variant="elevated" class="mx-2" min-width="140" @click="handleStatusUpdate('Approved')">
+          <v-btn color="success" variant="elevated" class="mx-2" min-width="140" @click="handleStatusUpdate(BOOKING_STATUS.APPROVED)">
             Aceptar reserva
           </v-btn>
         </v-card-actions>
@@ -120,6 +120,7 @@
 import { ref, watch, computed } from 'vue'
 import { sessionStore } from '@/store';
 import moment from 'moment/min/moment-with-locales'
+import { BOOKING_STATUS, ROLES } from '@/utils/constants';
 moment.locale('es')
 
 const props = defineProps({
@@ -135,8 +136,13 @@ const session = sessionStore();
 const internalDialog = ref(props.dialog)
 const deleteDialog = ref(false)
 
-const isAdmin = computed(() => session.auth.user.isAdmin);
-const isPending = computed(() => props.booking && props.booking.status === 'Pending');
+const isAdmin = computed(() => session.auth.user?.role === ROLES.ADMIN);
+const isGestorOfTenant = computed(() => {
+  return session.auth.user?.role === ROLES.GESTOR && 
+         session.auth.user?.tenant_uuid === props.booking?.tenant_uuid;
+});
+const canManageStatus = computed(() => isAdmin.value || isGestorOfTenant.value);
+const isPending = computed(() => props.booking && props.booking.status === BOOKING_STATUS.PENDING);
 
 const handleStatusUpdate = (status) => {
   emit('status-update', { uuid: props.booking.uuid, status });
@@ -188,7 +194,7 @@ const facilitySelected = computed(() => {
 
 
 const canDeleteBooking = computed(() => {
-  return session.auth.user.uuid === props.booking.user_uuid || session.auth.user.isAdmin;
+  return session.auth.user.uuid === props.booking.user_uuid || canManageStatus.value;
 });
 
 watch(() => props.dialog, (val) => {

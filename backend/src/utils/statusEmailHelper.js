@@ -1,5 +1,6 @@
 const mailerAdapter = require("./mailerAdapter");
 const { bookingStatusTemplate } = require("./emailTemplates/bookingStatusTemplate");
+const { BOOKING_STATUS } = require("./constants");
 
 const User = require("../models/user");
 const Room = require("../models/room");
@@ -33,7 +34,7 @@ const sendOverlappingRejectedEmails = async (overlappingBookings) => {
         user: userResult[0],
         booking: b,
         roomName: roomResult[0].name,
-        status: "Rejected",
+        status: BOOKING_STATUS.REJECTED,
       });
     } catch (err) {
       console.error(
