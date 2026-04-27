@@ -16,6 +16,12 @@
           >
             <div class="item-content">
               <span class="custom-item-text">{{ room.name }}</span>
+              <span v-if="room.needsValidation" class="validation-badge">
+                <v-tooltip activator="parent" location="top">
+                  Las reservas en esta sala necesitan aprobación
+                </v-tooltip>
+                <i class="fa-solid fa-circle-exclamation"></i>
+              </span>
               <span class="capacity-text">{{ room.capacity }} personas</span>
             </div>
           </v-list-item>
@@ -107,5 +113,15 @@ function goBack() {
 .capacity-text {
   font-size: 14px;
   color: #666;
+}
+
+.validation-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #d32f2f;
+  font-size: 1rem;
+  margin-left: 8px;
+  cursor: help;
 }
 </style>

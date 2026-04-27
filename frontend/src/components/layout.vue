@@ -6,6 +6,7 @@ import { RouterLink, RouterView } from "vue-router";
 import { ref } from "vue";
 import router from "@/router";
 import { sessionStore } from "@/store";
+import { ROLES } from "@/utils/constants";
 
 export default {
   name: "layout",
@@ -20,21 +21,22 @@ export default {
     const drawer = ref(false);
     const session = sessionStore();
 
+    const hasAccess = (metaRole, userRole) => {
+      if (!metaRole) return true;
+      const userR = userRole || ROLES.USER;
+      if (userR === ROLES.ADMIN) return true;
+      if (Array.isArray(metaRole)) {
+        return metaRole.includes(userR);
+      }
+      return metaRole === userR;
+    };
+
     // Generar el listado de rutas
     const router_list = new Map();
     for (const route of router.getRoutes()) {
-      if (route.meta.show !== false &&
-        (!route.meta.role ||
-          route.meta.role !== "admin" ||
-          (route.meta.role === "admin" &&
-            session.auth.user?.isAdmin))
-      ) {
+      if (route.meta.show !== false && hasAccess(route.meta.role, session.auth.user?.role)) {
         const filteredChildren = (route.children || [])
-          .filter((child) =>
-            !child.meta?.role ||
-            child.meta?.role !== "admin" ||
-            (child.meta?.role === "admin" && session.auth.user?.isAdmin)
-          )
+          .filter((child) => child.meta?.show !== false && hasAccess(child.meta?.role, session.auth.user?.role))
           .map((child) => ({
             name: child.name,
             path: route.path + "/" + child.path,

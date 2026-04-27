@@ -55,8 +55,18 @@
                   <v-list-item
                     v-bind="props"
                     :disabled="item.raw.disabled"
-                    :class="{ 'text-red': item.raw.disabled }"
-                  />
+                    :class="{ 
+                      'text-error': item.raw.status === BOOKING_STATUS.APPROVED || (item.raw.disabled && item.raw.status !== BOOKING_STATUS.REJECTED),
+                      'text-warning': item.raw.status === BOOKING_STATUS.REJECTED && !item.raw.disabled
+                    }"
+                  >
+                    <template #prepend v-if="item.raw.status === BOOKING_STATUS.REJECTED && !item.raw.disabled">
+                      <v-icon icon="fa-solid fa-clock-rotate-left" color="warning" size="x-small" class="mr-2"></v-icon>
+                    </template>
+                    <v-tooltip v-if="item.raw.status === BOOKING_STATUS.REJECTED && !item.raw.disabled" activator="parent" location="end">
+                      Existe una reserva pendiente de validación en este tramo horario
+                    </v-tooltip>
+                  </v-list-item>
                 </template>
               </v-select>
             </v-col>
@@ -84,8 +94,18 @@
                   <v-list-item
                     v-bind="props"
                     :disabled="item.raw.disabled"
-                    :class="{ 'text-red': item.raw.disabled }"
-                  />
+                    :class="{ 
+                      'text-error': item.raw.status === BOOKING_STATUS.APPROVED || (item.raw.disabled && item.raw.status !== BOOKING_STATUS.REJECTED),
+                      'text-warning': item.raw.status === BOOKING_STATUS.REJECTED && !item.raw.disabled
+                    }"
+                  >
+                    <template #prepend v-if="item.raw.status === BOOKING_STATUS.REJECTED && !item.raw.disabled">
+                      <v-icon icon="fa-solid fa-clock-rotate-left" color="warning" size="x-small" class="mr-2"></v-icon>
+                    </template>
+                    <v-tooltip v-if="item.raw.status === BOOKING_STATUS.REJECTED && !item.raw.disabled" activator="parent" location="end">
+                      Existe una reserva pendiente de validación en este tramo horario
+                    </v-tooltip>
+                  </v-list-item>
                 </template>
               </v-select>
             </v-col>
@@ -106,12 +126,21 @@
               />
             </v-col>
           </v-row>
+          <v-row v-if="!isEditMode">
+            <v-col cols="12">
+              <v-checkbox
+                v-model="repeatBooking"
+                label="Repetir reserva"
+                density="compact"
+              />
+            </v-col>
+          </v-row>
         </v-container>
       </v-card-text>
       <v-card-actions>
         <v-spacer />
         <v-btn color="primary" @click="confirmReservation" class="confirm-btn">
-          {{ isEditMode ? 'Actualizar Reserva' : 'Confirmar Reserva' }}
+          {{ actionButtonText }}
         </v-btn>
       </v-card-actions>
     </v-card>
@@ -120,14 +149,14 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue'
-import { useNotificationStore } from '@/store';
+import { useNotificationStore, sessionStore } from '@/store';
 import moment from 'moment';
 import Request from "@/model/request";
+import { BOOKING_STATUS } from '@/utils/constants';
 
 const props = defineProps({
   dialog: Boolean,
   booking: Object,
-  bookingsList: Array,
   installations: Array,
   rooms: Array,
   isEditMode: {
@@ -135,13 +164,14 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['update:dialog', 'confirmBooking', 'back', 'cancelEdit'])
+const emit = defineEmits(['update:dialog', 'confirmBooking', 'next', 'back', 'cancelEdit'])
 
 const dialog = ref(props.dialog)
 const isEditMode = computed(() => props.isEditMode)
-const firstEditLoad = ref(true)
 const notificationStore = useNotificationStore()
+const session = sessionStore();
 const today = new Date().toISOString().substring(0, 10)
+const repeatBooking = ref(false)
 
 const timeIntervalsFrom = ref(generateTimeIntervals())
 const timeIntervalsTo = ref(generateTimeIntervals())
@@ -161,6 +191,11 @@ const bookingInfo = ref({
   timeTo: '',
   title: '',
   details: ''
+})
+
+const actionButtonText = computed(() => {
+  if (isEditMode.value) return 'Actualizar Reserva'
+  return repeatBooking.value ? 'Configurar Repetición' : 'Crear Reserva'
 })
 
 function goBack() {
@@ -198,7 +233,8 @@ function generateTimeIntervals() {
       const time = moment({ hour, minute }).format('HH:mm')
       intervals.push({
         hour: time,
-        disabled: false
+        disabled: false,
+        status: BOOKING_STATUS.PENDING
       })
     }
   }
@@ -210,10 +246,22 @@ function updateTimeIntervalsByBookingOnRange() {
   const updatedTo = generateTimeIntervals();
 
   updatedFrom.forEach(interval => {
-    interval.disabled = isBookedFrom(interval.hour);
+    const booking = getBookingAt(interval.hour, false, bookingInfo.value.dateFrom);
+    if (booking) {
+      interval.status = isBlocking(booking) ? BOOKING_STATUS.APPROVED : BOOKING_STATUS.REJECTED;
+      interval.disabled = isBlocking(booking);
+    }
+
+    if (!interval.disabled && bookingInfo.value.dateFrom === today) {
+      const now = moment();
+      const intervalTime = moment(`${today} ${interval.hour}`, 'YYYY-MM-DD HH:mm');
+      if (intervalTime.isBefore(now)) {
+        interval.disabled = true;
+      }
+    }
   });
 
-  let bookingFind = false;
+  let confirmedBookingFound = false;
   let timeFromReached = false;
   const isSameDate = bookingInfo.value.dateFrom === bookingInfo.value.dateTo;
 
@@ -221,82 +269,85 @@ function updateTimeIntervalsByBookingOnRange() {
     if (!timeFromReached && isSameDate) {
       interval.disabled = true;
       timeFromReached = interval.hour === bookingInfo.value.timeFrom;
-    } else if (!bookingFind) {
-      interval.disabled = isBookedTo(interval.hour);
-      bookingFind = isBookedTo(interval.hour);
-    }else {
+    } else if (!confirmedBookingFound) {
+      const booking = getBookingAt(interval.hour, true, bookingInfo.value.dateTo);
+      if (booking) {
+        interval.status = isBlocking(booking) ? BOOKING_STATUS.APPROVED : BOOKING_STATUS.REJECTED;
+        interval.disabled = isBlocking(booking);
+        confirmedBookingFound = isBlocking(booking);
+      }
+    } else {
       interval.disabled = true;
+      interval.status = BOOKING_STATUS.APPROVED;
+    }
+
+    if (!interval.disabled && bookingInfo.value.dateTo === today) {
+      const now = moment();
+      const intervalTime = moment(`${today} ${interval.hour}`, 'YYYY-MM-DD HH:mm');
+      if (intervalTime.isBefore(now)) {
+        interval.disabled = true;
+      }
     }
   });
 
   timeIntervalsFrom.value = updatedFrom;
   timeIntervalsTo.value = updatedTo;
 
-  if( isBookedTo(bookingInfo.value.timeTo) ) {
-    bookingInfo.value.timeTo = moment(firstBookingFromTimeFrom.value.start_time, 'HH:mm:ss').format('HH:mm');
+  const currentToBooking = getBookingAt(bookingInfo.value.timeTo, true, bookingInfo.value.dateTo);
+  if (currentToBooking && isBlocking(currentToBooking)) {
+    if (firstBookingFromTimeFrom.value && isBlocking(firstBookingFromTimeFrom.value)) {
+      bookingInfo.value.timeTo = moment(firstBookingFromTimeFrom.value.start_time, 'HH:mm:ss').format('HH:mm');
+    }
   }
 }
 
-function isBookedFrom(hour) {
-  if (!bookingOnRange.value || bookingOnRange.value.length === 0 || !bookingInfo.value.dateFrom) {
-    return false;
+function isBlocking(booking) {
+  if (!booking) return false;
+  return booking.status === BOOKING_STATUS.APPROVED || (booking.status === BOOKING_STATUS.PENDING && booking.user_uuid === session.auth.user.uuid);
+}
+
+function getBookingAt(hour, isEndCheck, date) {
+  if (!bookingOnRange.value || bookingOnRange.value.length === 0 || !date) {
+    return null;
   }
 
-  const formattedDate = moment(bookingInfo.value.dateFrom).format('YYYY-MM-DD');
+  const formattedDate = moment(date).format('YYYY-MM-DD');
   const currentDateTime = moment(`${formattedDate}T${hour}`);
 
-  if( isEditMode.value){
+  if (isEditMode.value) {
     const startDate = moment(bookingInfo.value.dateFrom).format('YYYY-MM-DD');
     const endDate = moment(bookingInfo.value.dateTo).format('YYYY-MM-DD');
-    
     const startDateTime = moment(`${startDate}T${bookingInfo.value.timeFrom}`);
     const endDateTime = moment(`${endDate}T${bookingInfo.value.timeTo}`);
 
-    if (currentDateTime.isSameOrAfter(startDateTime) && currentDateTime.isBefore(endDateTime)) {
-      return false;
+    if (isEndCheck) {
+      if (currentDateTime.isAfter(startDateTime) && currentDateTime.isSameOrBefore(endDateTime)) {
+        return null;
+      }
+    } else {
+      if (currentDateTime.isSameOrAfter(startDateTime) && currentDateTime.isBefore(endDateTime)) {
+        return null;
+      }
     }
   }
 
-  return bookingOnRange.value.some(booking => {
+  return bookingOnRange.value.find(booking => {
     const startDate = moment(booking.start_date).format('YYYY-MM-DD');
     const endDate = moment(booking.end_date || booking.start_date).format('YYYY-MM-DD');
-    
     const startDateTime = moment(`${startDate}T${booking.start_time}`);
     const endDateTime = moment(`${endDate}T${booking.end_time}`);
-    
-    return currentDateTime.isSameOrAfter(startDateTime) && currentDateTime.isBefore(endDateTime);
+
+    if (isEndCheck) {
+      return currentDateTime.isAfter(startDateTime) && currentDateTime.isSameOrBefore(endDateTime);
+    } else {
+      return currentDateTime.isSameOrAfter(startDateTime) && currentDateTime.isBefore(endDateTime);
+    }
   });
 }
 
-function isBookedTo(hour) {
-  if (!bookingOnRange.value || bookingOnRange.value.length === 0 || !bookingInfo.value.dateTo) {
-    return false;
-  }
-
-  const formattedDate = moment(bookingInfo.value.dateTo).format('YYYY-MM-DD');
-  const currentDateTime = moment(`${formattedDate}T${hour}`);
-
-  if( isEditMode.value){
-    const startDate = moment(bookingInfo.value.dateFrom).format('YYYY-MM-DD');
-    const endDate = moment(bookingInfo.value.dateTo).format('YYYY-MM-DD');
-    
-    const startDateTime = moment(`${startDate}T${bookingInfo.value.timeFrom}`);
-    const endDateTime = moment(`${endDate}T${bookingInfo.value.timeTo}`);
-
-    if (currentDateTime.isAfter(startDateTime) && currentDateTime.isSameOrBefore(endDateTime)) {
-      return false;
-    }
-  }
-
-  return bookingOnRange.value.some(booking => {
-    const startDate = moment(booking.start_date).format('YYYY-MM-DD');
-    const endDate = moment(booking.end_date || booking.start_date).format('YYYY-MM-DD');
-    
-    const startDateTime = moment(`${startDate}T${booking.start_time}`);
-    const endDateTime = moment(`${endDate}T${booking.end_time}`);
-    
-    return currentDateTime.isAfter(startDateTime) && currentDateTime.isSameOrBefore(endDateTime);
-  });
+function isConfirmedAt(hour, isEndCheck, date) {
+  const booking = getBookingAt(hour, isEndCheck, date);
+  return isBlocking(booking);
 }
 
 function updateTimeSelectedTo() {
@@ -306,7 +357,7 @@ function updateTimeSelectedTo() {
   const conflict = bookingOnRange.value.find(booking => {
     const start = moment(booking.start_time, 'HH:mm');
     const end = moment(booking.end_time, 'HH:mm');
-    return defaultMoment.isSameOrAfter(start) && defaultMoment.isSameOrBefore(end);
+    return isBlocking(booking) && defaultMoment.isSameOrAfter(start) && defaultMoment.isSameOrBefore(end);
   });
 
   if (conflict) {
@@ -369,7 +420,7 @@ function confirmReservation() {
 
   let isValid = true;
 
-  if( isBookedFrom(bookingInfo.value.timeFrom) ||isBookedTo(bookingInfo.value.timeTo)) {
+  if( isConfirmedAt(bookingInfo.value.timeFrom, false, bookingInfo.value.dateFrom) || isConfirmedAt(bookingInfo.value.timeTo, true, bookingInfo.value.dateTo)) {
     notificationStore.notifyWarning('La hora de inicio o finalización ya está reservada.');
     isValid = false;
   }
@@ -377,6 +428,16 @@ function confirmReservation() {
     notificationStore.notifyWarning('Por favor, seleccione una sala.');
     isValid = false;
   }
+  
+  if (bookingInfo.value.dateFrom === today) {
+    const now = moment();
+    const startTime = moment(`${today} ${bookingInfo.value.timeFrom}`, 'YYYY-MM-DD HH:mm');
+    if (startTime.isBefore(now)) {
+      notificationStore.notifyWarning('La hora de inicio ya ha pasado.');
+      isValid = false;
+    }
+  }
+
   if(!bookingInfo.value.title || bookingInfo.value.title.trim() === '') {
     notificationStore.notifyWarning('Por favor, introduzca un título para la reserva.');
     isValid = false;
@@ -384,7 +445,15 @@ function confirmReservation() {
 
   if(isValid){
     emit('update:dialog', false)
-    emit('confirmBooking', { ...bookingInfo.value })
+    if (isEditMode.value) {
+      emit('confirmBooking', { ...bookingInfo.value })
+      return
+    }
+    if (repeatBooking.value) {
+      emit('next', { ...bookingInfo.value })
+    } else {
+      emit('confirmBooking', { ...bookingInfo.value })
+    }
   }
 }
 
@@ -392,6 +461,7 @@ watch(() => props.dialog, async (val) => {
   dialog.value = val
 
   if (val) {
+    repeatBooking.value = false
     bookingInfo.value.facility_uuid = props.booking.facility.uuid
     bookingInfo.value.room_uuid = props.booking.room.uuid
     bookingInfo.value.dateFrom = toDateString(props.booking.date)
@@ -399,12 +469,12 @@ watch(() => props.dialog, async (val) => {
     bookingInfo.value.title = props.booking.title
     bookingInfo.value.details = props.booking.details
 
-    if(isEditMode.value && firstEditLoad.value ) {
+    if(isEditMode.value) {
       bookingInfo.value.uuid = props.booking.uuid
       bookingInfo.value.dateTo = toDateString(props.booking.dateTo)
       bookingInfo.value.timeTo = moment(props.booking.timeTo, 'HH:mm').format('HH:mm')
-      firstEditLoad.value = false
     } else {
+      bookingInfo.value.uuid = ''
       bookingInfo.value.dateTo = toDateString(props.booking.date)
       bookingInfo.value.timeTo = addOneHour(props.booking.time)
     }
@@ -456,6 +526,14 @@ watch(dialog, (val) => {
 .confirm-btn {
   font-weight: bold;
   text-transform: uppercase;
+}
+
+.text-warning {
+  color: #fb8c00 !important;
+}
+
+.text-error {
+  color: #ff5252 !important;
 }
 
 .dialog-content {

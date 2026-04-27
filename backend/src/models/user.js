@@ -14,14 +14,16 @@ class User {
     this.mail = "";
     this.name = "";
     this.password = "";
-    this.isAdmin = false;
+    this.role = "";
+    this.tenant_uuid = "";
   }
 
   set(data) {
     this.name = data.name;
     this.mail = data.mail;
     this.password = bcryptjs.hashSync(data.password, 0);
-    this.isAdmin = data.isAdmin || false;
+    this.role = data.role;
+    this.tenant_uuid = data.tenant_uuid;
     return this;
   }
 
@@ -31,7 +33,8 @@ class User {
       name: this.name,
       mail: this.mail,
       password: this.password,
-      isAdmin: this.isAdmin
+      role: this.role,
+      tenant_uuid: this.tenant_uuid
     };
   }
 
@@ -64,14 +67,20 @@ class User {
     return result;
   }
 
-  async list() {
-    const rows = await mysqlAdapter.query("SELECT uuid, name, mail, isAdmin FROM kibooking_users", []);
+  async list(filter = {}) {
+    let sql = "SELECT u.uuid, u.name, u.mail, u.role, u.tenant_uuid, t.name AS tenant_name FROM kibooking_users u LEFT JOIN kibooking_tenants t ON u.tenant_uuid = t.uuid WHERE 1";
+    let data = [];
+    if (filter.tenant_uuid) {
+      sql += " AND u.tenant_uuid = ?";
+      data.push(filter.tenant_uuid);
+    }
+    const rows = await mysqlAdapter.query(sql, data);
     return rows;
   }
 
   read(filter = {}) {
     let data = [];
-    let sql = "SELECT uuid, name, mail, password, isAdmin FROM kibooking_users WHERE 1";
+    let sql = "SELECT uuid, name, mail, password, role, tenant_uuid FROM kibooking_users WHERE 1";
     if (Object.keys(filter).length === 0) {
       sql += " AND uuid = ?";
       data.push(this.uuid);
@@ -79,6 +88,10 @@ class User {
     if (filter.email) {
       sql += " AND mail = ?";
       data.push(filter.email);
+    }
+    if (filter.tenant_uuid) {
+      sql += " AND tenant_uuid = ?";
+      data.push(filter.tenant_uuid);
     }
 
     return mysqlAdapter.query(sql, data);

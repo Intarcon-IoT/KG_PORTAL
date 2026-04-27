@@ -23,15 +23,28 @@
       :no-data-text="loading ? 'Cargando usuarios...' : 'No se encontraron usuarios'"
     >
 
-      <template v-slot:item.isAdmin="{ item }">
+      <template v-slot:item.role="{ item }">
         <v-chip
           size="small"
-          :color="item.isAdmin ? 'primary' : 'grey'"
+          :color="getRoleColor(item.role)"
         >
-          {{ item.isAdmin ? 'Administrador' : 'Usuario' }}
+          {{ item.role }}
         </v-chip>
       </template>
-      
+
+      <template v-slot:item.tenant_name="{ item }">
+        <v-chip
+          v-if="item.tenant_name"
+          size="small"
+          color="secondary"
+          variant="outlined"
+        >
+          {{ item.tenant_name }}
+        </v-chip>
+        <span v-else class="text-grey-lighten-1" style="font-size: 0.85rem;">
+          No asignado
+        </span>
+      </template>
       <template v-slot:item.actions="{ item }">
         <div class="actions-container">
           <v-tooltip text="Editar usuario">
@@ -41,7 +54,7 @@
                 color="blue-grey"
                 variant="text"
                 v-bind="props"
-                :disabled="item.uuid === currentUserId"
+                :disabled="!canModifyUser(item)"
                 @click="handleEdit(item)"
               >
                 <i class="fa-solid fa-pen-to-square"></i>
@@ -55,7 +68,7 @@
                 color="error"
                 variant="text"
                 v-bind="props"
-                :disabled="item.uuid === currentUserId"
+                :disabled="!canModifyUser(item)"
                 @click="handleDelete(item)"
               >
                 <i class="fa-solid fa-trash"></i>
@@ -120,6 +133,7 @@
 import { ref, computed } from 'vue';
 import { sessionStore } from '@/store';
 import Request from '@/model/request';
+import { ROLES } from '@/utils/constants';
 
 const props = defineProps({
   users: {
@@ -143,9 +157,18 @@ const deletionImpact = ref(0);
 const headers = [
   { title: 'Nombre', key: 'name', sortable: true },
   { title: 'Email', key: 'mail', sortable: true },
-  { title: 'Rol', key: 'isAdmin', sortable: true },
+  { title: 'Rol', key: 'role', sortable: true },
+  { title: 'Grupo', key: 'tenant_name', sortable: true },
   { title: 'Acciones', key: 'actions', sortable: false, align: 'end' }
 ];
+
+const getRoleColor = (role) => {
+  switch (role) {
+    case ROLES.ADMIN: return 'primary';
+    case ROLES.GESTOR: return 'warning';
+    default: return 'grey';
+  }
+};
 
 const deleteDialog = ref(false);
 const userToDelete = ref(null);
@@ -176,6 +199,25 @@ const confirmDelete = () => {
 
 const handleEdit = (user) => {
   emit('edit', user);
+};
+
+const canModifyUser = (targetUser) => {
+  const currentUser = session.auth.user;
+
+  if (!currentUser) return false;
+
+  if (targetUser.uuid === currentUser.uuid) return false;
+
+  if (currentUser.role === ROLES.GESTOR) {
+    if (
+      targetUser.role === ROLES.GESTOR ||
+      targetUser.role === ROLES.ADMIN
+    ) {
+      return false;
+    }
+  }
+
+  return true;
 };
 </script>
 

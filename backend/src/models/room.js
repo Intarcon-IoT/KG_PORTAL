@@ -6,12 +6,14 @@ class Room {
     this.name = "";
     this.capacity = 0;
     this.facility_uuid = "";
+    this.needsValidation = 0;
   }
 
   set(data) {
     this.facility_uuid = data.facility_uuid;
     this.name = data.name;
     this.capacity = data.capacity;
+    this.needsValidation = data.needsValidation;
     return this;
   }
 
@@ -20,7 +22,8 @@ class Room {
       uuid: this.uuid,
       facility_uuid: this.facility_uuid,
       name: this.name,
-      capacity: this.capacity
+      capacity: this.capacity,
+      needsValidation: this.needsValidation
     };
   }
 
@@ -41,13 +44,13 @@ class Room {
   }
 
   async list() {
-    const rows = await mysqlAdapter.query("SELECT uuid, facility_uuid, name, capacity FROM kibooking_rooms WHERE enabled = 1", []);
+    const rows = await mysqlAdapter.query("SELECT uuid, facility_uuid, name, capacity, needsValidation FROM kibooking_rooms WHERE enabled = 1", []);
     return rows;
   }
 
   read(filter = {}) {
     let data = [];
-    let sql = "SELECT uuid, facility_uuid, name, capacity FROM kibooking_rooms WHERE 1";
+    let sql = "SELECT uuid, facility_uuid, name, capacity, needsValidation FROM kibooking_rooms WHERE 1";
 
     if (Object.keys(filter).length === 0) {
       sql += " AND uuid = ?";
