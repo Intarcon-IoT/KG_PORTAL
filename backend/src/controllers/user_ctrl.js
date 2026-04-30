@@ -98,7 +98,7 @@ userCtrl.updateUser = async (req, res) => {
   const user = new User(uuid);
   if (res.locals.user?.role === ROLES.GESTOR) {
     req.body.tenant_uuid = res.locals.user.tenant_uuid;
-    req.body.role = ROLES.USER;
+    req.body.role = res.locals.user?.uuid === req.params.uuid ? ROLES.GESTOR : ROLES.USER;
   }
   const result = await user.update(req.body);
 

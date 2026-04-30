@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import Request from "@/model/request";
 import { useNotificationStore } from './useNotificationStore';
 import { sessionStore } from './session';
-import { BOOKING_STATUS } from '@/utils/constants';
+import { ROLES, BOOKING_STATUS } from '@/utils/constants';
 
 export const useBookingStore = defineStore('booking', {
   state: () => ({
