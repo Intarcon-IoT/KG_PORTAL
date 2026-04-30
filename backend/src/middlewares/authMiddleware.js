@@ -48,6 +48,13 @@ const middlewares = {
       return next();
     }
     res.status(403).json({ ok: false, message: 'Sorry but you are not authorized as gestor or admin' });
-  }
+  },
+
+  UserEditMiddleware: async function (req, res, next) {
+    if (res.locals.user && (res.locals.user.role === ROLES.GESTOR || res.locals.user.role === ROLES.ADMIN || res.locals.user.uuid === req.params.uuid)) {
+      return next();
+    }
+    res.status(403).json({ ok: false, message: 'Sorry but you are not authorized as gestor or admin or as the user requested' });
+  },
 };
 module.exports = middlewares;

@@ -4,10 +4,10 @@
       <kiLogo/>
       <p>Introduzca su correo electrónico para recuperar su contraseña</p>
     </div>
-    <v-form @submit.prevent="handlerSubmit">
+    <v-form ref="formRef" @submit.prevent="handlerSubmit">
       <div class="form">
         <kiInput column>
-          <kiTextField placeholder="correo" v-model="email" />
+          <kiTextField placeholder="correo" v-model="email" :rules="[validate.required, validate.email]" />
         </kiInput>
         <v-btn 
           color="primary" 
@@ -32,6 +32,7 @@ import { sessionStore } from '@/store';
 import { useNotificationStore } from '@/store';
 import Request from "@/model/request";
 import router from '@/router';
+import validate from '@/utils/useValidationRules'
 
 
 export default {
@@ -47,11 +48,13 @@ export default {
 
     let show_password = ref(false);
     const email = ref('');
+    const formRef = ref(null);  
 
     const handlerSubmit = async () => {
+    const { valid } = await formRef.value.validate();
 
-      if (!email.value) {
-        return notificationStore.notifyError('El correo es obligatorio');
+      if (!valid) {
+        return notificationStore.notifyError('Por favor, introduce un correo válido');
       }
 
       try {
@@ -73,7 +76,9 @@ export default {
     return {
       handlerSubmit,
       show_password,
-      email
+      email,
+      formRef,
+      validate
     }
   }
 }
