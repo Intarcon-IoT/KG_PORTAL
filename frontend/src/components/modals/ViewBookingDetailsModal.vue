@@ -4,11 +4,11 @@
       <v-card class="pa-6 rounded-xl" style="position: relative;">
 
         <div class="action-buttons">
-          <v-btn v-if="canDeleteBooking && !booking.isReadOnly" class="btn-edit" icon size="small" aria-label="Editar"
+          <v-btn v-if="canDeleteBooking && !isReadOnly" class="btn-edit" icon size="small" aria-label="Editar"
             @click="handleEdit">
             <i class="fa-solid fa-pen-to-square"></i>
           </v-btn>
-          <v-btn v-if="canDeleteBooking && !booking.isReadOnly" class="btn-delete" icon size="small" aria-label="Borrar"
+          <v-btn v-if="canDeleteBooking && !isReadOnly" class="btn-delete" icon size="small" aria-label="Borrar"
             @click="confirmDelete">
             <i class="fa-solid fa-trash-can"></i>
           </v-btn>
@@ -20,7 +20,7 @@
         <v-card-title class="text-h6 font-weight-bold text-grey-darken-3 pa-0 mb-4">
           <!-- Sección de etiquetas -->
           <div class="mb-2 d-flex gap-2 flex-wrap">
-            <v-chip v-if="booking.isReadOnly" size="small" color="error">Evento pasado</v-chip>
+            <v-chip v-if="isReadOnly" size="small" color="error">Evento pasado</v-chip>
           </div>
           <!-- Título de la reserva -->
           <div class="title-container">
@@ -51,7 +51,7 @@
             <span>{{ booking.name }}</span>
           </div>
         </v-card-text>
-        <v-card-actions v-if="canManageStatus && isPending" class="justify-center pb-4 pt-4">
+        <v-card-actions v-if="canManageStatus && isPending && !isReadOnly" class="justify-center pb-4 pt-4">
           <v-btn color="error" variant="outlined" class="mx-2" min-width="140" @click="handleStatusUpdate(BOOKING_STATUS.REJECTED)">
             Rechazar reserva
           </v-btn>
@@ -196,6 +196,10 @@ const facilitySelected = computed(() => {
 const canDeleteBooking = computed(() => {
   return session.auth.user.uuid === props.booking.user_uuid || canManageStatus.value;
 });
+
+const isReadOnly = computed(() => {
+  return props.booking.end_date < moment().format('YYYY-MM-DD');
+})
 
 watch(() => props.dialog, (val) => {
   internalDialog.value = val
