@@ -48,7 +48,7 @@ bookingCtrl.createBooking = async (req, res) => {
         await newBooking.rejectOverlapping();
       }
       if(roomData[0].needsValidation === 0) {
-        const { user_uuid, status, ...cleanBooking } = newBooking;
+        const { status, ...cleanBooking } = newBooking;
         await thirdPartyService.syncThirdParty(cleanBooking, 'insert');
       }
       return res.status(201).json({
@@ -58,6 +58,7 @@ bookingCtrl.createBooking = async (req, res) => {
             ? "Reserva creada y confirmada correctamente."
             : "Reserva creada. Pendiente de validación por un administrador.",
         status: newBooking.status,
+        uuid: newBooking.uuid
       });
     }
   } catch (error) {
@@ -143,6 +144,7 @@ bookingCtrl.editBooking = async (req, res) => {
   booking.user_uuid = saved[0].user_uuid;
   const previousStatus = saved[0].status;
   const merged = { ...saved[0], ...req.body };
+  const { status, updated_ts, tenant_uuid, ...cleanBooking } = merged;
   booking.set(merged);
 
   const validation = await booking.validate();
@@ -168,7 +170,7 @@ bookingCtrl.editBooking = async (req, res) => {
     return res.json({ ok: false, message: "Error al actualizar la reserva" });
   } else {
     if(roomData[0].needsValidation === 0) {
-      await thirdPartyService.syncThirdParty(req.body, 'update');
+      await thirdPartyService.syncThirdParty(cleanBooking, 'update');
     }
     return res.json({
       ok: true,
@@ -188,7 +190,7 @@ bookingCtrl.deleteBooking = async (req, res) => {
   const saved = await booking.read();
   const room = new Room(saved[0].room_uuid);
   const roomData = await room.read();
-  const { user_uuid, updated_ts, status, ...cleanBooking } = saved[0];
+  const { updated_ts, status, tenant_uuid, ...cleanBooking } = saved[0];
 
   if (!saved || saved.length === 0) {
     return res

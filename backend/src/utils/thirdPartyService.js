@@ -19,9 +19,10 @@ const thirdPartyService = {
       }
 
       const headers = thirdPartyService.getHeaders(key);
+      const { user_uuid, ...cleanPayload } = payload;
 
       try {
-        await axios.post(config.app_url, payload, { headers });
+        await axios.post(config.app_url, cleanPayload, { headers });
       } catch (error) {
         console.error(`ThirdPartySync Error [${key}]:`, error.message);
       }
