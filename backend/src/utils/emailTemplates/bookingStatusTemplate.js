@@ -68,7 +68,7 @@ function bookingStatusTemplate({ nombre = "Usuario", status, booking }) {
           ${booking.details ? `<li><strong>Observaciones:</strong> ${booking.details}</li>` : ""}
         </ul>
 
-        <p>Para cualquier consulta adicional, le rogamos que contacte con el departamento de administración.</p>
+        <p>Para cualquier consulta adicional, le rogamos que contacte con el departamento de Recursos Humanos.</p>
         <p>Atentamente,<br><strong>KEYTER Group</strong></p>
       </div>
     </body>
@@ -88,7 +88,7 @@ Detalles de la reserva:
 - Título: ${booking.title || "Sin título"}
 ${booking.details ? `- Observaciones: ${booking.details}` : ""}
 
-Para cualquier consulta adicional, puede ponerse en contacto con el departamento de administración.
+Para cualquier consulta adicional, le rogamos que contacte con el departamento de Recursos Humanos.
 
 Atentamente,
 KEYTER Group
