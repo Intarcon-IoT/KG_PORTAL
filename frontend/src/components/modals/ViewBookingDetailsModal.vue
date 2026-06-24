@@ -137,11 +137,8 @@ const internalDialog = ref(props.dialog)
 const deleteDialog = ref(false)
 
 const isAdmin = computed(() => session.auth.user?.role === ROLES.ADMIN);
-const isGestorOfTenant = computed(() => {
-  return session.auth.user?.role === ROLES.GESTOR && 
-         session.auth.user?.tenant_uuid === props.booking?.tenant_uuid;
-});
-const canManageStatus = computed(() => isAdmin.value || isGestorOfTenant.value);
+const isGestor = computed(() => session.auth.user?.role === ROLES.GESTOR);
+const canManageStatus = computed(() => isAdmin.value);
 const isPending = computed(() => props.booking && props.booking.status === BOOKING_STATUS.PENDING);
 
 const handleStatusUpdate = (status) => {
@@ -194,7 +191,9 @@ const facilitySelected = computed(() => {
 
 
 const canDeleteBooking = computed(() => {
-  return session.auth.user.uuid === props.booking.user_uuid || canManageStatus.value;
+  const isOwner = session.auth.user.uuid === props.booking.user_uuid;
+  const gestorCanAct = isGestor.value && props.booking?.status === BOOKING_STATUS.APPROVED;
+  return isOwner || isAdmin.value || gestorCanAct;
 });
 
 const isReadOnly = computed(() => {
