@@ -177,15 +177,16 @@ bookingCtrl.deleteBooking = async (req, res) => {
 
   let booking = new Booking(uuid);
   const saved = await booking.read();
-  const room = new Room(saved[0].room_uuid);
-  const roomData = await room.read();
-  const { updated_ts, status, tenant_uuid, ...cleanBooking } = saved[0];
 
   if (!saved || saved.length === 0) {
     return res
       .status(404)
       .json({ ok: false, message: "Reserva no encontrada" });
   }
+
+  const room = new Room(saved[0].room_uuid);
+  const roomData = await room.read();
+  const { updated_ts, status, tenant_uuid, ...cleanBooking } = saved[0];
   const isOwner = saved[0].user_uuid === res.locals.user.uuid;
   const isAdmin = res.locals.user.role === ROLES.ADMIN;
   const isGestor = res.locals.user.role === ROLES.GESTOR;
@@ -209,7 +210,7 @@ bookingCtrl.deleteBooking = async (req, res) => {
   if (result.affectedRows === 0) {
     return res.json({ ok: false, message: "Error al eliminar la reserva" });
   } else {
-    if(roomData[0].needsValidation === 0) {
+    if(roomData[0]?.needsValidation === 0) {
       await thirdPartyService.syncThirdParty(cleanBooking, 'delete');
     }
     return res.json({ ok: true, message: "Reserva eliminada correctamente" });

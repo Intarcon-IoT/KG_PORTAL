@@ -62,10 +62,14 @@ export default class Request {
       }
 
     }).then(response => {
-      if (this.errorHandler[response.code]) {
-        this.errorHandler[response.code](response);
+      if (response instanceof ErrorRequest) {
+        if (this.errorHandler[response.code]) {
+          this.errorHandler[response.code](response);
+        } else {
+          throw new ErrorResponse(response.body?.message || `Error ${response.code}`);
+        }
       }
-      
+
       return response;
     }).catch((err) => {
       throw err;
