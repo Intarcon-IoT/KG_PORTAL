@@ -137,6 +137,18 @@ import ViewBookingDetailsModal from './modals/ViewBookingDetailsModal.vue';
 import ResourceFilter from './filters/ResourceFilter.vue';
 import CalendarViewSelector from './calendar-navigation/CalendarViewSelector.vue';
 import { ref, reactive, computed, watch, onMounted } from 'vue';
+
+const formatDate = (d) => d.toISOString().split('T')[0];
+
+function getWeekRange(date) {
+  const start = new Date(date);
+  const day = start.getDay();
+  start.setDate(start.getDate() - day + (day === 0 ? -6 : 1)); // lunes
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  return { from_date: formatDate(start), to_date: formatDate(end) };
+}
 import UserOnlySwitch from './filters/UserOnlySwitch.vue';
 import { useNotificationStore, sessionStore, useBookingStore, useFacilityStore, useRoomStore } from '@/store';
 
@@ -209,8 +221,12 @@ onMounted(async () => {
   await Promise.all([
     facilityStore.fetchFacilities(),
     roomStore.fetchRooms(),
-    bookingStore.fetchBookings()
+    bookingStore.fetchBookings(getWeekRange(selectedDate.value))
   ]);
+});
+
+watch(selectedDate, (date) => {
+  bookingStore.fetchBookings(getWeekRange(date));
 });
 
 // HANDLERS
@@ -374,7 +390,7 @@ const deleteBooking = async (bookingId) => {
 
 async function handleBookingStatusUpdate(statusData) {
   await bookingStore.updateBookingStatus(statusData.uuid, statusData.status);
-  await bookingStore.fetchBookings();
+  await bookingStore.fetchBookings(getWeekRange(selectedDate.value));
 }
 
 // NAVIGATION
