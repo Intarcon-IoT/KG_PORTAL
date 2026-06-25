@@ -21,11 +21,8 @@ bookingCtrl.createBooking = async (req, res) => {
         .json({ ok: false, message: "La sala especificada no existe." });
     }
 
-    if (res.locals.user.role === ROLES.ADMIN || roomData[0].needsValidation === 0) {
-      newBooking.status = BOOKING_STATUS.APPROVED;
-    } else {
-      newBooking.status = BOOKING_STATUS.PENDING;
-    }
+    const canAutoApprove = res.locals.user.role === ROLES.ADMIN || res.locals.user.role === ROLES.GESTOR || roomData[0].needsValidation === 0;
+    newBooking.status = canAutoApprove ? BOOKING_STATUS.APPROVED : BOOKING_STATUS.PENDING;
 
     const validation = await newBooking.validate();
 
@@ -126,7 +123,7 @@ bookingCtrl.editBooking = async (req, res) => {
     });
   }
 
-  if (isAdmin && (req.body.status === undefined || req.body.status === BOOKING_STATUS.PENDING)) {
+  if ((isAdmin || isGestor) && (req.body.status === undefined || req.body.status === BOOKING_STATUS.PENDING)) {
     req.body.status = BOOKING_STATUS.APPROVED;
   }
 
@@ -153,7 +150,7 @@ bookingCtrl.editBooking = async (req, res) => {
     });
   }
 
-  const result = await booking.update(isAdmin);
+  const result = await booking.update(isAdmin || isGestor);
 
   if (result.error) {
     return res.json({ ok: false, message: "Error al actualizar la reserva" });
@@ -241,11 +238,8 @@ bookingCtrl.createBulkBookings = async (req, res) => {
           throw error;
         }
 
-        if (res.locals.user.role === ROLES.ADMIN || roomData[0].needsValidation === 0) {
-          newBooking.status = BOOKING_STATUS.APPROVED;
-        } else {
-          newBooking.status = BOOKING_STATUS.PENDING;
-        }
+        const canAutoApprove = res.locals.user.role === ROLES.ADMIN || res.locals.user.role === ROLES.GESTOR || roomData[0].needsValidation === 0;
+        newBooking.status = canAutoApprove ? BOOKING_STATUS.APPROVED : BOOKING_STATUS.PENDING;
 
         const validation = await newBooking.validate();
         if (!validation.valid) {
