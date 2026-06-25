@@ -10,10 +10,10 @@ const userCtrl = {};
 userCtrl.createUser = async (req, res) => {
   const { name, mail, tenant_uuid, role } = req.body;
 
-  if (res.locals.user?.role !== ROLES.ADMIN && res.locals.user?.role !== ROLES.GESTOR) {
+  if (res.locals.user?.role !== ROLES.ADMIN) {
     return res.status(403).json({ ok: false, message: "No tienes permiso para crear usuarios" });
   }
-  if ( !mail || !name || !tenant_uuid || !role) {
+  if (!mail || !name || !tenant_uuid || !role) {
     return res.send({ message: "El nombre de usuario, mail, tenant y rol son obligatorios" });
   }
 
@@ -21,10 +21,6 @@ userCtrl.createUser = async (req, res) => {
   req.body.password = randomPassword;
   const newUser = new User(uuid.v4());
   newUser.set(req.body);
-  if (res.locals.user?.role === ROLES.GESTOR) {
-    newUser.tenant_uuid = res.locals.user.tenant_uuid;
-    newUser.role = ROLES.USER;
-  }
   const result = await newUser.create();
 
   if (result.error) {
@@ -46,7 +42,7 @@ userCtrl.deleteUser = async (req, res) => {
   const targetUser = new User(req.params.uuid);
   const targetUserResult = await targetUser.read();
 
-  if (res.locals.user?.role !== ROLES.ADMIN && (res.locals.user?.role !== ROLES.GESTOR || res.locals.user?.tenant_uuid !== targetUserResult[0].tenant_uuid)) {
+  if (res.locals.user?.role !== ROLES.ADMIN) {
     return res.status(403).json({ ok: false, message: "No tienes permiso para eliminar usuarios" });
   }
   const result = await targetUser.delete();
@@ -67,16 +63,13 @@ userCtrl.updateUser = async (req, res) => {
   }
 
   //Validación de permisos
-  if (
-    (res.locals.user?.role !== ROLES.ADMIN && (res.locals.user?.role !== ROLES.GESTOR || res.locals.user?.tenant_uuid !== req.body.tenant_uuid)) &&
-    res.locals.user?.uuid !== req.params.uuid
-  ) {
+  if (res.locals.user?.role !== ROLES.ADMIN && res.locals.user?.uuid !== req.params.uuid) {
     return res.status(403).json({ ok: false, message: "No tienes permiso para actualizar el usuario" });
   }
   if (req.body.password && res.locals.user?.uuid !== req.params.uuid) {
     return res.status(403).json({ ok: false, message: "No tienes permiso para actualizar la contraseña" });
   }
-  if (req.body.role && res.locals.user?.role !== ROLES.ADMIN && (res.locals.user?.role !== ROLES.GESTOR || req.body.role !== ROLES.USER)) {
+  if (req.body.role && res.locals.user?.role !== ROLES.ADMIN) {
     return res.status(403).json({ ok: false, message: "No tienes permiso para actualizar el rol de usuario" });
   }
 
@@ -96,10 +89,6 @@ userCtrl.updateUser = async (req, res) => {
 
   const uuid = req.params.uuid;
   const user = new User(uuid);
-  if (res.locals.user?.role === ROLES.GESTOR) {
-    req.body.tenant_uuid = res.locals.user.tenant_uuid;
-    req.body.role = res.locals.user?.uuid === req.params.uuid ? ROLES.GESTOR : ROLES.USER;
-  }
   const result = await user.update(req.body);
 
   if (result.affectedRows === 0) {
@@ -111,11 +100,7 @@ userCtrl.updateUser = async (req, res) => {
 
 userCtrl.getUsers = async (req, res) => {
   const user = new User();
-  const filter = {};
-  if (res.locals.user?.role === ROLES.GESTOR) {
-    filter.tenant_uuid = res.locals.user.tenant_uuid;
-  }
-  const result = await user.list(filter);
+  const result = await user.list({});
 
   if (result.error) {
     res.json({ ok: false, message: "Error al obtener los usuarios" });

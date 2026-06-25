@@ -8,15 +8,18 @@ export const useBookingStore = defineStore('booking', {
   state: () => ({
     bookings: [],
     pendingCount: 0,
-    loading: false
+    loading: false,
+    currentParams: {}
   }),
   actions: {
-    async fetchBookings() {
+    async fetchBookings(params = {}) {
       this.loading = true;
+      this.currentParams = params;
       try {
         const request = new Request({
           endpoint: 'bookings',
-          method: 'GET'
+          method: 'GET',
+          params
         });
         const response = await request.http();
         this.bookings = response || [];
@@ -99,7 +102,7 @@ export const useBookingStore = defineStore('booking', {
         });
 
         const response = await request.http();
-        await this.fetchBookings();
+        await this.fetchBookings(this.currentParams);
         const notification = useNotificationStore();
         notification.notifySuccess(response.body?.message || response.message || 'Reserva creada con éxito');
 
@@ -126,14 +129,14 @@ export const useBookingStore = defineStore('booking', {
         });
 
         const response = await request.http();
-        await this.fetchBookings();
-        
+        await this.fetchBookings(this.currentParams);
+
         const validMsg = (needsValidation && (session.auth.user?.role !== ROLES.ADMIN && session.auth.user?.role !== ROLES.GESTOR))? ' y están pendientes de validación por un administrador' : '';
         notification.notifySuccess(`Se han creado ${bookingsArray.length} reservas correctamente${validMsg}`);
       } catch (error) {
         console.error('Error creating bulk bookings:', error);
         notification.notifyError(error.message || 'Error al procesar las reservas en lote');
-        await this.fetchBookings();
+        await this.fetchBookings(this.currentParams);
         throw error;
       } finally {
         this.loading = false;
@@ -150,7 +153,7 @@ export const useBookingStore = defineStore('booking', {
         });
 
         const response = await request.http();
-        await this.fetchBookings();
+        await this.fetchBookings(this.currentParams);
         const notification = useNotificationStore();
         notification.notifySuccess(response.message);
       } catch (error) {

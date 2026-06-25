@@ -53,7 +53,7 @@ export default class Request {
       body: this.body,
       headers: this.headers
     }).then(async (res) => {      
-      if (res.status === 200) {
+      if (res.status >= 200 && res.status < 300) {
 
         return res.json();
       } else {
@@ -62,10 +62,14 @@ export default class Request {
       }
 
     }).then(response => {
-      if (this.errorHandler[response.code]) {
-        this.errorHandler[response.code](response);
+      if (response instanceof ErrorRequest) {
+        if (this.errorHandler[response.code]) {
+          this.errorHandler[response.code](response);
+        } else {
+          throw new ErrorResponse(response.body?.message || `Error ${response.code}`);
+        }
       }
-      
+
       return response;
     }).catch((err) => {
       throw err;

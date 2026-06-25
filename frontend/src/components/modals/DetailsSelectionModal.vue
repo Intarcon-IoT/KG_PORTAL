@@ -9,7 +9,7 @@
       <v-card-text class="dialog-content">
         <v-container>
           <v-row>
-            <v-col cols="12">
+            <v-col cols="6">
               <v-select
                 v-model="bookingInfo.facility_uuid"
                 :items="props.installations"
@@ -19,9 +19,7 @@
                 @update:modelValue="onFacilityChange"
               />
             </v-col>
-          </v-row>
-          <v-row>
-            <v-col cols="12">
+            <v-col cols="6">
               <v-select
                 v-model="bookingInfo.room_uuid"
                 :items="availableRooms"
@@ -123,6 +121,8 @@
               <v-textarea
                 v-model="bookingInfo.details"
                 label="Detalles de la Reserva"
+                rows="2"
+                auto-grow
               />
             </v-col>
           </v-row>
@@ -537,7 +537,7 @@ watch(dialog, (val) => {
 }
 
 .dialog-content {
-  max-height: 400px;
+  max-height: 70vh;
   overflow-y: auto;
 }
 
