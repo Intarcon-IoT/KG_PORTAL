@@ -53,7 +53,7 @@ export default class Request {
       body: this.body,
       headers: this.headers
     }).then(async (res) => {      
-      if (res.status === 200) {
+      if (res.status >= 200 && res.status < 300) {
 
         return res.json();
       } else {
