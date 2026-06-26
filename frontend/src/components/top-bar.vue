@@ -59,7 +59,7 @@ import { ROLES } from '@/utils/constants';
     <v-spacer />
 
     <v-badge
-      v-if="(session.auth.user?.role === ROLES.ADMIN || session.auth.user?.role === ROLES.GESTOR)"
+      v-if="session.auth.user?.role === ROLES.ADMIN"
       :content="bookingStore.pendingCount"
       :model-value="bookingStore.pendingCount > 0"
       color="error"

@@ -23,16 +23,16 @@ const router = createRouter({
         {
           path: 'users',
           name: 'Administrar Usuarios',
-          meta: { role: [ROLES.ADMIN, ROLES.GESTOR], icon: 'fa fa-users' },
+          meta: { role: [ROLES.ADMIN], icon: 'fa fa-users' },
           component: () => import('../views/users/user-admin-view.vue'),
-          beforeEnter: (to, from, next) => gestorGuard(to, from, next),
+          beforeEnter: (to, from, next) => adminGuard(to, from, next),
         },
         {
           path: 'bookings-validation',
           name: 'Validar Reservas',
-          meta: { role: [ROLES.ADMIN, ROLES.GESTOR], icon: 'fa fa-check-to-slot' },
+          meta: { role: [ROLES.ADMIN], icon: 'fa fa-check-to-slot' },
           component: () => import('../views/bookings/booking-validation-view.vue'),
-          beforeEnter: (to, from, next) => gestorGuard(to, from, next),
+          beforeEnter: (to, from, next) => adminGuard(to, from, next),
         },
         {
           path: 'my-account',

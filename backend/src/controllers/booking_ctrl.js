@@ -21,15 +21,8 @@ bookingCtrl.createBooking = async (req, res) => {
         .json({ ok: false, message: "La sala especificada no existe." });
     }
 
-    if (
-      res.locals.user.role === ROLES.ADMIN ||
-      res.locals.user.role === ROLES.GESTOR ||
-      roomData[0].needsValidation === 0
-    ) {
-      newBooking.status = BOOKING_STATUS.APPROVED;
-    } else {
-      newBooking.status = BOOKING_STATUS.PENDING;
-    }
+    const canAutoApprove = res.locals.user.role === ROLES.ADMIN || res.locals.user.role === ROLES.GESTOR || roomData[0].needsValidation === 0;
+    newBooking.status = canAutoApprove ? BOOKING_STATUS.APPROVED : BOOKING_STATUS.PENDING;
 
     const validation = await newBooking.validate();
 
@@ -48,7 +41,7 @@ bookingCtrl.createBooking = async (req, res) => {
         await newBooking.rejectOverlapping();
       }
       if(roomData[0].needsValidation === 0) {
-        const { user_uuid, status, ...cleanBooking } = newBooking;
+        const { status, ...cleanBooking } = newBooking;
         await thirdPartyService.syncThirdParty(cleanBooking, 'insert');
       }
       return res.status(201).json({
@@ -58,6 +51,7 @@ bookingCtrl.createBooking = async (req, res) => {
             ? "Reserva creada y confirmada correctamente."
             : "Reserva creada. Pendiente de validación por un administrador.",
         status: newBooking.status,
+        uuid: newBooking.uuid
       });
     }
   } catch (error) {
@@ -68,10 +62,6 @@ bookingCtrl.createBooking = async (req, res) => {
 
 bookingCtrl.getBookings = async (req, res) => {
   const filter = req.query || {};
-
-  if (res.locals.user?.role === ROLES.GESTOR && filter.filter_tenant) {
-    filter.tenant_uuid = res.locals.user.tenant_uuid;
-  }
 
   const booking = new Booking();
   const result = await booking.list(filter);
@@ -110,39 +100,37 @@ bookingCtrl.editBooking = async (req, res) => {
   }
   const isOwner = saved[0].user_uuid === res.locals.user.uuid;
   const isAdmin = res.locals.user.role === ROLES.ADMIN;
-  const isGestorOfTenant =
-    res.locals.user.role === ROLES.GESTOR &&
-    res.locals.user.tenant_uuid === saved[0].tenant_uuid;
+  const isGestor = res.locals.user.role === ROLES.GESTOR;
 
-  if (!isOwner && !isAdmin && !isGestorOfTenant) {
+  if (isGestor && saved[0].status !== BOOKING_STATUS.APPROVED) {
     return res.status(403).json({
       ok: false,
       message: "No tienes permiso para editar esta reserva",
     });
   }
 
-  if (
-    !isAdmin &&
-    !isGestorOfTenant &&
-    req.body.status !== undefined &&
-    req.body.status !== saved[0].status
-  ) {
+  if (!isOwner && !isAdmin && !isGestor) {
+    return res.status(403).json({
+      ok: false,
+      message: "No tienes permiso para editar esta reserva",
+    });
+  }
+
+  if (!isAdmin && req.body.status !== undefined && req.body.status !== saved[0].status) {
     return res.status(403).json({
       ok: false,
       message: "No puedes cambiar el estado de la reserva",
     });
   }
 
-  if (
-    (isAdmin || isGestorOfTenant) &&
-    (req.body.status === undefined || req.body.status === BOOKING_STATUS.PENDING)
-  ) {
+  if ((isAdmin || isGestor) && (req.body.status === undefined || req.body.status === BOOKING_STATUS.PENDING)) {
     req.body.status = BOOKING_STATUS.APPROVED;
   }
 
   booking.user_uuid = saved[0].user_uuid;
   const previousStatus = saved[0].status;
   const merged = { ...saved[0], ...req.body };
+  const { status, updated_ts, tenant_uuid, ...cleanBooking } = merged;
   booking.set(merged);
 
   const validation = await booking.validate();
@@ -162,13 +150,13 @@ bookingCtrl.editBooking = async (req, res) => {
     });
   }
 
-  const result = await booking.update(isAdmin || isGestorOfTenant);
+  const result = await booking.update(isAdmin || isGestor);
 
   if (result.error) {
     return res.json({ ok: false, message: "Error al actualizar la reserva" });
   } else {
     if(roomData[0].needsValidation === 0) {
-      await thirdPartyService.syncThirdParty(req.body, 'update');
+      await thirdPartyService.syncThirdParty(cleanBooking, 'update');
     }
     return res.json({
       ok: true,
@@ -186,22 +174,28 @@ bookingCtrl.deleteBooking = async (req, res) => {
 
   let booking = new Booking(uuid);
   const saved = await booking.read();
-  const room = new Room(saved[0].room_uuid);
-  const roomData = await room.read();
-  const { user_uuid, updated_ts, status, ...cleanBooking } = saved[0];
 
   if (!saved || saved.length === 0) {
     return res
       .status(404)
       .json({ ok: false, message: "Reserva no encontrada" });
   }
+
+  const room = new Room(saved[0].room_uuid);
+  const roomData = await room.read();
+  const { updated_ts, status, tenant_uuid, ...cleanBooking } = saved[0];
   const isOwner = saved[0].user_uuid === res.locals.user.uuid;
   const isAdmin = res.locals.user.role === ROLES.ADMIN;
-  const isGestorOfTenant =
-    res.locals.user.role === ROLES.GESTOR &&
-    res.locals.user.tenant_uuid === saved[0].tenant_uuid;
+  const isGestor = res.locals.user.role === ROLES.GESTOR;
 
-  if (!isOwner && !isAdmin && !isGestorOfTenant) {
+  if (isGestor && saved[0].status !== BOOKING_STATUS.APPROVED) {
+    return res.status(403).json({
+      ok: false,
+      message: "No tienes permiso para eliminar esta reserva",
+    });
+  }
+
+  if (!isOwner && !isAdmin && !isGestor) {
     return res.status(403).json({
       ok: false,
       message: "No tienes permiso para eliminar esta reserva",
@@ -213,7 +207,7 @@ bookingCtrl.deleteBooking = async (req, res) => {
   if (result.affectedRows === 0) {
     return res.json({ ok: false, message: "Error al eliminar la reserva" });
   } else {
-    if(roomData[0].needsValidation === 0) {
+    if(roomData[0]?.needsValidation === 0) {
       await thirdPartyService.syncThirdParty(cleanBooking, 'delete');
     }
     return res.json({ ok: true, message: "Reserva eliminada correctamente" });
@@ -244,15 +238,8 @@ bookingCtrl.createBulkBookings = async (req, res) => {
           throw error;
         }
 
-        if (
-          res.locals.user.role === ROLES.ADMIN ||
-          res.locals.user.role === ROLES.GESTOR ||
-          roomData[0].needsValidation === 0
-        ) {
-          newBooking.status = BOOKING_STATUS.APPROVED;
-        } else {
-          newBooking.status = BOOKING_STATUS.PENDING;
-        }
+        const canAutoApprove = res.locals.user.role === ROLES.ADMIN || res.locals.user.role === ROLES.GESTOR || roomData[0].needsValidation === 0;
+        newBooking.status = canAutoApprove ? BOOKING_STATUS.APPROVED : BOOKING_STATUS.PENDING;
 
         const validation = await newBooking.validate();
         if (!validation.valid) {
