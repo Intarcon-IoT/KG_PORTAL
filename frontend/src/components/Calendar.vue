@@ -49,7 +49,7 @@
           :selected-date="selectedDate" 
           :selectedFacilities="selectedFacilities"
           :selectedRooms="selectedRooms" 
-          :bookingsList="bookingsList" 
+          :bookingsList="filteredBookings" 
           @booking_click="handleBookingDetailsView"
           @empty_cell_click="handleNewBookingFromCalendar" 
         />
@@ -98,8 +98,15 @@
         :rooms="roomsList"
         :isEditMode="isEditingMode"
         @back="handleBackToDateModal"
+        @next="handleNextToBulkModal"
         @confirmBooking="handleBooking"
         @cancelEdit="handleCancelEdit"
+      />
+      <BulkBookingModal
+        v-model:dialog="showBulkModal"
+        :initialBooking="bookingPayload"
+        @back="handleBackToDetailsModal"
+        @confirmBulkBooking="handleBulkBooking"
       />
       <ViewBookingDetailsModal 
         v-model:dialog="showBookingDetailsModal"
@@ -108,12 +115,14 @@
         :facilities="installationsList"
         @edit="handleEditBooking"
         @delete="deleteBooking"
+        @status-update="handleBookingStatusUpdate"
       />
     </div>
   </div>
 </template>
 
 <script setup>
+import { storeToRefs } from 'pinia';
 import CalendarHeader from './calendar-navigation/CalendarHeader.vue';
 import MonthView from './views/MonthView.vue';
 import WeekView from './views/WeekView.vue';
@@ -123,34 +132,51 @@ import FacilitySelectionModal from './modals/FacilitySelectionModal.vue';
 import RoomSelectionModal from './modals/RoomSelectionModal.vue';
 import DateSelectionModal from './modals/DateSelectionModal.vue';
 import DetailsSelectionModal from './modals/DetailsSelectionModal.vue';
+import BulkBookingModal from './modals/BulkBookingModal.vue';
 import ViewBookingDetailsModal from './modals/ViewBookingDetailsModal.vue';
 import ResourceFilter from './filters/ResourceFilter.vue';
 import CalendarViewSelector from './calendar-navigation/CalendarViewSelector.vue';
 import { ref, reactive, computed, watch, onMounted } from 'vue';
+
+const formatDate = (d) => d.toISOString().split('T')[0];
+
+function getWeekRange(date) {
+  const start = new Date(date);
+  const day = start.getDay();
+  start.setDate(start.getDate() - day + (day === 0 ? -6 : 1)); // lunes
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  return { from_date: formatDate(start), to_date: formatDate(end) };
+}
 import UserOnlySwitch from './filters/UserOnlySwitch.vue';
-import Request from "@/model/request";
-import { useNotificationStore, sessionStore } from '@/store';
+import { useNotificationStore, sessionStore, useBookingStore, useFacilityStore, useRoomStore } from '@/store';
 
 // SHOW MODALS
 const showFacilityModal = ref(false);
 const showRoomModal = ref(false);
 const showDateModal = ref(false);
 const showDetailsModal = ref(false);
+const showBulkModal = ref(false);
 const showBookingDetailsModal = ref(false);
 
-// DATA
-const installationsList = ref([]);
-const roomsList = ref([]);
-const bookingsList = ref([]);
+// STORE
+const notificationStore = useNotificationStore();
+const session = sessionStore();
+const bookingStore = useBookingStore();
+const facilityStore = useFacilityStore();
+const roomStore = useRoomStore();
+
+// DATA (from stores)
+const { facilities: installationsList } = storeToRefs(facilityStore);
+const { rooms: roomsList } = storeToRefs(roomStore);
+const { bookings: bookingsList } = storeToRefs(bookingStore);
 
 // MODALS DATA
 const availableRooms = ref([]);
 const bookingDetails = ref(null);
 const isEditingMode = ref(false);
-
-// STORE
-const notificationStore = useNotificationStore();
-const session = sessionStore();
+const bookingPayload = ref(null);
 
 //FILTER DATA
 const selectedFacilitiesUuid = ref([]);
@@ -192,39 +218,16 @@ const booking = reactive({
 
 
 onMounted(async () => {
-
-  const requestFacilities = new Request({
-    endpoint: 'facilities',
-    method: 'GET'
-  });
-  await requestFacilities.http().then(res => {
-    installationsList.value = res.sort((a, b) => a.name.localeCompare(b.name));
-  })
-    .catch(err => notificationStore.notifyError(err.message))
-
-  const requestRooms = new Request({
-    endpoint: 'rooms',
-    method: 'GET'
-  });
-  await requestRooms.http().then(res => {
-    roomsList.value = res;
-  })
-    .catch(err => notificationStore.notifyError(err.message))
-
-  loadBookings();
+  await Promise.all([
+    facilityStore.fetchFacilities(),
+    roomStore.fetchRooms(),
+    bookingStore.fetchBookings(getWeekRange(selectedDate.value))
+  ]);
 });
 
-async function loadBookings() {
-  const request = new Request({
-    endpoint: 'bookings',
-    method: 'GET'
-  });
-
-  await request.http().then(res => {
-    bookingsList.value = res;
-  })
-    .catch(err => notificationStore.notifyError(err.message))
-}
+watch(selectedDate, (date) => {
+  bookingStore.fetchBookings(getWeekRange(date));
+});
 
 // HANDLERS
 function resetBooking() {
@@ -292,6 +295,18 @@ function handleBackToDateModal() {
   showDateModal.value = true
 }
 
+function handleNextToBulkModal(bookingData) {
+  const room = roomsList.value.find(r => r.uuid === bookingData.room_uuid);
+  bookingPayload.value = { ...bookingData, needsValidation: room?.needsValidation === 1 };
+  showDetailsModal.value = false;
+  showBulkModal.value = true;
+}
+
+function handleBackToDetailsModal() {
+  showBulkModal.value = false;
+  showDetailsModal.value = true;
+}
+
 function handleBookingDetailsView(booking, isPast) {
   resetBooking();
   isEditingMode.value = false;
@@ -303,66 +318,45 @@ function handleBookingDetailsView(booking, isPast) {
 }
 
 function handleBooking(bookingData) {
+  const payload = {
+    uuid: bookingData.uuid,
+    room_uuid: bookingData.room_uuid,
+    start_date: bookingData.dateFrom,
+    end_date: bookingData.dateTo,
+    start_time: bookingData.timeFrom,
+    end_time: bookingData.timeTo,
+    title: bookingData.title,
+    details: bookingData.details
+  };
+
   if (isEditingMode.value) {
-    const newBooking = {
-      uuid: bookingData.uuid,
-      room_uuid: bookingData.room_uuid,
-      start_date: bookingData.dateFrom,
-      end_date: bookingData.dateTo,
-      start_time: bookingData.timeFrom,
-      end_time: bookingData.timeTo,
-      title: bookingData.title,
-      details: bookingData.details
-    };
-    updateBooking(newBooking);
+    bookingStore.updateBooking(payload);
     isEditingMode.value = false;
   } else {
-    const newBooking = {
-      room_uuid: bookingData.room_uuid,
-      start_date: bookingData.dateFrom,
-      end_date: bookingData.dateTo,
-      start_time: bookingData.timeFrom,
-      end_time: bookingData.timeTo,
-      title: bookingData.title,
-      details: bookingData.details
-    };
-    saveBooking(newBooking);
+    bookingStore.createBooking(payload);
   }
   resetBooking();
 }
 
-const updateBooking = async (updatedBooking) => {
-  try {
-    const request = new Request({
-      endpoint: `bookings/${updatedBooking.uuid}`,
-      method: 'PUT',
-      body: JSON.stringify(updatedBooking)
-    });
+function handleBulkBooking(bookingsArray) {
+  const payloads = bookingsArray.map(b => ({
+    uuid: b.uuid,
+    room_uuid: b.room_uuid,
+    start_date: b.dateFrom,
+    end_date: b.dateTo,
+    start_time: b.timeFrom,
+    end_time: b.timeTo,
+    title: b.title,
+    details: b.details
+  }));
 
-    await request.http();
-    notificationStore.notifySuccess('Reserva actualizada con éxito');
-    loadBookings();
-  } catch (error) {
-    console.error('Error al actualizar la reserva:', error);
-    notificationStore.notifyError('Error al actualizar la reserva');
+  if (bookingsArray.length === 1 && bookingsArray[0].isSingle) {
+    bookingStore.createBooking(payloads[0]);
+  } else {
+    bookingStore.createBulkBookings(payloads, bookingsArray[0]?.needsValidation);
   }
-}
-
-async function saveBooking(newBooking) {
-  try {
-    const request = new Request({
-      endpoint: 'bookings',
-      method: 'POST',
-      body: JSON.stringify(newBooking),
-    });
-
-    await request.http();
-    await loadBookings();
-    notificationStore.notifySuccess('Reserva creada con éxito');
-  } catch (err) {
-    console.error('Error al crear la reserva:', err);
-    notificationStore.notifyError(err.message || 'Error al crear la reserva');
-  }
+  
+  resetBooking();
 }
 
 function handleEditBooking(bookingToEdit) {
@@ -391,19 +385,12 @@ function handleCancelEdit() {
 }
 
 const deleteBooking = async (bookingId) => {
-  try {
-    const request = new Request({
-      endpoint: `bookings/${bookingId}`,
-      method: 'DELETE'
-    });
+  await bookingStore.deleteBooking(bookingId);
+}
 
-    await request.http();
-    notificationStore.notifySuccess('Reserva eliminada con éxito');
-    loadBookings();
-  } catch (error) {
-    console.error('Error al eliminar la reserva:', error);
-    notificationStore.notifyError('Error al eliminar la reserva');
-  }
+async function handleBookingStatusUpdate(statusData) {
+  await bookingStore.updateBookingStatus(statusData.uuid, statusData.status);
+  await bookingStore.fetchBookings(getWeekRange(selectedDate.value));
 }
 
 // NAVIGATION
@@ -440,12 +427,12 @@ function goToToday() {
 //   currentView.value = 'day';
 // }
 
-watch(showOnlyMine, (val) => {
-  if (val) {
-    bookingsList.value = bookingsList.value.filter(booking => booking.user_uuid === session.auth.user.uuid);
-  } else {
-    loadBookings();
+const filteredBookings = computed(() => {
+  let list = bookingsList.value;
+  if (showOnlyMine.value) {
+    list = list.filter(b => b.user_uuid === session.auth.user.uuid);
   }
+  return list;
 });
 </script>
 

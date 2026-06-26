@@ -45,29 +45,55 @@
             v-for="hour in hours"
             :key="hour"
             class="hour-block"
-           
           >
           <v-container>
             <v-row>
               <v-col cols="3" class="hour-cel">
                 <div class="hour-text">{{ hour }}</div>
               </v-col>
-              <v-col v-if="!isBooked(hour)" cols="9" class="booking-cell d-flex justify-center">
+              <v-col cols="9" class="booking-cell d-flex justify-center align-center">
+                <template v-if="getBookingsForHour(hour).length > 0">
+                  <div v-if="hasOwnBooking(hour)" class="reserved-badge own-booking">
+                    <v-icon icon="fa-solid fa-user-check" size="x-small" class="mr-1"></v-icon>
+                    <span class="font-weight-bold">TU RESERVA</span>
+                  </div>
+                  <div v-else-if="hasApproved(hour)" class="reserved-badge">
+                    <v-icon icon="fa-solid fa-calendar-check" color="error" size="small" class="mr-1"></v-icon>
+                    <span class="text-error font-weight-bold">RESERVADO</span>
+                  </div>
+                  <div v-else-if="hasPendingFromOther(hour)" class="position-relative w-100 d-flex align-center">
+                    <v-icon
+                      icon="fa-solid fa-clock-rotate-left"
+                      color="warning"
+                      size="small"
+                      class="position-absolute start-0"
+                    ></v-icon>
+                    <v-btn
+                      class="select-hour-btn mx-auto"
+                      icon
+                      color="primary"
+                      @click="selectHour(hour)"
+                      elevation="6"
+                    >
+                      <i class="fa-solid fa-plus fa-xs"></i>
+                    </v-btn>
+                    <v-tooltip activator="parent" location="top" offset="10">
+                      Existe una reserva pendiente de validación en este tramo horario
+                    </v-tooltip>
+                  </div>
+                </template>
                 <v-btn
+                  v-else
                   class="select-hour-btn"
                   icon
                   color="primary"
                   @click="selectHour(hour)"
                   elevation="6"
+                  :disabled="isHourPast(hour)"
+                  :class="{ 'past-hour-btn': isHourPast(hour) }"
                 >
                   <i class="fa-solid fa-plus fa-xs"></i>
                 </v-btn>
-              </v-col>
-              <v-col v-else cols="9" class="booking-cell d-flex justify-center align-center">
-                <div class="reserved-badge">
-                  <v-icon icon="mdi-calendar-alert" color="error" size="small" class="mr-1"></v-icon>
-                  <span class="text-error font-weight-bold">RESERVADO</span>
-                </div>
               </v-col>
             </v-row>
           </v-container>
@@ -81,8 +107,9 @@
 <script setup>
 import { ref, watch, computed, onMounted } from 'vue'
 import Request from "@/model/request";
-import { useNotificationStore } from '@/store';
+import { useNotificationStore, sessionStore } from '@/store';
 import moment from 'moment';
+import { BOOKING_STATUS } from '@/utils/constants';
 
 const props = defineProps({ 
   dialog: Boolean,
@@ -96,6 +123,7 @@ const emit = defineEmits([
 ])
 
 const notificationStore = useNotificationStore();
+const session = sessionStore();
 
 const dialog = ref();
 const selectedDate = ref(props.bookingInfo.date);
@@ -170,21 +198,39 @@ async function updateBookingByDaySelectedList(day){
   .catch(err => notificationStore.notifyError(err.message))
 }
 
-function isBooked(hour) {
+function getBookingsForHour(hour) {
   if (!bookingsOnDay.value || bookingsOnDay.value.length === 0) {
-    return false;
+    return [];
   }
 
   const startOfBlock = moment(hour, 'HH:mm');
   const endOfBlock = moment(hour, 'HH:mm').add(1, 'hour');
 
-  return bookingsOnDay.value.some(booking => {
+  return bookingsOnDay.value.filter(booking => {
     const bookingStart = moment(booking.start_time, 'HH:mm');
     const bookingEnd = moment(booking.end_time, 'HH:mm');
-
     return bookingStart.isBefore(endOfBlock) && bookingEnd.isAfter(startOfBlock);
   });
 }
+
+function hasOwnBooking(hour) {
+  return getBookingsForHour(hour).some(b => b.user_uuid === session.auth.user.uuid);
+}
+
+function hasPendingFromOther(hour) {
+  return getBookingsForHour(hour).some(b => b.user_uuid !== session.auth.user.uuid && b.status === BOOKING_STATUS.PENDING);
+}
+
+function hasApproved(hour) {
+  return getBookingsForHour(hour).some(b => b.status === BOOKING_STATUS.APPROVED);
+}
+
+function isHourPast(hour) {
+  const now = moment();
+  const selected = moment(`${selectedDate.value} ${hour}`, 'YYYY-MM-DD HH:mm');
+  return selected.isBefore(now);
+}
+
 
 watch(selectedDate, (val) => {
     updateBookingByDaySelectedList(val);
@@ -326,8 +372,19 @@ function setWeekFromDate(dateString) {
   transition: transform 0.2s ease;
 }
 
+.own-booking {
+  background-color: #e3f2fd;
+  border-left: 3px solid #007bff;
+  color: #007bff;
+}
+
 .reserved-badge:hover {
   transform: scale(1.02);
   box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.past-hour-btn {
+  opacity: 0.5;
+  filter: grayscale(1);
 }
 </style>

@@ -1,7 +1,9 @@
 {
   "scripts": {
     "dev": "nodemon ./src/index.js",
-    "prod": "node ./src/index.js"
+    "prod": "node ./src/index.js",
+    "migrate": "db-migrate up",
+    "migrate:down": "db-migrate down"
   },
   "dependencies": {
     "axios": "^1.9.0",

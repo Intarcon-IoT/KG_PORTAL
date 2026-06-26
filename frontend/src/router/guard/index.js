@@ -1,4 +1,5 @@
 import { sessionStore } from '@/store';
+import { ROLES } from '@/utils/constants';
 
 export const sessionGuard = async (next) => {
   const session = sessionStore();
@@ -27,7 +28,17 @@ export const resetPasswordGuard = async (to, from, next) => {
 export const adminGuard = async (to, from, next) => {
   const session = sessionStore(); 
 
-  if (!session.auth.user?.isAdmin) {
+  if (session.auth.user?.role !== ROLES.ADMIN) {
+    next({ name: 'Home' });
+  } else {
+    next();
+  }
+}
+
+export const gestorGuard = async (to, from, next) => {
+  const session = sessionStore(); 
+
+  if (session.auth.user?.role !== ROLES.GESTOR && session.auth.user?.role !== ROLES.ADMIN) {
     next({ name: 'Home' });
   } else {
     next();

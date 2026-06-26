@@ -1,0 +1,14 @@
+{
+  "ThirdPartyName": {
+    "api_token": "Token propio asociado a la app de terceros",
+    "uuid": "Uuid del usuario asociado a esta app de terceros",
+    "app_url": "Url de la app de terceros",
+    "app_token": "Token de la app de terceros"
+  },
+  "ThirdPartyName2": {
+    "api_token": "Token propio asociado a la app de terceros",
+    "uuid": "Uuid del usuario asociado a esta app de terceros",
+    "app_url": "Url de la app de terceros",
+    "app_token": "Token de la app de terceros"
+  }
+}

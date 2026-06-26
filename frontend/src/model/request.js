@@ -1,5 +1,6 @@
 import { ErrorResponse, ErrorRequest } from "@/model";
 import { sessionStore } from '@/store';
+import router from '@/router';
 
 export default class Request {
 
@@ -21,7 +22,12 @@ export default class Request {
     400: event => {
       throw new ErrorResponse(event.body.message);
     },
-    401: event => {      
+    401: event => {  
+      const session = sessionStore();
+      session.auth.resetCredentials();
+      localStorage.removeItem('session');
+      router.push({ name: 'Log In' });
+      
       throw new ErrorResponse(event.body.message);
     },
     403: event => {      
@@ -47,7 +53,7 @@ export default class Request {
       body: this.body,
       headers: this.headers
     }).then(async (res) => {      
-      if (res.status === 200) {
+      if (res.status >= 200 && res.status < 300) {
 
         return res.json();
       } else {
@@ -56,10 +62,14 @@ export default class Request {
       }
 
     }).then(response => {
-      if (this.errorHandler[response.code]) {
-        this.errorHandler[response.code](response);
+      if (response instanceof ErrorRequest) {
+        if (this.errorHandler[response.code]) {
+          this.errorHandler[response.code](response);
+        } else {
+          throw new ErrorResponse(response.body?.message || `Error ${response.code}`);
+        }
       }
-      
+
       return response;
     }).catch((err) => {
       throw err;

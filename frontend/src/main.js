@@ -3,6 +3,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import './style.css'
 import App from './App.vue'
+import { es } from 'vuetify/locale'
 
 
 // Import routes
@@ -26,6 +27,10 @@ const vuetify = createVuetify({
     defaultSet: 'fa',
     aliases,
     sets: { fa },
+  },
+  locale: {
+    locale: 'es',
+    messages: { es },
   },
 });
 

@@ -24,11 +24,26 @@
 
     <v-row dense>
       <!-- Is Admin (solo visible en contexto admin) -->
-      <v-col cols="12" md="4" v-if="context==='admin'">
-        <v-switch
-          v-model="form.isAdmin"
-          label="Administrador"
+      <v-col cols="12" md="6" v-if="context=== ROLES.ADMIN">
+        <v-select
+          v-model="form.role"
+          :items="Object.values(ROLES)"
+          label="Rol"
           color="primary"
+          :rules="[validate.required]"
+          :disabled="isGestor"
+        />
+      </v-col>
+      <v-col cols="12" md="6" v-if="context=== ROLES.ADMIN">
+        <v-select
+          v-model="form.tenant_uuid"
+          :items="tenants"
+          item-title="name"
+          item-value="uuid"
+          label="Grupo / Tenant"
+          color="primary"
+          clearable
+          :disabled="isGestor"
         />
       </v-col>
     </v-row>   
@@ -90,8 +105,10 @@
 </template>
 
 <script setup>
-import { reactive, ref, watchEffect } from 'vue'
+import { reactive, ref, watchEffect, computed } from 'vue'
 import validate from '@/utils/useValidationRules'
+import { ROLES } from '@/utils/constants'
+import { sessionStore } from '@/store'
 
 const props = defineProps({
   mode: {
@@ -101,16 +118,23 @@ const props = defineProps({
   },
   context: {
     type: String,
-    validator: value => ['admin', 'self'].includes(value),
+    validator: value => [ROLES.ADMIN, 'self'].includes(value),
     required: true
   },
   value: {
     type: Object,
     default: () => ({})
+  },
+  tenants: {
+    type: Array,
+    default: () => []
   }
 })
 
 const emit = defineEmits(['saved', 'cancel'])
+
+const session = sessionStore()
+const isGestor = computed(() => session.auth.user?.role === ROLES.GESTOR)
 
 const valid = ref(false)
 const showPassword = ref(false)
@@ -120,7 +144,8 @@ const showCurrentPassword = ref(false)
 const form = reactive({
   name: '',
   mail: '',
-  isAdmin: false,
+  role: ROLES.USER,
+  tenant_uuid: null,
   password: '',
   confirmPassword: '',
   currentPassword: ''
@@ -129,18 +154,25 @@ const form = reactive({
 watchEffect(() => {
   form.name = props.value?.name ?? ''
   form.mail = props.value?.mail ?? ''
-  form.isAdmin = props.context === 'admin' ? !!props.value?.isAdmin : false
+  form.role = props.context === ROLES.ADMIN ? (props.value?.role || ROLES.USER) : ROLES.USER
+  
+  if (props.mode === 'create' && isGestor.value) {
+    form.tenant_uuid = session.auth.user?.tenant_uuid
+  } else {
+    form.tenant_uuid = props.value?.tenant_uuid ?? null
+  }
   form.password = ''
   form.confirmPassword = ''
   form.currentPassword = ''
 })
 
 function buildFormData() {
-  if (props.context === 'admin') {
+  if (props.context === ROLES.ADMIN) {
     return {
       name: form.name,
       mail: form.mail,
-      isAdmin: form.isAdmin,
+      role: form.role,
+      tenant_uuid: form.tenant_uuid
     }
   } else {
     const formData = {
