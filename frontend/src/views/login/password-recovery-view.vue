@@ -1,14 +1,14 @@
 <template>
   <main class="main-login">
     <div class="header-container">
-      <kiLogo/>
+      <appLogo/>
       <p>Introduzca su correo electrónico para recuperar su contraseña</p>
     </div>
     <v-form ref="formRef" @submit.prevent="handlerSubmit">
       <div class="form">
-        <kiInput column>
-          <kiTextField placeholder="correo" v-model="email" :rules="[validate.required, validate.email]" />
-        </kiInput>
+        <formField column>
+          <textField placeholder="correo" v-model="email" :rules="[validate.required, validate.email]" />
+        </formField>
         <v-btn 
           color="primary" 
           prepend-icon="fa-solid fa-right-to-bracket" 
@@ -25,8 +25,8 @@
 </template>
 
 <script>
-import { kiLogo } from '@/components';
-import { kiTextField, kiInput } from '@/components/ki-form-components';
+import { appLogo } from '@/components';
+import { textField, formField } from '@/components/form-components';
 import { ref } from 'vue';
 import { sessionStore } from '@/store';
 import { useNotificationStore } from '@/store';
@@ -38,9 +38,9 @@ import validate from '@/utils/useValidationRules'
 export default {
   name: 'LoginView',
   components: {
-    kiLogo,
-    kiTextField,
-    kiInput,
+    appLogo,
+    textField,
+    formField,
   },
   setup() {
     const notificationStore = useNotificationStore();

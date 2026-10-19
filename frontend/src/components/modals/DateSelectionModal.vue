@@ -1,10 +1,10 @@
 <template>
-  <v-dialog v-model="dialog" max-width="500" transition="dialog-bottom-transition" persistent>
+  <v-dialog v-model="isOpen" max-width="500" transition="dialog-bottom-transition" persistent>
     <v-card class="pa-4 rounded-xl">
       <v-card-title class="d-flex align-center position-relative text-subtitle-1 font-weight-medium text-grey-darken-3">
         <i class="fa-solid fa-arrow-left position-absolute start-5 fa-lg back-icon" @click="goBack"></i>
         <div class="w-100 text-center">Selecciona día y hora</div>
-        <i class="fa-solid fa-xmark position-absolute fa-lg close-icon" @click="dialog = false"></i>
+        <i class="fa-solid fa-xmark position-absolute fa-lg close-icon" @click="isOpen = false"></i>
       </v-card-title>
       <v-card-text>
         <div class="d-flex justify-center align-center mb-3">
@@ -125,7 +125,7 @@ const emit = defineEmits([
 const notificationStore = useNotificationStore();
 const session = sessionStore();
 
-const dialog = ref();
+const isOpen = ref()
 const selectedDate = ref(props.bookingInfo.date);
 const bookingsOnDay = ref([]);
 const baseDate = ref(null);
@@ -160,7 +160,7 @@ const weekRangeText = computed(() => {
 })
 
 function goBack() {
-  dialog.value = false;
+  isOpen.value = false
   emit('back', props.bookingInfo.facility);
 }
 
@@ -237,7 +237,7 @@ watch(selectedDate, (val) => {
 }) 
 
 watch(() => props.dialog, (val) => {
-  dialog.value = val;
+  isOpen.value = val
 
   if (val) {
     const formattedDate = props.bookingInfo.date 
@@ -250,7 +250,7 @@ watch(() => props.dialog, (val) => {
   }
 });
 
-watch(dialog, (val) => {
+watch(isOpen, (val) => {
   if (val !== props.dialog) {
     emit('update:dialog', val);
   }

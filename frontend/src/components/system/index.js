@@ -1,5 +1,5 @@
-import kiVersion from './ki-version.vue'
+import appVersion from './app-version.vue'
 
 export {
-  kiVersion
+  appVersion
 }

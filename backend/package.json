@@ -1,26 +1,40 @@
 {
+  "name": "backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Backend KG Portal: API Express de reservas de salas",
+  "author": "INTARCON",
+  "license": "UNLICENSED",
+  "main": "src/index.js",
+  "packageManager": "pnpm@12.14.0",
   "scripts": {
-    "dev": "nodemon ./src/index.js",
-    "prod": "node ./src/index.js",
-    "migrate": "db-migrate up",
-    "migrate:down": "db-migrate down"
+    "dev": "nodemon src/index.js",
+    "prod": "node src/index.js",
+    "deploy": "pnpm install --frozen-lockfile && pnpm run migrate",
+    "migrate": "db-migrate up --force-exit --config database.json --migrations-dir migrations",
+    "migrate:down": "db-migrate down --force-exit --config database.json --migrations-dir migrations",
+    "lint": "eslint ."
   },
   "dependencies": {
-    "axios": "^1.9.0",
-    "bcryptjs": "^3.0.2",
-    "cors": "2.8.5",
-    "dotenv": "^16.5.0",
-    "express": "^5.1.0",
-    "moment": "^2.30.1",
-    "mysql2": "^3.14.1",
-    "nodemailer": "^7.0.6",
-    "redis": "^5.0.1",
-    "uuid": "^11.1.0",
+    "axios": "^1.20.0",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.8",
+    "express": "^5.3.0",
+    "moment": "^2.31.0",
+    "mysql2": "^3.24.6",
+    "nodemailer": "^10.1.2",
+    "redis": "^6.3.0",
+    "uuid": "^14.0.3",
+    "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
-    "db-migrate": "^0.11.14",
-    "db-migrate-mysql": "^3.0.0",
-    "nodemon": "3.1.7"
+    "@eslint/js": "^10.0.1",
+    "db-migrate": "^1.8.1",
+    "db-migrate-mysql": "^3.2.1",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
+    "nodemon": "^3.1.14"
   }
 }

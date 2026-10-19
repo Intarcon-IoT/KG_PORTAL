@@ -1,26 +1,34 @@
 {
-  "name": "kibooking",
-  "private": true,
+  "name": "frontend",
   "version": "1.0.0",
+  "private": true,
+  "description": "Frontend KG Portal: Vue 3 + Vite + Vuetify",
+  "author": "INTARCON",
+  "license": "UNLICENSED",
   "type": "module",
+  "packageManager": "pnpm@12.14.0",
   "scripts": {
-    "dev": "vite",
+    "start": "vite --port 3000 --host",
     "build": "vite build",
-    "preview": "vite preview"
+    "prod": "vite preview --port 9445 --host --strictPort",
+    "deploy": "pnpm install --frozen-lockfile && pnpm run build",
+    "lint": "eslint src"
   },
   "dependencies": {
-    "@fortawesome/fontawesome-free": "^6.7.2",
-    "axios": "^1.9.0",
-    "pinia": "^2.3.1",
-    "uuid": "^11.1.0",
-    "vue": "^3.5.13",
-    "vue-router": "^4.2.5",
-    "vuetify": "^3.8.6",
-    "moment": "^2.30.1"
+    "@fortawesome/fontawesome-free": "^7.3.1",
+    "axios": "^1.20.0",
+    "moment": "^2.31.0",
+    "pinia": "^4.1.0",
+    "vue": "^3.5.44",
+    "vue-router": "^5.4.0",
+    "vuetify": "^4.2.6"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^5.1.3",
-    "autoprefixer": "^10.4.16",
-    "vite": "^5.4.2"
+    "@eslint/js": "^10.0.1",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "eslint": "^10.13.0",
+    "eslint-plugin-vue": "^10.11.1",
+    "globals": "^17.13.0",
+    "vite": "^8.3.4"
   }
 }

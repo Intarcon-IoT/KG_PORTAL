@@ -12,7 +12,7 @@ const router = createRouter({
       component: layout,
       redirect: '/calendar',
       meta: { show: false },
-      beforeEnter: (to, from, next) => sessionGuard(next),
+      beforeEnter: sessionGuard,
       children: [
         {
           path: 'calendar',
@@ -25,14 +25,14 @@ const router = createRouter({
           name: 'Administrar Usuarios',
           meta: { role: [ROLES.ADMIN], icon: 'fa fa-users' },
           component: () => import('../views/users/user-admin-view.vue'),
-          beforeEnter: (to, from, next) => adminGuard(to, from, next),
+          beforeEnter: adminGuard,
         },
         {
           path: 'bookings-validation',
           name: 'Validar Reservas',
           meta: { role: [ROLES.ADMIN], icon: 'fa fa-check-to-slot' },
           component: () => import('../views/bookings/booking-validation-view.vue'),
-          beforeEnter: (to, from, next) => adminGuard(to, from, next),
+          beforeEnter: adminGuard,
         },
         {
           path: 'my-account',

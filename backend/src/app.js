@@ -1,5 +1,4 @@
 const express = require("express");
-const bodyParser = require("body-parser");
 
 const cors = require("cors");
 
@@ -26,8 +25,8 @@ app.use((req, res, next) => {
 app.use(cors()); //Servidor para intercambio de información
 
 //el servidor utilizará tanto formato json com text-plain para intercambio información
-app.use(bodyParser.json());
-app.use(bodyParser.text({ type: 'text/plain' }));
+app.use(express.json());
+app.use(express.text({ type: 'text/plain' }));
 
 // ROUTES
 // rutas para interpretar las peticiones en la API

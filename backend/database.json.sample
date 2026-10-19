@@ -1,9 +1,9 @@
 {
   "dev": {
-    "host": "host",
-    "user": "user",
-    "password" : "pass",
-    "database": "dbname",
+    "host": { "ENV": "DB_HOST" },
+    "user": { "ENV": "DB_USER" },
+    "password": { "ENV": "DB_PASS" },
+    "database": { "ENV": "DB_DATABASE" },
     "driver": "mysql",
     "multipleStatements": true
   }

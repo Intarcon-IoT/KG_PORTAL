@@ -2,7 +2,7 @@ require('dotenv').config();
 require('./connections/mysql');
 
 const app = require('./app');
-const PORT = process.env.PORT || 3443;
+const PORT = process.env.PORT || 3445;
 
 // Aplica el prefijo /api globalmente
 const express = require('express');

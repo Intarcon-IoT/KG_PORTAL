@@ -3,7 +3,7 @@
 
     <div class="header">
       <div class="logo-parent">
-        <kiLogo style="margin-inline: auto" :size="8.7" />
+        <appLogo style="margin-inline: auto" :size="8.7" />
         <span class="txt-header">Gestión de reservas</span>
       </div>
 
@@ -15,23 +15,23 @@
 
     <v-form v-model="valid" @submit.prevent="(v) => handlerSubmit(v)">
       <div class="form">
-        <kiInput label="Correo" column>
-          <kiTextField 
+        <formField label="Correo" column>
+          <textField 
             placeholder="correo" 
             v-model="credentials.email" 
             :rules="[validate.required, validate.email]"
           />
-        </kiInput>
+        </formField>
 
-        <kiInput label="Contraseña" column>
-          <kiTextField 
+        <formField label="Contraseña" column>
+          <textField 
             placeholder="contraseña"
             v-model="credentials.password" 
             :type="show_password ? 'text' : 'password'"      
             :append-inner-icon="show_password ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'"
             :rules="[validate.required]"       
             @click:append-inner="show_password = !show_password" />
-        </kiInput>
+        </formField>
 
         <v-btn color="primary" prepend-icon="fa-solid fa-right-to-bracket" type="submit" class="btn-submit">
           <div class="loading-btn">
@@ -47,8 +47,8 @@
 </template>
 
 <script>
-import { kiLogo } from '@/components';
-import { kiTextField, kiInput } from '@/components/ki-form-components';
+import { appLogo } from '@/components';
+import { textField, formField } from '@/components/form-components';
 import { ref } from 'vue';
 import { sessionStore } from '@/store';
 import router from '@/router';
@@ -59,9 +59,9 @@ import { ROLES } from '@/utils/constants';
 export default {
   name: 'LoginView',
   components: {
-    kiLogo,
-    kiTextField,
-    kiInput,
+    appLogo,
+    textField,
+    formField,
   },
   setup() {
     const notificationStore = useNotificationStore();
@@ -154,14 +154,14 @@ export default {
   margin-top: 10px;
 }
 
-.ki-logo {
+.app-logo {
   display: flex;
   flex-flow: row nowrap;
   align-items: center;
   margin-top: 10px;
 }
 
-.ki-logo img {
+.app-logo img {
   margin-right: -.6rem;
 }
 
@@ -223,7 +223,7 @@ export default {
     margin-top: 1vh;
   }
 
-  .ki-logo {
+  .app-logo {
     margin-top: -2rem;
   }
 

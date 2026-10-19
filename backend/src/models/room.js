@@ -29,28 +29,28 @@ class Room {
 
   async create() {
     const data = this.getData();
-    const result = await mysqlAdapter.query("INSERT INTO kibooking_rooms SET ?", data);
+    const result = await mysqlAdapter.query("INSERT INTO rooms SET ?", data);
     return result;
   }
 
   async update() {
     const data = this.getData();
-    const result = await mysqlAdapter.query("UPDATE kibooking_rooms SET ? WHERE uuid = ?", [data, this.uuid]);
+    const result = await mysqlAdapter.query("UPDATE rooms SET ? WHERE uuid = ?", [data, this.uuid]);
     return result;
   }
 
   async delete() {
-    return mysqlAdapter.query("DELETE FROM kibooking_rooms WHERE uuid = ?", [this.uuid]);
+    return mysqlAdapter.query("DELETE FROM rooms WHERE uuid = ?", [this.uuid]);
   }
 
   async list() {
-    const rows = await mysqlAdapter.query("SELECT uuid, facility_uuid, name, capacity, needsValidation FROM kibooking_rooms WHERE enabled = 1", []);
+    const rows = await mysqlAdapter.query("SELECT uuid, facility_uuid, name, capacity, needsValidation FROM rooms WHERE enabled = 1", []);
     return rows;
   }
 
   read(filter = {}) {
     let data = [];
-    let sql = "SELECT uuid, facility_uuid, name, capacity, needsValidation FROM kibooking_rooms WHERE 1";
+    let sql = "SELECT uuid, facility_uuid, name, capacity, needsValidation FROM rooms WHERE 1";
 
     if (Object.keys(filter).length === 0) {
       sql += " AND uuid = ?";
