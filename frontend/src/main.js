@@ -23,6 +23,8 @@ import './style/globals.css'
 const vuetify = createVuetify({
   components,
   directives,
+  // Vuetify 4 sigue por defecto el tema del sistema; la app solo está diseñada en claro
+  theme: { defaultTheme: 'light' },
   icons: {
     defaultSet: 'fa',
     aliases,

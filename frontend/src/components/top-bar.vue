@@ -1,17 +1,17 @@
 <script>
 import { ref } from 'vue';
-import kiLogo from './ki-logo.vue'
+import appLogo from './app-logo.vue'
 import { sessionStore, useNotificationStore, useBookingStore } from '@/store';
 import router from '@/router';
 import { ROLES } from '@/utils/constants';
 
-// import { kiVersion } from '@/components/system';
+// import { appVersion } from '@/components/system';
 
   export default {
     name: 'topBar',
     components: {
-      kiLogo,
-      // kiVersion
+      appLogo,
+      // appVersion
     },
     setup() {
       const auth = sessionStore().auth;
@@ -51,7 +51,7 @@ import { ROLES } from '@/utils/constants';
 <template>
   <v-toolbar class="main-topbar">
     <div class="logo-container" @click="$emit('toggle-menu')">
-      <kiLogo :size="8.7" sm />
+      <appLogo :size="8.7" sm />
       <button class="menu-btn">
         <i class="fa-solid fa-bars-staggered"></i>
       </button>
@@ -91,7 +91,7 @@ import { ROLES } from '@/utils/constants';
 
           <v-list-item class="flex-center">
             <div>
-              <!-- <kiVersion/> -->
+              <!-- <appVersion/> -->
               <strong class="user-email">{{ email }}</strong>
             </div>
           </v-list-item>

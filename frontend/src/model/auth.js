@@ -56,47 +56,20 @@ class Auth {
   }
 
   async logout() {
-    return new Promise(async (resolve, reject) => {
-      try{
-        let response;
-
-        const request = new Request({
-          endpoint: 'users/log-out',
-          method: 'POST',
-          body: JSON.stringify({ token: this.token }) 
-        });
-
-        await request.http().then(res => {
-          response = res;
-        }).catch(err => {
-          throw err;
-        })
-
-        this.resetCredentials();
-        localStorage.removeItem('session');
-        resolve();
-      } catch(err) {
-        reject(err);
-      }
-    })
+    const request = new Request({ endpoint: 'users/log-out', method: 'POST', body: JSON.stringify({ token: this.token }) })
+    await request.http()
+    this.resetCredentials()
+    localStorage.removeItem('session')
   }
 
   async loadAuth() {
-    try {
-      const session_str = localStorage.getItem('session');
+    const session_str = localStorage.getItem('session')
+    if (!session_str) return
 
-      if (session_str) {
-        const session = JSON.parse(session_str);  
-        this.set(session);
-
-        const result = await this.checkAuth({ token: session.token, role: session.role }).catch(err => { throw err });
-        this.user = JSON.parse(result.user);
-
-      }
-      
-    } catch(err) {
-      throw err;
-    }
+    const session = JSON.parse(session_str)
+    this.set(session)
+    const result = await this.checkAuth({ token: session.token, role: session.role })
+    this.user = JSON.parse(result.user)
   }
 
   async checkAuth({ token, role }) {

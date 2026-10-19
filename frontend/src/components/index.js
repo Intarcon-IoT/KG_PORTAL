@@ -1,15 +1,5 @@
-// import kiCard from './ki-card.vue'
-// import kiModal from './ki-modal.vue'
-import kiNotification from './ki-notification.vue'
+import appNotification from './app-notification.vue'
 import layout from './layout.vue'
-import kiLogo from './ki-logo.vue'
-// import kiHorizontalBar from './ki-horizontal-bar.vue'
+import appLogo from './app-logo.vue'
 
-export {
-  // kiCard,
-  // kiModal,
-  kiNotification,
-  layout,
-  kiLogo,
-  // kiHorizontalBar
-}
+export { appNotification, layout, appLogo }

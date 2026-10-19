@@ -1,27 +1,27 @@
 <template>
   <main class="main-login">
     <div class="header-container">
-      <kiLogo/>
+      <appLogo/>
       <p>Establezca su nueva contraseña</p>
     </div>
     <v-form v-model="valid" @submit.prevent="handlerSubmit">
       <div class="form">
-        <kiInput column>
-          <kiTextField 
+        <formField column>
+          <textField 
             placeholder="Nueva contraseña" 
             :type="show_password_1 ? 'text' : 'password'"
             v-model="password_1"
             :rules="[validate.required, validate.password]"
             :append-inner-icon="show_password_1 ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'"
             @click:append-inner="show_password_1 = !show_password_1" />
-          <kiTextField 
+          <textField 
             placeholder="Confirme la nueva contraseña" 
             :type="show_password_2 ? 'text' : 'password'" 
             v-model="password_2"
             :rules="validate.confirmPassword(password_1)"
             :append-inner-icon="show_password_2 ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'"
             @click:append-inner="show_password_2 = !show_password_2" />
-        </kiInput>
+        </formField>
         <v-btn color="primary" prepend-icon="fa-solid fa-right-to-bracket" type="submit" class="btn-submit">
           <div class="loading-btn">
             <span>Actualizar contraseña</span>
@@ -33,8 +33,8 @@
 </template>
 
 <script>
-import { kiLogo } from '@/components';
-import { kiTextField, kiInput } from '@/components/ki-form-components';
+import { appLogo } from '@/components';
+import { textField, formField } from '@/components/form-components';
 import { ref } from 'vue';
 import { useNotificationStore } from '@/store';
 import { sessionStore } from '@/store';
@@ -46,9 +46,9 @@ import validate from '../../utils/useValidationRules';
 export default {
   name: 'LoginView',
   components: {
-    kiLogo,
-    kiTextField,
-    kiInput,
+    appLogo,
+    textField,
+    formField,
   },
   setup() {
     const notificationStore = useNotificationStore();

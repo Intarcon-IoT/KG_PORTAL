@@ -1,7 +1,7 @@
-import kiLoader from "./ki-loader.vue";
-import kiLoaderDots from "./ki-loader-dots.vue";
+import appLoader from "./app-loader.vue";
+import appLoaderDots from "./app-loader-dots.vue";
 
 export {
-  kiLoader,
-  kiLoaderDots
+  appLoader,
+  appLoaderDots
 }

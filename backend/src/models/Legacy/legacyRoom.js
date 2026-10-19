@@ -14,8 +14,8 @@ class LegacyRoom {
   read() {
     let data = [];
     let sql = `SELECT r.uuid, r.name, r.api_token, f.color
-                    FROM kibooking_rooms r
-                    LEFT JOIN kibooking_facilities f ON r.facility_uuid = f.uuid
+                    FROM rooms r
+                    LEFT JOIN facilities f ON r.facility_uuid = f.uuid
                       WHERE r.uuid = '${this.uuid}'`;
 
     return mysqlAdapter.query(sql, data);

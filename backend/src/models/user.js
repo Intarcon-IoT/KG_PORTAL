@@ -40,7 +40,7 @@ class User {
 
   async create() {
     const data = this.getData();
-    const result = await mysqlAdapter.query("INSERT INTO kibooking_users SET ?", data);
+    const result = await mysqlAdapter.query("INSERT INTO users SET ?", data);
     return result;
   }
 
@@ -51,24 +51,24 @@ class User {
       data.password = bcryptjs.hashSync(data.password, 0);
     }
 
-    const result = await mysqlAdapter.query(`UPDATE kibooking_users SET ? WHERE uuid = '${this.uuid}'`, data);
+    const result = await mysqlAdapter.query(`UPDATE users SET ? WHERE uuid = '${this.uuid}'`, data);
     return result;
   }
 
   async getDeletionImpact() {
     const [row] = await mysqlAdapter.query(
-      'SELECT COUNT(*) AS bookings FROM kibooking_bookings WHERE user_uuid=?', [this.uuid]
+      'SELECT COUNT(*) AS bookings FROM bookings WHERE user_uuid=?', [this.uuid]
     );
     return { ok: true, bookings: row.bookings };
   }
 
   async delete() {
-    const result = await mysqlAdapter.query("DELETE FROM kibooking_users WHERE uuid = ?", [this.uuid]);
+    const result = await mysqlAdapter.query("DELETE FROM users WHERE uuid = ?", [this.uuid]);
     return result;
   }
 
   async list(filter = {}) {
-    let sql = "SELECT u.uuid, u.name, u.mail, u.role, u.tenant_uuid, t.name AS tenant_name FROM kibooking_users u LEFT JOIN kibooking_tenants t ON u.tenant_uuid = t.uuid WHERE 1";
+    let sql = "SELECT u.uuid, u.name, u.mail, u.role, u.tenant_uuid, t.name AS tenant_name FROM users u LEFT JOIN tenants t ON u.tenant_uuid = t.uuid WHERE 1";
     let data = [];
     if (filter.tenant_uuid) {
       sql += " AND u.tenant_uuid = ?";
@@ -80,7 +80,7 @@ class User {
 
   read(filter = {}) {
     let data = [];
-    let sql = "SELECT uuid, name, mail, password, role, tenant_uuid FROM kibooking_users WHERE 1";
+    let sql = "SELECT uuid, name, mail, password, role, tenant_uuid FROM users WHERE 1";
     if (Object.keys(filter).length === 0) {
       sql += " AND uuid = ?";
       data.push(this.uuid);

@@ -1,7 +1,7 @@
 <script>
 import topBar from "./top-bar.vue";
-import kiLogo from "./ki-logo.vue";
-import { kiVersion } from "@/components/system";
+import appLogo from "./app-logo.vue";
+import { appVersion } from "@/components/system";
 import { RouterLink, RouterView } from "vue-router";
 import { ref } from "vue";
 import router from "@/router";
@@ -11,8 +11,8 @@ import { ROLES } from "@/utils/constants";
 export default {
   name: "layout",
   components: {
-    kiLogo,
-    kiVersion,
+    appLogo,
+    appVersion,
     topBar,
     RouterLink,
     RouterView,
@@ -75,7 +75,7 @@ export default {
     >
       <div style="display: grid; grid-template-rows: min-content 1fr min-content; height: 100%">
         <div class="close-btn-parent">
-          <kiLogo :size="8.7" sm class="logo-menu" />
+          <appLogo :size="8.7" sm class="logo-menu" />
           <button @click="drawer = false" class="close-btn">
             <v-icon icon="fas fa-arrow-left" />
           </button>
@@ -92,7 +92,7 @@ export default {
               overflow-y: auto;
             "
           >
-            <template v-for="([key, route], i) in router_list" :key="i">
+            <template v-for="([, route], i) in router_list" :key="i">
               <template v-if="route.children.length > 0">
                 <v-list-group :value="false">
                   <template #activator="{ props }">
@@ -136,7 +136,7 @@ export default {
         </div>
 
         <div class="app-version">
-          <kiVersion />
+          <appVersion />
         </div>
       </div>
     </v-navigation-drawer>

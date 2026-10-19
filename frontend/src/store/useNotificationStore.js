@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { createApp } from 'vue';
-import kiNotification from '@/components/ki-notification.vue';
+import appNotification from '@/components/app-notification.vue';
 import 'vuetify/styles';
 import { createVuetify } from 'vuetify';
 import * as components from 'vuetify/components';
@@ -35,7 +35,7 @@ const vuetify = createVuetify({
 });
 
 // Crear y montar la instancia de notificación
-const instance = createApp(kiNotification);
+const instance = createApp(appNotification);
 const mountNode = document.createElement('div');
 document.body.appendChild(mountNode);
 instance.use(vuetify);

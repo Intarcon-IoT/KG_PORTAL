@@ -1,0 +1,5 @@
+# Paquetes con compilación nativa permitida
+allowBuilds:
+  # Solo los arrastra db-migrate (túneles SSH que no usamos); funcionan sin compilar
+  cpu-features: false
+  ssh2: false

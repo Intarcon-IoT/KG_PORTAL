@@ -1,0 +1,15 @@
+{
+  "name": "kg-portal",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Monorepo KG Portal (backend + frontend) - INTARCON",
+  "author": "INTARCON",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@12.14.0",
+  "scripts": {
+    "lint": "node scripts/lint-all.js",
+    "deploy": "node scripts/deploy.js",
+    "install:all": "pnpm --dir backend install && pnpm --dir frontend install",
+    "clean": "node scripts/clean.js && pnpm run deploy"
+  }
+}

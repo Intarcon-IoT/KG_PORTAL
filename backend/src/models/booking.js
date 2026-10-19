@@ -49,7 +49,7 @@ class Booking {
   async create() {
     const data = this.get();
     const result = await mysqlAdapter.query(
-      "INSERT INTO kibooking_bookings set ? ",
+      "INSERT INTO bookings set ? ",
       data
     );
     return result;
@@ -59,7 +59,7 @@ class Booking {
     const data = this.getUpdatableFields();
 
     const [room] = await mysqlAdapter.query(
-      "SELECT needsValidation FROM kibooking_rooms WHERE uuid = ?",
+      "SELECT needsValidation FROM rooms WHERE uuid = ?",
       [this.room_uuid]
     );
 
@@ -69,7 +69,7 @@ class Booking {
     }
 
     const result = await mysqlAdapter.query(
-      "UPDATE kibooking_bookings set ? WHERE uuid = ?",
+      "UPDATE bookings set ? WHERE uuid = ?",
       [data, this.uuid]
     );
     return result;
@@ -77,7 +77,7 @@ class Booking {
 
   async delete() {
     const result = await mysqlAdapter.query(
-      "DELETE FROM kibooking_bookings WHERE uuid = ?",
+      "DELETE FROM bookings WHERE uuid = ?",
       [this.uuid]
     );
     return result;
@@ -86,8 +86,8 @@ class Booking {
   async list(filter = {}) {
     let data = [];
     let sql = `SELECT b.uuid, b.user_uuid, b.room_uuid, b.start_date, b.end_date, b.start_time, b.end_time, b.title, b.details, b.status, b.updated_ts, u.name, u.tenant_uuid 
-                                            FROM kibooking_bookings AS b 
-                                            LEFT JOIN kibooking_users AS u ON u.uuid = b.user_uuid 
+                                            FROM bookings AS b 
+                                            LEFT JOIN users AS u ON u.uuid = b.user_uuid 
                                             WHERE 1`;
     // FILTER
     if (filter.user_uuid) {
@@ -175,7 +175,7 @@ class Booking {
   read(filter = {}) {
     let data = [];
     let sql =
-      "SELECT b.uuid, b.user_uuid, b.room_uuid, b.start_date, b.end_date, b.start_time, b.end_time, b.title, b.details, b.status, b.updated_ts, u.tenant_uuid FROM kibooking_bookings b LEFT JOIN kibooking_users u ON b.user_uuid = u.uuid WHERE 1";
+      "SELECT b.uuid, b.user_uuid, b.room_uuid, b.start_date, b.end_date, b.start_time, b.end_time, b.title, b.details, b.status, b.updated_ts, u.tenant_uuid FROM bookings b LEFT JOIN users u ON b.user_uuid = u.uuid WHERE 1";
 
     if (Object.keys(filter).length === 0) {
       sql += " AND b.uuid = ?";
@@ -274,7 +274,7 @@ class Booking {
       SELECT 
         uuid, start_date, end_date, start_time, end_time, title 
       FROM 
-        kibooking_bookings 
+        bookings 
       WHERE 
         room_uuid = ? 
         AND (
@@ -334,7 +334,7 @@ class Booking {
   async rejectOverlapping() {
     const sqlSelect = `
       SELECT uuid, user_uuid, room_uuid, start_date, end_date, start_time, end_time, title
-      FROM kibooking_bookings
+      FROM bookings
       WHERE room_uuid = ?
         AND uuid != ?
         AND status = 'Pending'
@@ -365,7 +365,7 @@ class Booking {
     const overlappingBookings = await mysqlAdapter.query(sqlSelect, selectParams);
 
     const sqlUpdate = `
-      UPDATE kibooking_bookings
+      UPDATE bookings
       SET status = 'Rejected'
       WHERE room_uuid = ?
         AND uuid != ?

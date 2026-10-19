@@ -20,29 +20,29 @@ class Tenant {
 
   async create() {
     const data = this.getData();
-    const result = await mysqlAdapter.query("INSERT INTO kibooking_tenants SET ?", data);
+    const result = await mysqlAdapter.query("INSERT INTO tenants SET ?", data);
     return result;
   }
 
   async update(tenantData = null) {
     const data = tenantData ?? this.getData();
-    const result = await mysqlAdapter.query(`UPDATE kibooking_tenants SET ? WHERE uuid = '${this.uuid}'`, data);
+    const result = await mysqlAdapter.query(`UPDATE tenants SET ? WHERE uuid = '${this.uuid}'`, data);
     return result;
   }
 
   async delete() {
-    const result = await mysqlAdapter.query("DELETE FROM kibooking_tenants WHERE uuid = ?", [this.uuid]);
+    const result = await mysqlAdapter.query("DELETE FROM tenants WHERE uuid = ?", [this.uuid]);
     return result;
   }
 
   async list() {
-    const rows = await mysqlAdapter.query("SELECT uuid, name FROM kibooking_tenants ORDER BY name ASC", []);
+    const rows = await mysqlAdapter.query("SELECT uuid, name FROM tenants ORDER BY name ASC", []);
     return rows;
   }
 
   read(filter = {}) {
     let data = [];
-    let sql = "SELECT uuid, name FROM kibooking_tenants WHERE 1";
+    let sql = "SELECT uuid, name FROM tenants WHERE 1";
     
     if (Object.keys(filter).length === 0 && this.uuid) {
       sql += " AND uuid = ?";

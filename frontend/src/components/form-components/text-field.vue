@@ -24,17 +24,15 @@
     dense
     solo
   >
-  <slot
-      v-for="(_, name) in $slots"
-      :name="name"
-      :slot="name"
-    />
+    <template v-for="(_, name) in $slots" #[name]="slotProps">
+      <slot :name="name" v-bind="slotProps || {}" />
+    </template>
 
   </v-text-field>
 </template>
 <script>
 export default {
-  name: 'kiTextField',
+  name: 'textField',
   props: {
     transparent: {
       type: Boolean,

@@ -5,10 +5,11 @@ const redis = require('redis');
 const SECRET = process.env.SECRET_KEY_CACHE;
 const HOST = process.env.REDIS_HOST;
 const PORT = process.env.REDIS_PORT;
+const USER = process.env.REDIS_USER || undefined
+const PASS = process.env.REDIS_PASS || undefined
 
-var config = {
-  url: `redis://${HOST}:${PORT}`
-}
+// Credenciales fuera de la URL: una contraseña con símbolos no rompe el parseo
+var config = { url: `redis://${HOST}:${PORT}`, username: USER, password: PASS }
 
 /**
  * Método para obtener entradas de Redis
@@ -22,7 +23,7 @@ cacheAdapter.getRedis = async (key, token = false) => {
     const client = redis.createClient(config);
     await client.connect();
     const result = await client.get(SECRET + separator + key);
-    await client.quit();
+    await client.close();
 
     return result;
   } catch (error) {
@@ -50,7 +51,7 @@ cacheAdapter.setRedis = async (key, value, token = false, expirationTime = 25920
     const client = redis.createClient(config);
     await client.connect();
     const result = await client.set(SECRET + separator + key, JSON.stringify(value), params);
-    await client.quit();
+    await client.close();
 
     return result;
   } catch (error) {
@@ -71,7 +72,7 @@ cacheAdapter.delRedis = async (key, token = false) => {
     const client = redis.createClient(config);
     await client.connect();
     await client.del(SECRET + separator + key);
-    await client.quit();
+    await client.close();
 
     return true;
   } catch (error) {

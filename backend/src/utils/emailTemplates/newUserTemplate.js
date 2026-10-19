@@ -1,5 +1,5 @@
 function newUserTemplate(nombre = "Usuario", email, password) {
-  const subject = 'Credenciales de acceso - Kibooking';
+  const subject = 'Credenciales de acceso - KG Portal';
   const html = `
     <!DOCTYPE html>
     <html lang="es">
@@ -58,7 +58,7 @@ function newUserTemplate(nombre = "Usuario", email, password) {
             <img src="https://keyter-intarcon.com/wp-content/uploads/2025/04/KEYTER-GROUP-300x75.png" alt="KEYTER Group Logo"/>
           </div>  
           <h2 class="text-green text-center">¡Bienvenido/a ${nombre}!</h2>
-          <p>Se ha creado una cuenta para usted en el sistema de gestión Kibooking. A continuación le proporcionamos sus credenciales de acceso:</p>
+          <p>Se ha creado una cuenta para usted en el sistema de gestión KG Portal. A continuación le proporcionamos sus credenciales de acceso:</p>
           
           <div class="credentials-box">
             <div><span class="credential-label">Usuario:</span> ${email}</div>
@@ -71,11 +71,11 @@ function newUserTemplate(nombre = "Usuario", email, password) {
       </body>
     </html>`;
 
-  const text = `Credenciales de acceso - Kibooking
+  const text = `Credenciales de acceso - KG Portal
 
   ¡Bienvenido/a ${nombre}!
 
-  Se ha creado una cuenta para usted en el sistema de gestión Kibooking. A continuación le proporcionamos sus credenciales de acceso:
+  Se ha creado una cuenta para usted en el sistema de gestión KG Portal. A continuación le proporcionamos sus credenciales de acceso:
 
   Usuario: ${email}
   Contraseña: ${password}
