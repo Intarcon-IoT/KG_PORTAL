@@ -1,91 +1,35 @@
-function newUserTemplate(nombre = "Usuario", email, password) {
-  const subject = 'Credenciales de acceso - KG Portal';
-  const html = `
-    <!DOCTYPE html>
-    <html lang="es">
-      <head>
-        <meta charset="UTF-8">
-        <title>Credenciales de acceso</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-        <style>
-          .credentials-box {
-            background-color: #f8f9fa;
-            border: 2px dashed #5BB133;
-            border-radius: 8px;
-            padding: 15px;
-            font-weight: bold;
-            font-size: 1.1rem;
-            text-align: left;
-            margin-top: 20px;
-            margin-bottom: 20px;
-            font-family: monospace;
-          }
-          .email-body {
-            max-width: 600px;
-            margin: auto;
-            padding: 30px;
-            background-color: #ffffff;
-            border: 1px solid #dee2e6;
-            border-radius: 10px;
-          }
-          .text-green {
-            color: #5BB133;
-            text-align: center;
-          }
-          .btn-keyter {
-            background-color: #5BB133;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-            text-decoration: none !important;
-            display: inline-block;
-          }
-          .btn-keyter:hover {
-            background-color: #4d9b2b;
-          }
-          .credential-label {
-            color: #5BB133;
-            font-weight: bold;
-            min-width: 100px;
-            display: inline-block;
-          }
-        </style>
-      </head>
-      <body style="background-color: #f1f3f5;">
-        <div class="email-body shadow">
-          <div style="text-align: center;">
-            <img src="https://keyter-intarcon.com/wp-content/uploads/2025/04/KEYTER-GROUP-300x75.png" alt="KEYTER Group Logo"/>
-          </div>  
-          <h2 class="text-green text-center">¡Bienvenido/a ${nombre}!</h2>
-          <p>Se ha creado una cuenta para usted en el sistema de gestión KG Portal. A continuación le proporcionamos sus credenciales de acceso:</p>
-          
-          <div class="credentials-box">
-            <div><span class="credential-label">Usuario:</span> ${email}</div>
-            <div><span class="credential-label">Contraseña:</span> ${password}</div>
-          </div>
+// Correo de bienvenida con las credenciales de acceso, con la maqueta del portal
+const { renderEmail, escapeHtml, firstName, paragraph, button, details, note } = require('./layout')
 
-          <p>Por motivos de seguridad, le recomendamos cambiar su contraseña tras el primer inicio de sesión.</p>
-          <p>Un saludo, <br><strong>KEYTER Group.</strong></p>
-        </div>
-      </body>
-    </html>`;
+function newUserTemplate(name = 'Usuario', email, password, loginUrl) {
+  const subject = 'Tu acceso al Portal KEYTER Group'
+  const html = renderEmail({
+    subject,
+    preheader: 'Ya tienes cuenta en el Portal KEYTER Group: aquí tienes tus datos de acceso.',
+    title: 'Te damos la bienvenida',
+    blocks: [
+      paragraph(`Hola, ${escapeHtml(firstName(name))}. Se ha creado tu cuenta en el Portal KEYTER Group, desde donde puedes reservar las salas de reuniones del grupo. Estos son tus datos de acceso:`),
+      details([['Usuario', email], ['Contraseña', password]], { mono: true }),
+      loginUrl ? button(loginUrl, 'Entrar al portal') : '',
+      note('<strong style="color:#111111;">Cambia esta contraseña en tu primer acceso</strong> desde Mi cuenta, en el menú de tu usuario.'),
+    ],
+    footnote: 'Si no esperabas este correo, contacta con el administrador del portal.',
+  })
 
-  const text = `Credenciales de acceso - KG Portal
+  const text = `Tu acceso al Portal KEYTER Group
 
-  ¡Bienvenido/a ${nombre}!
+Hola, ${firstName(name)}. Se ha creado tu cuenta en el Portal KEYTER Group. Estos son tus datos de acceso:
 
-  Se ha creado una cuenta para usted en el sistema de gestión KG Portal. A continuación le proporcionamos sus credenciales de acceso:
+Usuario: ${email}
+Contraseña: ${password}
+${loginUrl ? `\nEntra en: ${loginUrl}\n` : ''}
+Cambia esta contraseña en tu primer acceso desde Mi cuenta, en el menú de tu usuario.
 
-  Usuario: ${email}
-  Contraseña: ${password}
+Si no esperabas este correo, contacta con el administrador del portal.
 
-  Por motivos de seguridad, le recomendamos cambiar su contraseña tras el primer inicio de sesión.
+KEYTER Group`
 
-  Un saludo,
-  KEYTER Group.`;
-
-  return { subject, html, text };
+  return { subject, html, text }
 }
 
-module.exports = { newUserTemplate };
+module.exports = { newUserTemplate }

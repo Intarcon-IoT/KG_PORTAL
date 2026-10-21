@@ -1,27 +1,18 @@
 <template>
-  <v-dialog v-model="internalDialog" max-width="500" transition="dialog-bottom-transition" persistent>
-    <v-card class="pa-4 rounded-xl">
-      <v-card-title class="d-flex align-center position-relative text-subtitle-1 font-weight-medium text-grey-darken-3">
-        <div class="w-100 text-center">Selecciona una instalación</div>
-        <i class="fa-solid fa-xmark position-absolute fa-lg close-icon" @click="internalDialog = false"></i>
-      </v-card-title>
-      <v-card-text>
-        <v-list>
-          <v-list-item
-            v-for="facility in installations"
-            :key="facility.uuid"
-            @click="selectFacility(facility)"
-            class="custom-list-item"
-          >
-            <span class="custom-item-text">{{ facility.name }}</span>
-          </v-list-item>
-        </v-list>
-      </v-card-text>
-    </v-card>
-  </v-dialog>
+  <appDialog v-model="internalDialog" eyebrow="Nueva reserva · Paso 1 de 4" title="Elige la sede" :width="480">
+    <div class="options">
+      <button v-for="facility in installations" :key="facility.uuid" type="button" class="option" @click="selectFacility(facility)">
+        <span class="dot" :style="{ background: facility.color }" />
+        <span class="option-name">{{ facility.name }}</span>
+        <i class="fa-solid fa-chevron-right option-chevron" />
+      </button>
+      <p v-if="!installations?.length" class="empty">No hay sedes disponibles.</p>
+    </div>
+  </appDialog>
 </template>
 
 <script setup>
+import appDialog from '@/components/app-dialog.vue'
 import { ref, watch } from 'vue'
 
 const props = defineProps({
@@ -48,35 +39,13 @@ function selectFacility(facility) {
 </script>
 
 <style scoped>
-.close-icon {
-  position: absolute;
-  right: 0;
-  margin-right: 12px;
-  cursor: pointer;
-  color: #666;
-  transition: transform 0.2s ease, color 0.2s ease;
-}
-
-.close-icon:hover {
-  color: #ff0000;
-}
-
-.custom-list-item {
-  display: flex;
-  align-items: center;
-  padding: 12px 16px;
-  border-radius: 12px;
-  background-color: #f5f5f5;
-  transition: background-color 0.2s ease;
-  cursor: pointer;
-}
-
-.custom-list-item:hover {
-  background-color: #e0e0e0;
-}
-
-.custom-item-text {
-  font-size: 16px;
-  color: #333;
-}
+.options { display: flex; flex-direction: column; gap: 8px }
+.option { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 16px; border: 1px solid #eceef2; border-radius: 12px; background: #ffffff; color: #111111; font: inherit; text-align: left; cursor: pointer; transition: border-color .15s, background-color .15s }
+.option:hover { border-color: #cbd5e1; background: #f8f9fa }
+.option:focus-visible { outline: 2px solid #111111; outline-offset: 2px }
+.option-name { flex: 1; min-width: 0; font-weight: 600 }
+.option-meta { display: flex; align-items: center; gap: 10px; font-size: .8rem; color: #64748b; white-space: nowrap }
+.option-chevron { font-size: .7rem; color: #94a3b8 }
+.empty { margin: 8px 0; color: #64748b; font-size: .9rem }
+.dot { width: 10px; height: 10px; flex-shrink: 0; border-radius: 3px }
 </style>

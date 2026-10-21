@@ -1,107 +1,66 @@
-<template>
-  <div class="bookings-admin-container">
-    <div class="bookings-admin-header">
-      <div class="title-with-subtitle">
-        <h1>Validación de Reservas</h1>
-        <p class="text-subtitle-1 text-grey-darken-1">Gestione las solicitudes de reserva pendientes de revisión administrativa</p>
-      </div>
-      <div class="header-stats" v-if="bookingStore.pendingCount > 0">
-        <v-chip color="warning" variant="flat" prepend-icon="fa fa-clock">
-          {{ bookingStore.pendingCount }} Pendientes
-        </v-chip>
-      </div>
-    </div>
+<!-- Validación de reservas pendientes (solo administradores) -->
+<script setup>
+import { computed, onMounted } from 'vue'
+import BookingValidationList from '@/components/lists/booking-validation-list.vue'
+import { useBookingStore, useFacilityStore, useRoomStore, useUserStore } from '@/store'
 
-    <v-card class="bookings-table-container">
-      <booking-validation-list 
-        :bookings="bookingsList" 
-        :rooms="roomsList"
-        :users="usersList"
-        :facilities="facilitiesList"
-        :loading="bookingStore.loading"
-        @update-status="handleUpdateStatus"
-      />
-    </v-card>
+const bookingStore = useBookingStore()
+const facilityStore = useFacilityStore()
+const roomStore = useRoomStore()
+const userStore = useUserStore()
+
+const bookingsList = computed(() => bookingStore.bookings)
+
+onMounted(() => Promise.all([roomStore.fetchRooms(), userStore.fetchUsers(), facilityStore.fetchFacilities(), bookingStore.fetchPendingBookings()]))
+
+const handleUpdateStatus = async ({ uuid, status }) => {
+  await bookingStore.updateBookingStatus(uuid, status)
+  await bookingStore.fetchPendingBookings()
+}
+</script>
+
+<template>
+  <div class="validation">
+    <header class="validation-head">
+      <div>
+        <span class="eyebrow">Reservas de salas</span>
+        <h1>Validar reservas</h1>
+        <p>Solicitudes en salas con aprobación que esperan tu revisión.</p>
+      </div>
+      <div class="validation-stats">
+        <div class="stat">
+          <span class="stat-value">{{ bookingStore.pendingCount }}</span>
+          <span class="stat-label">{{ bookingStore.pendingCount === 1 ? 'Pendiente' : 'Pendientes' }}</span>
+        </div>
+      </div>
+    </header>
+
+    <BookingValidationList
+      :bookings="bookingsList"
+      :rooms="roomStore.rooms"
+      :users="userStore.users"
+      :facilities="facilityStore.facilities"
+      :loading="bookingStore.loading"
+      @update-status="handleUpdateStatus"
+    />
   </div>
 </template>
 
-<script setup>
-import { computed, onMounted } from 'vue';
-import BookingValidationList from '@/components/lists/booking-validation-list.vue';
-import { useNotificationStore, useBookingStore, useFacilityStore, useRoomStore, useUserStore } from '@/store';
-
-const notification = useNotificationStore();
-const bookingStore = useBookingStore();
-const facilityStore = useFacilityStore();
-const roomStore = useRoomStore();
-const userStore = useUserStore();
-
-const bookingsList = computed(() => bookingStore.bookings);
-const roomsList = computed(() => roomStore.rooms);
-const usersList = computed(() => userStore.users);
-const facilitiesList = computed(() => facilityStore.facilities);
-
-onMounted(async () => {
-  await Promise.all([
-    roomStore.fetchRooms(),
-    userStore.fetchUsers(),
-    facilityStore.fetchFacilities(),
-    bookingStore.fetchPendingBookings()
-  ]);
-});
-
-const handleUpdateStatus = async ({ uuid, status }) => {
-  await bookingStore.updateBookingStatus(uuid, status);
-  await bookingStore.fetchPendingBookings();
-};
-</script>
-
 <style scoped>
-.bookings-admin-container {
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
+.validation { max-width: 1200px; margin: 0 auto; padding: 32px 24px 48px; color: #111111 }
 
-.bookings-admin-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-}
+.validation-head { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 24px }
+.eyebrow { display: block; margin-bottom: 4px; font-size: .72rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #468131 }
+.validation-head h1 { margin: 0; font-size: 1.6rem; font-weight: 600; letter-spacing: -0.01em }
+.validation-head p { margin: 4px 0 0; font-size: .9rem; color: #64748b }
 
-.title-with-subtitle h1 {
-  font-size: 1.75rem;
-  font-weight: 500;
-  color: var(--primary-dark, #333);
-  margin: 0 0 0.25rem 0;
-}
+.validation-stats { display: flex; gap: 10px }
+.stat { display: flex; align-items: baseline; gap: 8px; padding: 10px 16px; border: 1px solid #eceef2; border-radius: 12px; background: #ffffff }
+.stat-value { font-size: 1.4rem; font-weight: 700; line-height: 1 }
+.stat-label { font-size: .8rem; font-weight: 500; color: #64748b }
 
-.title-with-subtitle p {
-  margin: 0;
-}
-
-.header-stats {
-  padding-top: 0.5rem;
-}
-
-.bookings-table-container {
-  background-color: var(--white-transparent-xs, #ffffff);
-  border-radius: 8px;
-  padding: 1rem;
-}
-
-@media (max-width: 768px) {
-  .bookings-admin-container {
-    padding: 1rem;
-  }
-  
-  .bookings-admin-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
+@media (width < 760px) {
+  .validation { padding: 20px 16px 32px }
+  .validation-head h1 { font-size: 1.3rem }
 }
 </style>

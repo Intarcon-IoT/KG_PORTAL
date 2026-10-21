@@ -1,223 +1,229 @@
-<script>
-import topBar from "./top-bar.vue";
-import appLogo from "./app-logo.vue";
-import { appVersion } from "@/components/system";
-import { RouterLink, RouterView } from "vue-router";
-import { ref } from "vue";
-import router from "@/router";
-import { sessionStore } from "@/store";
-import { ROLES } from "@/utils/constants";
+<!-- Estructura del portal con sesión: barra superior con el menú siempre visible y contenido -->
+<script setup>
+import { computed, ref } from 'vue'
+import { useDisplay } from 'vuetify'
+import { RouterView, useRoute, useRouter } from 'vue-router'
+import logo from '@/assets/logo.svg'
+import { appVersion } from '@/components/system'
+import { sessionStore, useBookingStore, useNotificationStore } from '@/store'
+import { ROLES } from '@/utils/constants'
 
-export default {
-  name: "layout",
-  components: {
-    appLogo,
-    appVersion,
-    topBar,
-    RouterLink,
-    RouterView,
-  },
-  setup() {
-    const drawer = ref(false);
-    const session = sessionStore();
+// useRouter y no el import de @/router: el router importa este componente
+const router = useRouter()
+const route = useRoute()
+const session = sessionStore()
+const bookingStore = useBookingStore()
+const notificationStore = useNotificationStore()
+const { mdAndUp } = useDisplay()
 
-    const hasAccess = (metaRole, userRole) => {
-      if (!metaRole) return true;
-      const userR = userRole || ROLES.USER;
-      if (userR === ROLES.ADMIN) return true;
-      if (Array.isArray(metaRole)) {
-        return metaRole.includes(userR);
-      }
-      return metaRole === userR;
-    };
+const drawer = ref(false)
 
-    // Generar el listado de rutas
-    const router_list = new Map();
-    for (const route of router.getRoutes()) {
-      if (route.meta.show !== false && hasAccess(route.meta.role, session.auth.user?.role)) {
-        const filteredChildren = (route.children || [])
-          .filter((child) => child.meta?.show !== false && hasAccess(child.meta?.role, session.auth.user?.role))
-          .map((child) => ({
-            name: child.name,
-            path: route.path + "/" + child.path,
-            role: child.meta?.role ?? null,
-          }));
+const user = computed(() => session.auth.user || {})
+const initials = computed(() => (user.value.name || user.value.mail || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase())
 
-        router_list.set(route.name, {
-          name: route.name,
-          path: route.path,
-          icon: route.meta.icon,
-          role: route.meta.role,
-          children: filteredChildren,
-        });
-      }
-    }
+const canSee = meta => !meta.role || user.value.role === ROLES.ADMIN || [].concat(meta.role).includes(user.value.role || ROLES.USER)
 
-    return {
-      drawer,
-      router_list,
-    };
-  },
-  methods: {
-    toggleDrawer() {
-      this.drawer = !this.drawer;
-    },
-  },
-};
+// Menú agrupado por meta.section a partir de las rutas hijas del layout
+const sections = computed(() => {
+  const home = router.getRoutes().find(r => r.name === 'Home')
+  const groups = new Map()
+  for (const child of home?.children || []) {
+    const meta = child.meta || {}
+    if (meta.show === false || !canSee(meta)) continue
+    if (!groups.has(meta.section)) groups.set(meta.section, [])
+    groups.get(meta.section).push({ name: child.name, title: meta.title || child.name, icon: meta.icon, badge: meta.badge === 'pending' ? bookingStore.pendingCount : 0 })
+  }
+  return [...groups].map(([title, items]) => ({
+    title: title || items[0].title,
+    items,
+    badge: items.reduce((sum, item) => sum + item.badge, 0),
+    active: items.some(item => item.name === route.name),
+  }))
+})
+
+const go = name => { drawer.value = false; router.push({ name }) }
+
+const logout = () => {
+  session.auth.logout().then(() => {
+    notificationStore.notifySuccess('Has cerrado sesión')
+    router.push({ name: 'Log In' })
+  })
+}
 </script>
 
 <template>
-  <v-layout>
-    <v-navigation-drawer
-      v-model="drawer"
-      class="menu-sider bg-primary"
-      temporary
-    >
-      <div style="display: grid; grid-template-rows: min-content 1fr min-content; height: 100%">
-        <div class="close-btn-parent">
-          <appLogo :size="8.7" sm class="logo-menu" />
-          <button @click="drawer = false" class="close-btn">
-            <v-icon icon="fas fa-arrow-left" />
+  <v-layout class="app-shell">
+    <header class="topbar">
+      <button v-if="!mdAndUp" type="button" class="topbar-toggle" :aria-label="drawer ? 'Cerrar menú' : 'Abrir menú'" @click="drawer = !drawer"><i :class="drawer ? 'fa-solid fa-xmark' : 'fa-solid fa-bars'" /></button>
+
+      <router-link to="/" class="topbar-brand" aria-label="Inicio">
+        <img :src="logo" alt="KEYTER Group" />
+      </router-link>
+
+      <nav v-if="mdAndUp" class="topbar-nav">
+        <template v-for="section in sections" :key="section.title">
+          <router-link v-if="section.items.length === 1" :to="{ name: section.items[0].name }" class="topnav-link" :class="{ active: section.active }">
+            {{ section.title }}
+            <span v-if="section.badge" class="topnav-badge">{{ section.badge }}</span>
+          </router-link>
+
+          <v-menu v-else location="bottom start" offset="6" open-on-hover :close-delay="120">
+            <template #activator="{ props }">
+              <button type="button" class="topnav-link" :class="{ active: section.active }" v-bind="props">
+                {{ section.title }}
+                <span v-if="section.badge" class="topnav-badge">{{ section.badge }}</span>
+                <i class="fa-solid fa-chevron-down topnav-caret" />
+              </button>
+            </template>
+            <div class="dropdown">
+              <button v-for="item in section.items" :key="item.name" type="button" class="dropdown-item" :class="{ active: item.name === route.name }" @click="go(item.name)">
+                <i :class="item.icon" />
+                <span>{{ item.title }}</span>
+                <span v-if="item.badge" class="dropdown-badge">{{ item.badge }}</span>
+              </button>
+            </div>
+          </v-menu>
+        </template>
+      </nav>
+
+      <div class="topbar-spacer" />
+
+      <v-menu location="bottom end" offset="8">
+        <template #activator="{ props }">
+          <button type="button" class="topbar-user" v-bind="props" aria-label="Menú de usuario">
+            <span v-if="mdAndUp" class="topbar-user-name">{{ user.name }}</span>
+            <span class="avatar">{{ initials }}</span>
+          </button>
+        </template>
+        <div class="dropdown dropdown-user">
+          <div class="dropdown-head">
+            <span class="avatar avatar-lg">{{ initials }}</span>
+            <span class="dropdown-head-text">
+              <strong>{{ user.name }}</strong>
+              <small>{{ user.mail }}</small>
+            </span>
+          </div>
+          <button type="button" class="dropdown-item" @click="go('Mi Cuenta')"><i class="fa-regular fa-user" /><span>Mi cuenta</span></button>
+          <button type="button" class="dropdown-item" @click="logout"><i class="fa-solid fa-arrow-right-from-bracket" /><span>Cerrar sesión</span></button>
+          <div class="dropdown-foot"><span>Portal KEYTER Group</span><appVersion /></div>
+        </div>
+      </v-menu>
+    </header>
+
+    <!-- El cajón queda bajo la barra superior, que sigue visible para cerrarlo -->
+    <v-navigation-drawer v-if="!mdAndUp" v-model="drawer" temporary width="300" color="#111111" class="mobile-nav">
+      <nav class="mobile-nav-body">
+        <div v-for="section in sections" :key="section.title" class="mobile-section">
+          <span class="mobile-section-title">{{ section.title }}</span>
+          <button v-for="item in section.items" :key="item.name" type="button" class="mobile-item" :class="{ active: item.name === route.name }" @click="go(item.name)">
+            <i :class="item.icon" />
+            <span>{{ item.title }}</span>
+            <span v-if="item.badge" class="topnav-badge">{{ item.badge }}</span>
           </button>
         </div>
-
-        <div style="min-height: 0; overflow-y: auto">
-          <v-list
-            density="compact"
-            nav
-            style="
-              padding: 0;
-              margin-top: 1rem;
-              min-height: 0;
-              overflow-y: auto;
-            "
-          >
-            <template v-for="([, route], i) in router_list" :key="i">
-              <template v-if="route.children.length > 0">
-                <v-list-group :value="false">
-                  <template #activator="{ props }">
-                    <v-list-item v-bind="props" class="calendar-list-item">
-                      <i
-                        class="fa-solid fa-calendar-days menu-calendar"
-                        :icon="route.icon"
-                      ></i>
-                      <v-list-item-title class="menu-calendar menu-item-title">
-                        {{ route.name }}
-                      </v-list-item-title>
-                    </v-list-item>
-                  </template>
-                  <router-link
-                    v-for="child in route.children"
-                    :key="child.name"
-                    :to="child.path"
-                    class="item-links-expand"
-                  >
-                    {{ child.name }}
-                  </router-link>
-                </v-list-group>
-              </template>
-              <template v-else>
-                <router-link
-                  :to="route.path"
-                  class="router-link-without-expand"
-                >
-                  <v-list-item>
-                    <template #prepend>
-                      <v-icon :icon="route.icon" class="menu-calendar" />
-                    </template>
-                    <v-list-item-title class="menu-calendar menu-item-title">
-                      {{ route.name }}
-                    </v-list-item-title>
-                  </v-list-item>
-                </router-link>
-              </template>
-            </template>
-          </v-list>
-        </div>
-
-        <div class="app-version">
-          <appVersion />
-        </div>
-      </div>
+      </nav>
     </v-navigation-drawer>
 
-    <v-main>
-      <topBar @toggle-menu="toggleDrawer" />
+    <v-main class="app-main">
       <RouterView />
     </v-main>
   </v-layout>
 </template>
 
 <style scoped>
-.menu-sider {
-  height: 100vh !important;
-  position: fixed !important;
-}
+.app-shell { min-height: 100dvh; background: #f6f7f9 }
 
-.router-link-without-expand {
-  text-decoration: none;
-  color: white;
+/* Barra superior */
+.topbar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 1000;
   display: flex;
   align-items: center;
-  padding-left: 16px;
-  padding-right: 16px;
-  border-radius: 25rem;
+  gap: 8px;
+  height: var(--topbar-height);
+  padding: 0 24px;
+  background: #111111;
+  color: #ffffff;
 }
 
-.logo-menu {
-  display: flex;
-  font-size: 12px;
-  margin-top: 1rem;
-  margin-left: 1rem;
-}
+.topbar-brand { display: flex; align-items: center; margin-right: 28px }
+.topbar-brand img { height: 32px; width: auto }
 
-.menu-calendar {
-  color: white;
-  font-size: 1.2rem;
-}
+.topbar-nav { display: flex; align-items: stretch; align-self: stretch; gap: 6px }
 
-.item-links-expand {
-  display: block;
-  padding: 8px 16px;
-  color: white;
-  text-decoration: none;
-}
-
-.item-links-expand:hover {
-  background-color: var(--primary-color-hover);
-}
-
-.close-btn-parent {
-  display: flex;
+.topnav-link {
+  position: relative;
+  display: inline-flex;
   align-items: center;
+  gap: 8px;
+  height: 100%;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, .72);
+  font: inherit;
+  font-size: .925rem;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
   cursor: pointer;
+  transition: color .15s;
 }
 
-.close-btn {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 1rem;
-  cursor: pointer;
-  margin-left: 10rem;
-  margin-top: 1rem;
-}
+.topnav-link::after { content: ''; position: absolute; left: 14px; right: 14px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: #5bb133; opacity: 0; transform: scaleX(.3); transition: opacity .2s, transform .2s }
+.topnav-link:hover, .topnav-link[aria-expanded='true'] { color: #ffffff }
+.topnav-link.active { color: #ffffff }
+.topnav-link.active::after { opacity: 1; transform: scaleX(1) }
+.topnav-caret { font-size: .6rem; opacity: .6 }
 
-.app-version {
-  text-align: center;
-  margin-bottom: 20px;
-}
+.topnav-badge { min-width: 20px; padding: 1px 6px; border-radius: 999px; background: #5bb133; color: #0b1a05; font-size: .7rem; font-weight: 700; line-height: 1.4; text-align: center }
 
-.menu-item-title {
-  white-space: normal !important; /* Permitir múltiples líneas */
-  overflow: visible; /* Evitar truncamiento */
-  line-height: 1.2; /* Ajustar espaciado entre líneas */
-  word-break: break-word; /* Permitir quiebre de palabras */
-}
+.topbar-spacer { flex: 1 }
 
-/* Aumentar ligeramente el padding para acomodar múltiples líneas */
-.v-list-item {
-  padding-top: 8px;
-  padding-bottom: 8px;
+.topbar-user { display: flex; align-items: center; gap: 10px; padding: 4px 4px 4px 12px; border: 0; border-radius: 999px; background: transparent; color: #ffffff; font: inherit; cursor: pointer; transition: background-color .15s }
+.topbar-user:hover, .topbar-user[aria-expanded='true'] { background: rgba(255, 255, 255, .08) }
+.topbar-user-name { max-width: 200px; overflow: hidden; font-size: .875rem; font-weight: 500; text-overflow: ellipsis; white-space: nowrap }
+
+.avatar { display: grid; place-items: center; flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; background: #5bb133; color: #0b1a05; font-size: .75rem; font-weight: 700; letter-spacing: .02em }
+.avatar-lg { width: 40px; height: 40px; font-size: .85rem }
+
+.topbar-toggle { display: grid; place-items: center; width: 38px; height: 38px; margin-right: 8px; border: 0; border-radius: 10px; background: rgba(255, 255, 255, .08); color: #ffffff; cursor: pointer }
+
+/* Desplegables */
+.dropdown { min-width: 220px; padding: 6px; border: 1px solid #eceef2; border-radius: 12px; background: #ffffff; box-shadow: 0 16px 40px -12px rgba(15, 23, 42, .3) }
+.dropdown-user { min-width: 260px }
+
+.dropdown-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: 0; border-radius: 8px; background: transparent; color: #334155; font: inherit; font-size: .875rem; text-align: left; cursor: pointer; transition: background-color .12s }
+.dropdown-item i { width: 16px; color: #64748b; text-align: center }
+.dropdown-item span:first-of-type { flex: 1 }
+.dropdown-item:hover { background: #f4f5f7; color: #111111 }
+.dropdown-item.active { background: #f1f5ee; color: #111111; font-weight: 600 }
+.dropdown-item.active i { color: #468131 }
+.dropdown-badge { min-width: 20px; padding: 1px 6px; border-radius: 999px; background: #111111; color: #ffffff; font-size: .7rem; font-weight: 700; text-align: center }
+
+.dropdown-head { display: flex; align-items: center; gap: 12px; padding: 10px 10px 12px; margin-bottom: 4px; border-bottom: 1px solid #f1f2f4 }
+.dropdown-head-text { display: flex; flex-direction: column; min-width: 0 }
+.dropdown-head-text strong { font-size: .9rem; color: #111111 }
+.dropdown-head-text small { font-size: .78rem; color: #64748b; overflow-wrap: anywhere }
+
+.dropdown-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 10px 4px; margin-top: 4px; border-top: 1px solid #f1f2f4; font-size: .72rem; font-weight: 500; color: #94a3b8 }
+
+/* Menú en móvil */
+.mobile-nav-body { padding: calc(var(--topbar-height) + 16px) 12px 16px; border-top: 1px solid rgba(255, 255, 255, .08) }
+.mobile-section + .mobile-section { margin-top: 20px }
+.mobile-section-title { display: block; padding: 0 12px 8px; font-size: .68rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: rgba(255, 255, 255, .4) }
+.mobile-item { display: flex; align-items: center; gap: 12px; width: 100%; height: 44px; padding: 0 12px; border: 0; border-radius: 10px; background: transparent; color: rgba(255, 255, 255, .75); font: inherit; font-size: .925rem; font-weight: 500; text-align: left; cursor: pointer }
+.mobile-item i { width: 20px; text-align: center }
+.mobile-item span:first-of-type { flex: 1 }
+.mobile-item.active { background: rgba(255, 255, 255, .1); color: #ffffff }
+
+/* Contenido bajo la barra fija */
+.app-main { padding-top: var(--topbar-height) !important; background: #f6f7f9; color: #111111 }
+
+@media (width < 960px) {
+  .topbar { padding: 0 12px }
+  .topbar-brand { margin: 0 auto }
+  .topbar-brand img { height: 28px }
 }
 </style>

@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { layout } from '@/components'
-import { sessionGuard, resetPasswordGuard, adminGuard, gestorGuard } from './guard'
+import { sessionGuard, resetPasswordGuard, adminGuard } from './guard'
 import { ROLES } from '@/utils/constants';
 
 const router = createRouter({
@@ -14,24 +14,25 @@ const router = createRouter({
       meta: { show: false },
       beforeEnter: sessionGuard,
       children: [
+        // meta.section agrupa el menú lateral; meta.title es el texto que se muestra
         {
           path: 'calendar',
           name: 'Calendario',
-          meta: { icon: 'fa fa-calendar' },
+          meta: { icon: 'fa-regular fa-calendar', title: 'Calendario', section: 'Reservas de salas' },
           component: () => import('../views/CalendarView.vue'),
-        },
-        {
-          path: 'users',
-          name: 'Administrar Usuarios',
-          meta: { role: [ROLES.ADMIN], icon: 'fa fa-users' },
-          component: () => import('../views/users/user-admin-view.vue'),
-          beforeEnter: adminGuard,
         },
         {
           path: 'bookings-validation',
           name: 'Validar Reservas',
-          meta: { role: [ROLES.ADMIN], icon: 'fa fa-check-to-slot' },
+          meta: { role: [ROLES.ADMIN], icon: 'fa-regular fa-circle-check', title: 'Validar reservas', section: 'Reservas de salas', badge: 'pending' },
           component: () => import('../views/bookings/booking-validation-view.vue'),
+          beforeEnter: adminGuard,
+        },
+        {
+          path: 'users',
+          name: 'Administrar Usuarios',
+          meta: { role: [ROLES.ADMIN], icon: 'fa-solid fa-users', title: 'Usuarios', section: 'Administración' },
+          component: () => import('../views/users/user-admin-view.vue'),
           beforeEnter: adminGuard,
         },
         {
@@ -62,6 +63,16 @@ const router = createRouter({
       beforeEnter: resetPasswordGuard
     }
   ]
+})
+
+// Si una vista no carga (chunk desfasado tras un despliegue), recarga una sola vez en el destino; si vuelve a fallar en 30 s, no insiste
+const isChunkError = error => /dynamically imported module|Importing a module script failed|error loading dynamically/i.test(error?.message || '')
+router.onError((error, to) => {
+  if (!isChunkError(error)) return
+  const last = Number(sessionStorage.getItem('chunk-reload') || 0)
+  if (Date.now() - last < 30000) return
+  sessionStorage.setItem('chunk-reload', String(Date.now()))
+  window.location.assign(to.fullPath)
 })
 
 export default router;

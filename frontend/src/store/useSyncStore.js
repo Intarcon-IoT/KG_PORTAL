@@ -53,7 +53,8 @@ export const useSyncStore = defineStore('sync', {
       const currentRoute = router.currentRoute.value.path;
 
       if (currentRoute === '/calendar') {
-        await bookingStore.fetchBookings();
+        // Solo con el rango de la semana visible: sin él se descargarían todas las reservas
+        if (bookingStore.currentParams?.from_date) await bookingStore.fetchBookings();
       } else if (currentRoute === '/bookings-validation') {
         await bookingStore.fetchPendingBookings();
       }

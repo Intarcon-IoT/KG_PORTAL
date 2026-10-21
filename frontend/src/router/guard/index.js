@@ -9,11 +9,14 @@ export const sessionGuard = () => {
   return { name: 'Log In' }
 }
 
+// El enlace de recuperación trae el token en el fragmento (#token=...), que no llega al servidor
+export const readResetToken = route => new URLSearchParams((route.hash || '').slice(1)).get('token')
+
 export const resetPasswordGuard = async (to) => {
-  const token = typeof to.query.token === 'string' ? to.query.token : null
-  const session = sessionStore()
-  const result = await session.auth.checkAuth({ token }).catch(() => {})
-  if (result?.ok !== true) return { name: 'Log In' }
+  const token = readResetToken(to)
+  if (!token) return { name: 'Log In' }
+  const result = await sessionStore().auth.checkResetToken(token).catch(() => {})
+  if (result?.ok !== true) return { name: 'Forgot Password' }
 }
 
 export const adminGuard = () => {
@@ -21,7 +24,3 @@ export const adminGuard = () => {
   if (session.auth.user?.role !== ROLES.ADMIN) return { name: 'Home' }
 }
 
-export const gestorGuard = () => {
-  const session = sessionStore()
-  if (session.auth.user?.role !== ROLES.GESTOR && session.auth.user?.role !== ROLES.ADMIN) return { name: 'Home' }
-}

@@ -11,8 +11,10 @@ class ErrorResponse {
     this.message = message;
   }
 
-  constructor(message) {
+  // code: estado HTTP; sin él, el fallo es de red
+  constructor(message, code) {
     this.message = message;
+    this.code = code;
   }
 
 }

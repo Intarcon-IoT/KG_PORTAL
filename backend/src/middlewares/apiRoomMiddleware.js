@@ -1,20 +1,14 @@
 const LegacyRoom = require("../models/Legacy/legacyRoom");
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 const middlewares = {
-  /**
-   * Middleware que comprueba que el token sea para una sala válida
-   */
+  // Pantallas de sala: el api_token de la sala va tal cual en Authorization
   ApiRoomMiddleware: async function (req, res, next) {
-    const token = req.headers.authorization ?? null;
-
-    const room = new LegacyRoom(req.params.uuid);
-    const valid = await room.checkToken(token);
-
-    if (valid) {
-      next();
-    } else {
-      res.status(403).json({ ok: false, message: 'Sorry but you are not authorized' });
-    }
+    if (!UUID.test(req.params.uuid)) return res.status(404).json({ ok: false, message: 'Sala no encontrada' })
+    const valid = await new LegacyRoom(req.params.uuid).checkToken(req.headers.authorization)
+    if (valid) return next()
+    res.status(403).json({ ok: false, message: 'Sorry but you are not authorized' })
   }
 };
 

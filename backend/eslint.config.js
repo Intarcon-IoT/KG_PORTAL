@@ -10,9 +10,15 @@ module.exports = defineConfig([
     languageOptions: { ecmaVersion: 'latest', sourceType: 'commonjs', globals: globals.node },
     rules: {
       'no-undef': 'error',
-      'no-unused-vars': 'warn',
+      // ignoreRestSiblings: `const { a, ...resto } = x` se usa para quitar campos de un objeto
+      'no-unused-vars': ['warn', { ignoreRestSiblings: true }],
       eqeqeq: 'warn',
       curly: ['warn', 'multi-line']
     }
+  },
+  {
+    // Plantilla de db-migrate: las migraciones aplicadas no se editan
+    files: ['migrations/**/*.js'],
+    rules: { 'no-unused-vars': ['warn', { varsIgnorePattern: '^(dbm|type|seed)$' }] }
   }
 ])

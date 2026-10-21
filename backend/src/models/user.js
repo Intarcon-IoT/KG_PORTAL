@@ -1,7 +1,8 @@
 const bcryptjs = require("bcryptjs");
 const mysqlAdapter = require("../utils/mysqlAdapter");
 const cache = require('../utils/cacheAdapter');
-const { createCacheToken } = require("../utils/userToken");
+const { createCacheToken, hashToken } = require("../utils/userToken");
+const sessions = require('../utils/sessions')
 const moment = require("moment");
 const logger = require('../utils/logger').init();
 const mailerAdapter = require('../utils/mailerAdapter');
@@ -51,24 +52,37 @@ class User {
       data.password = bcryptjs.hashSync(data.password, 0);
     }
 
-    const result = await mysqlAdapter.query(`UPDATE users SET ? WHERE uuid = '${this.uuid}'`, data);
+    const result = await mysqlAdapter.query('UPDATE users SET ? WHERE uuid = ?', [data, this.uuid]);
     return result;
   }
 
-  async getDeletionImpact() {
-    const [row] = await mysqlAdapter.query(
-      'SELECT COUNT(*) AS bookings FROM bookings WHERE user_uuid=?', [this.uuid]
-    );
-    return { ok: true, bookings: row.bookings };
+  // Los usuarios no se borran: se deshabilitan y conservan sus reservas
+  setActive(active) {
+    return mysqlAdapter.query('UPDATE users SET active = ? WHERE uuid = ?', [active ? 1 : 0, this.uuid])
   }
 
-  async delete() {
-    const result = await mysqlAdapter.query("DELETE FROM users WHERE uuid = ?", [this.uuid]);
-    return result;
+  async isActive() {
+    const access = await this.readAccess()
+    return access === null ? null : access?.active === 1
+  }
+
+  // Datos de permisos actuales: fila { active, role, tenant_uuid }, false si no existe, null si falla la BD
+  async readAccess() {
+    const rows = await mysqlAdapter.query('SELECT active, role, tenant_uuid FROM users WHERE uuid = ?', [this.uuid])
+    if (rows.error) return null
+    return rows[0] || false
+  }
+
+  // Aplica a una sesión los permisos actuales de la BD; false si el usuario ya no puede entrar
+  static async refreshSession(user) {
+    const access = await new User(user.uuid).readAccess()
+    if (access === null) return user
+    if (!access || access.active !== 1) return false
+    return { ...user, role: access.role, tenant_uuid: access.tenant_uuid }
   }
 
   async list(filter = {}) {
-    let sql = "SELECT u.uuid, u.name, u.mail, u.role, u.tenant_uuid, t.name AS tenant_name FROM users u LEFT JOIN tenants t ON u.tenant_uuid = t.uuid WHERE 1";
+    let sql = "SELECT u.uuid, u.name, u.mail, u.role, u.tenant_uuid, u.active, t.name AS tenant_name FROM users u LEFT JOIN tenants t ON u.tenant_uuid = t.uuid WHERE 1";
     let data = [];
     if (filter.tenant_uuid) {
       sql += " AND u.tenant_uuid = ?";
@@ -78,9 +92,18 @@ class User {
     return rows;
   }
 
+  // El hash de la contraseña solo se lee con readWithPassword (login y comprobación de la actual)
   read(filter = {}) {
+    return this.select(filter, false)
+  }
+
+  readWithPassword(filter = {}) {
+    return this.select(filter, true)
+  }
+
+  select(filter, withPassword) {
     let data = [];
-    let sql = "SELECT uuid, name, mail, password, role, tenant_uuid FROM users WHERE 1";
+    let sql = `SELECT uuid, name, mail, ${withPassword ? 'password, ' : ''}role, tenant_uuid, active FROM users WHERE 1`;
     if (Object.keys(filter).length === 0) {
       sql += " AND uuid = ?";
       data.push(this.uuid);
@@ -98,8 +121,9 @@ class User {
   };
 
   async login(email, password) {
-    const filter = { 'email': email };
-    const result = await this.read(filter);
+    // Sin esto, { email: 0 } coincide con cualquier fila en MySQL
+    if (typeof email !== 'string' || !email || typeof password !== 'string') return { login: false, message: "Credenciales no válidas" }
+    const result = await this.readWithPassword({ email });
 
     if (result.error) {
       return { ok: false, message: "Error en la operación" };
@@ -113,36 +137,33 @@ class User {
       if (!check) {
         return { login: false, message: "Contraseña incorrecta" };
       }
+      if (userStored.active !== 1) return { login: false, message: "Usuario deshabilitado" }
 
-      const token = createCacheToken();
-      userStored.token = token;
-      userStored.start = moment(new Date()).format(
-        "YYYY-MM-DD HH:mm:ss"
-      );
-      // userStored.version = version.getVersion();
-      cache.setRedis(token, userStored, true);
+      delete userStored.password
+      userStored.start = moment(new Date()).format("YYYY-MM-DD HH:mm:ss")
+      const token = await sessions.create(userStored)
+      if (!token) return { ok: false, message: "Error en la operación" }
 
-      delete userStored.password;
-
-      return {
-        login: true,
-        user: userStored
-      };
+      // El token solo viaja en la respuesta; en Redis queda su hash
+      return { login: true, user: { ...userStored, token } }
     }
   }
 
+  // Devuelve la sesión como texto JSON (lo que espera el frontend) con el rol y la empresa actuales
   async loadSession(token) {
-    const user = await cache.getRedis(token, true);
-
-    if (user) {
-      return { ok: true, user };
-    } else {
-      return { ok: false, message: "Token no válido" };
+    const stored = await sessions.get(token)
+    if (stored?.error) return { ok: false, unavailable: true }
+    if (!stored) return { ok: false, message: "Token no válido" }
+    const user = await User.refreshSession(JSON.parse(stored))
+    if (!user) {
+      await sessions.destroy(token)
+      return { ok: false, message: "Usuario deshabilitado" }
     }
+    return { ok: true, user: JSON.stringify(user) }
   }
 
   async closeSession(token) {
-    await cache.delRedis(token, true);
+    await sessions.destroy(token)
     return { ok: true };
   }
 
@@ -154,11 +175,13 @@ class User {
       const userInfoArray = await this.read({ email });
       const userInfo = userInfoArray[0];
 
-      if (userInfo) {
-        const token = createCacheToken();
-        cache.setRedis(token, userInfo, true, expirationTime);
+      if (userInfo && userInfo.active !== 1) {
+        logger.warn(`Password reset requested for disabled user: ${email}`)
+      } else if (userInfo) {
+        const token = await new User(userInfo.uuid).createResetToken(expirationTime)
 
-        const resetLink = `${APP_URL}/reset-password?token=${token}`;
+        // En el fragmento (#): el navegador no lo envía al servidor ni en el Referer
+        const resetLink = `${APP_URL}/reset-password#token=${token}`;
         const template = passwordResetTemplate(
           resetLink,
           Math.floor(expirationTime / 60),
@@ -173,14 +196,37 @@ class User {
     }
   }
 
+  // Tokens de recuperación: espacio de claves propio (no valen como sesión), hasheados, un solo uso y uno vivo por usuario
+  async createResetToken(expiration) {
+    const previous = await cache.getRedis(`reset-user.${this.uuid}`)
+    if (typeof previous === 'string') await cache.delRedis(`reset.${JSON.parse(previous)}`)
+    const token = createCacheToken()
+    await cache.setRedis(`reset.${hashToken(token)}`, { uuid: this.uuid }, false, expiration)
+    await cache.setRedis(`reset-user.${this.uuid}`, hashToken(token), false, expiration)
+    return token
+  }
+
+  static async findByResetToken(token) {
+    if (typeof token !== 'string' || !token) return null
+    const stored = await cache.getRedis(`reset.${hashToken(token)}`)
+    return typeof stored === 'string' ? JSON.parse(stored).uuid : null
+  }
+
+  async consumeResetToken(token) {
+    await cache.delRedis(`reset.${hashToken(token)}`)
+    await cache.delRedis(`reset-user.${this.uuid}`)
+  }
+
   async sendUserCredentialsEmail(password) {
-    const template = newUserTemplate(this.name, this.mail, password);
+    const loginUrl = process.env.APP_URL ? `${process.env.APP_URL}/login` : undefined
+    const template = newUserTemplate(this.name, this.mail, password, loginUrl)
     await mailerAdapter.sendMail({ to: this.mail, template });
   }
 
   async checkPassword(currentPassword) {
-    const user = await this.read();
-    if (!user || user.length === 0) {
+    if (typeof currentPassword !== 'string') return false
+    const user = await this.readWithPassword();
+    if (!user || user.error || user.length === 0) {
       return false;
     }
     return await bcryptjs.compare(currentPassword, user[0].password);

@@ -1,163 +1,75 @@
-<template>
-  <main class="main-login">
-    <div class="header-container">
-      <appLogo/>
-      <p>Introduzca su correo electrónico para recuperar su contraseña</p>
-    </div>
-    <v-form ref="formRef" @submit.prevent="handlerSubmit">
-      <div class="form">
-        <formField column>
-          <textField placeholder="correo" v-model="email" :rules="[validate.required, validate.email]" />
-        </formField>
-        <v-btn 
-          color="primary" 
-          prepend-icon="fa-solid fa-right-to-bracket" 
-          type="submit" 
-          class="btn-submit"
-        >
-          <div class="loading-btn">
-            Enviar correo de recuperación
-          </div>
-        </v-btn>
-      </div>
-    </v-form>
-  </main>
-</template>
-
-<script>
-import { appLogo } from '@/components';
-import { textField, formField } from '@/components/form-components';
-import { ref } from 'vue';
-import { sessionStore } from '@/store';
-import { useNotificationStore } from '@/store';
-import Request from "@/model/request";
-import router from '@/router';
+<script setup>
+import { ref } from 'vue'
+import authLayout from '@/components/auth-layout.vue'
+import { textField, formField } from '@/components/form-components'
+import { useNotificationStore } from '@/store'
+import Request from '@/model/request'
 import validate from '@/utils/useValidationRules'
 
+const notificationStore = useNotificationStore()
 
-export default {
-  name: 'LoginView',
-  components: {
-    appLogo,
-    textField,
-    formField,
-  },
-  setup() {
-    const notificationStore = useNotificationStore();
-    const session = sessionStore();
+const form = ref(null)
+const loading = ref(false)
+const sent = ref(false)
+const email = ref('')
 
-    let show_password = ref(false);
-    const email = ref('');
-    const formRef = ref(null);  
-
-    const handlerSubmit = async () => {
-    const { valid } = await formRef.value.validate();
-
-      if (!valid) {
-        return notificationStore.notifyError('Por favor, introduce un correo válido');
-      }
-
-      try {
-        const request = new Request({
-          endpoint: 'password-reset/request-password-reset',
-          method: 'POST',
-          body: JSON.stringify({ email: email.value })
-        });
-        await request.http();
-
-        notificationStore.notifySuccess('Se ha enviado un correo de recuperación');
-        router.push('/login');
-
-      } catch (error) {
-        return notificationStore.notifyError('Error al enviar el correo de recuperación');
-      }
-    }
-
-    return {
-      handlerSubmit,
-      show_password,
-      email,
-      formRef,
-      validate
-    }
+const submit = async () => {
+  const { valid } = await form.value.validate()
+  if (!valid || loading.value) return
+  loading.value = true
+  try {
+    await new Request({ endpoint: 'password-reset/request-password-reset', method: 'POST', body: JSON.stringify({ email: email.value }) }).http()
+    sent.value = true
+  } catch {
+    notificationStore.notifyError('No se ha podido enviar el correo de recuperación')
+  } finally {
+    loading.value = false
   }
 }
 </script>
 
-<style lang="css" scoped>
+<template>
+  <authLayout v-if="!sent" title="Recupera tu contraseña" subtitle="Indica tu correo y te enviaremos un enlace para crear una nueva.">
+    <v-form ref="form" class="auth-form" @submit.prevent="submit">
+      <formField label="Correo electrónico" column>
+        <textField
+          v-model="email"
+          type="email"
+          placeholder="nombre@empresa.com"
+          autofocus
+          :rules="[validate.required, validate.email]"
+        />
+      </formField>
 
-.main-login {
-  width: 40vw;
-  height: fit-content;
-  margin: auto;
-  background-color: var(--white-transparent-xs);
-  margin-top: 25vh;
-  border-radius: 7.5px;
-  box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 6px;
-}
+      <v-btn type="submit" color="#111111" variant="flat" block class="auth-submit" :loading="loading">Enviar enlace</v-btn>
+    </v-form>
 
-.header-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  text-align: center;
-  margin-bottom: 2rem;
-}
+    <template #footer>
+      <router-link to="/login" class="auth-link">Volver a iniciar sesión</router-link>
+    </template>
+  </authLayout>
 
-.form {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 1rem;
-  padding: 25px;
-  height: 100%;
-}
+  <authLayout v-else title="Revisa tu correo">
+    <template #badge>
+      <span class="sent-icon"><i class="fa-regular fa-envelope" /></span>
+    </template>
 
-.btn-submit {
-  margin-top: 1rem;
-}
+    <div class="sent">
+      <p>Si <strong>{{ email }}</strong> está registrado, recibirás un enlace para restablecer la contraseña.</p>
+      <p class="sent-note">El enlace caduca a los 10 minutos. Si no lo ves, mira en la carpeta de correo no deseado.</p>
+    </div>
 
-@media (width < 1600px) {
-  .main-login {
-    width: 50vw;
-  }
-}
+    <v-btn to="/login" color="#111111" variant="flat" block class="auth-submit">Volver a iniciar sesión</v-btn>
 
-@media (width < 1200px) {
-  .main-login {
-    width: 60vw;
-  }
-}
+    <template #footer>
+      ¿No te ha llegado? <a class="auth-link" @click="sent = false">Enviar de nuevo</a>
+    </template>
+  </authLayout>
+</template>
 
-@media (width < 900px) {
-  .main-login {
-    width: 85vw;
-  }
-}
-
-@media (width < 600px) {
-  .main-login {
-    width: 90vw;
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr auto;
-    height: auto;
-    margin-top: 1vh;
-  }
-}
-
-.loading-btn {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: .5rem;
-  color: var(--white-color);
-  border-radius: 50px;
-  width: 100%;
-}
+<style scoped>
+.sent { display: flex; flex-direction: column; gap: 1rem; margin-top: -1rem; margin-bottom: 1rem; line-height: 1.6; color: #334155 }.sent p { margin: 0 }
+.sent strong { color: #111111; font-weight: 600; word-break: break-all }
+.sent-note { font-size: .875rem; color: #64748b }
+.sent-icon { display: grid; place-items: center; width: 52px; height: 52px; margin-bottom: 1.5rem; border-radius: 14px; background: #f0f7ec; color: #468131; font-size: 1.35rem }
 </style>

@@ -1,77 +1,42 @@
 <template>
-  <div class="calendar-layout">
-    <div class="sidebar">
-      <v-card flat class="pa-2">
-        <MiniMonthView 
-          :selected-date="selectedDate" 
-          @dateSelected="selectedDate = $event" 
-          @previous="navigatePrevious"
-          @next="navigateNext" 
-        />
-      </v-card>
-      <!-- <v-card flat class="pa-2 mt-4">
-        <CalendarViewSelector
-          v-model="currentView"
-          :options="viewOptions"
-        />
-      </v-card> -->
-      <v-card flat class="pa-2 mt-4">
-        <ResourceFilter 
-          v-if="installationsList.length > 0" 
-          :installationsList="installationsList"
-          @update:selectedFacilitiesUuid="handlerSelectedFacilitiesFilter" 
-        />
-        <!-- selectedBuildingIds -->
-      </v-card>
-      <v-card flat class="pa-2 mt-4">
-        <UserOnlySwitch 
-          v-model="showOnlyMine" 
-        />
-      </v-card>
-    </div>
-    <div class="main-content">
-      <CalendarHeader 
-        :view="currentView" 
-        :selectedDate="selectedDate" 
-        @previous="navigatePrevious" 
-        @next="navigateNext" 
-        @today="goToToday" 
-      />
-      <div class="calendar-body">
-        <!-- <DayView
-          v-if="currentView === 'day'"
+  <div class="calendar-page">
+    <CalendarHeader
+      :selectedDate="selectedDate"
+      :filtersOpen="showFilters"
+      @previous="navigatePrevious"
+      @next="navigateNext"
+      @today="goToToday"
+      @create="showFacilityModal = true"
+      @toggle-filters="showFilters = !showFilters"
+    />
+
+    <div class="calendar-layout">
+      <aside class="calendar-aside" :class="{ open: showFilters }">
+        <section class="panel">
+          <MiniMonthView :selected-date="selectedDate" @dateSelected="selectedDate = $event" />
+        </section>
+        <section v-if="installationsList.length > 0" class="panel">
+          <ResourceFilter :installationsList="installationsList" @update:selectedFacilitiesUuid="handlerSelectedFacilitiesFilter" />
+        </section>
+        <section class="panel panel-compact">
+          <UserOnlySwitch v-model="showOnlyMine" />
+        </section>
+      </aside>
+
+      <div class="calendar-board">
+        <WeekView
           :selected-date="selectedDate"
-          :resources="filteredResources"
-          :events="allEvents"
-        /> -->
-        <WeekView 
-          v-if="currentView === 'week'" 
-          :selected-date="selectedDate" 
           :selectedFacilities="selectedFacilities"
-          :selectedRooms="selectedRooms" 
-          :bookingsList="filteredBookings" 
+          :selectedRooms="selectedRooms"
+          :bookingsList="filteredBookings"
           @booking_click="handleBookingDetailsView"
-          @empty_cell_click="handleNewBookingFromCalendar" 
+          @empty_cell_click="handleNewBookingFromCalendar"
         />
-        <!-- <MonthView
-          v-if="currentView === 'month'"
-          :selected-date="selectedDate"
-          :year="selectedDate.getFullYear()"
-          :month="selectedDate.getMonth()"
-          @date-selected="selectDateAndSwitchView"
-          :resources="filteredResources"
-          :events="allEvents"
-        /> -->
       </div>
-      <v-btn 
-        class="fab-add-event" 
-        icon color="primary" 
-        @click="showFacilityModal = true" 
-        elevation="6"
-      >
-        <i class="fa-solid fa-plus"></i>
-      </v-btn>
-      <FacilitySelectionModal 
+    </div>
+
+    <div class="calendar-modals">
+      <FacilitySelectionModal
         v-model:dialog="showFacilityModal"
         :installations="installationsList"
         @next="handleSelectedFacility"
@@ -122,11 +87,10 @@
 </template>
 
 <script setup>
+import { toDateKey } from '@/utils/dates'
 import { storeToRefs } from 'pinia';
 import CalendarHeader from './calendar-navigation/CalendarHeader.vue';
-import MonthView from './views/MonthView.vue';
 import WeekView from './views/WeekView.vue';
-import DayView from './views/DayView.vue';
 import MiniMonthView from './views/MiniMonthView.vue';
 import FacilitySelectionModal from './modals/FacilitySelectionModal.vue';
 import RoomSelectionModal from './modals/RoomSelectionModal.vue';
@@ -135,10 +99,9 @@ import DetailsSelectionModal from './modals/DetailsSelectionModal.vue';
 import BulkBookingModal from './modals/BulkBookingModal.vue';
 import ViewBookingDetailsModal from './modals/ViewBookingDetailsModal.vue';
 import ResourceFilter from './filters/ResourceFilter.vue';
-import CalendarViewSelector from './calendar-navigation/CalendarViewSelector.vue';
 import { ref, reactive, computed, watch, onMounted } from 'vue';
 
-const formatDate = (d) => d.toISOString().split('T')[0];
+const formatDate = toDateKey
 
 function getWeekRange(date) {
   const start = new Date(date);
@@ -150,7 +113,10 @@ function getWeekRange(date) {
   return { from_date: formatDate(start), to_date: formatDate(end) };
 }
 import UserOnlySwitch from './filters/UserOnlySwitch.vue';
-import { useNotificationStore, sessionStore, useBookingStore, useFacilityStore, useRoomStore } from '@/store';
+import { sessionStore, useBookingStore, useFacilityStore, useRoomStore } from '@/store';
+
+// Panel de filtros desplegable en pantallas estrechas
+const showFilters = ref(false)
 
 // SHOW MODALS
 const showFacilityModal = ref(false);
@@ -161,7 +127,6 @@ const showBulkModal = ref(false);
 const showBookingDetailsModal = ref(false);
 
 // STORE
-const notificationStore = useNotificationStore();
 const session = sessionStore();
 const bookingStore = useBookingStore();
 const facilityStore = useFacilityStore();
@@ -193,14 +158,6 @@ const selectedRooms = computed(() => {
 const showOnlyMine = ref(false);
 
 // CALENDAR NAVIGATION
-const todayDate = new Date();
-todayDate.setHours(0, 0, 0, 0);
-const tomorrowDate = new Date(todayDate);
-tomorrowDate.setDate(todayDate.getDate() + 1);
-const dayAfterTomorrowDate = new Date(todayDate);
-dayAfterTomorrowDate.setDate(todayDate.getDate() + 2);
-
-const currentView = ref('week');
 const selectedDate = ref(new Date());
 
 // OBJETO RESERVA TEMPORAL
@@ -393,39 +350,11 @@ async function handleBookingStatusUpdate(statusData) {
   await bookingStore.fetchBookings(getWeekRange(selectedDate.value));
 }
 
-// NAVIGATION
-function navigatePrevious() {
-  const d = new Date(selectedDate.value);
-  if (currentView.value === 'month') {
-    d.setMonth(d.getMonth() - 1);
-  } else if (currentView.value === 'week') {
-    d.setDate(d.getDate() - 7);
-  } else {
-    d.setDate(d.getDate() - 1);
-  }
-  selectedDate.value = new Date(d);
-}
-
-function navigateNext() {
-  const d = new Date(selectedDate.value);
-  if (currentView.value === 'month') {
-    d.setMonth(d.getMonth() + 1);
-  } else if (currentView.value === 'week') {
-    d.setDate(d.getDate() + 7);
-  } else {
-    d.setDate(d.getDate() + 1);
-  }
-  selectedDate.value = new Date(d);
-}
-
-function goToToday() {
-  selectedDate.value = new Date();
-}
-
-// function selectDateAndSwitchView(date) {
-//   selectedDate.value = new Date(date);
-//   currentView.value = 'day';
-// }
+// NAVIGATION: la vista es siempre semanal
+const shiftWeek = weeks => { const d = new Date(selectedDate.value); d.setDate(d.getDate() + weeks * 7); selectedDate.value = d }
+const navigatePrevious = () => shiftWeek(-1)
+const navigateNext = () => shiftWeek(1)
+const goToToday = () => { selectedDate.value = new Date() }
 
 const filteredBookings = computed(() => {
   let list = bookingsList.value;
@@ -437,60 +366,22 @@ const filteredBookings = computed(() => {
 </script>
 
 <style scoped>
-.calendar-layout {
-  display: flex;
-  height: 100%;
-  width: 100%;
-  max-width: none;
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
-  font-family: sans-serif;
-  background-color: #ffffff;
-}
+.calendar-page { display: flex; flex-direction: column; gap: 16px; height: calc(100dvh - var(--topbar-height)); padding: 16px 24px 20px; background: #f6f7f9 }
 
-.sidebar {
-  width: 240px;
-  flex-shrink: 0;
-  border-right: 1px solid #ccc;
-  background-color: #fff;
-  display: flex;
-  flex-direction: column;
-  padding: 15px 0px;
-  height: 100%;
-}
+.calendar-layout { display: grid; grid-template-columns: 264px minmax(0, 1fr); gap: 16px; flex: 1; min-height: 0 }
 
-.main-content {
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
+.calendar-aside { display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow-y: auto; scrollbar-width: thin }
 
-.calendar-body {
-  flex-grow: 1;
-  background-color: #fff;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
+.panel { padding: 18px; border: 1px solid #eceef2; border-radius: 14px; background: #ffffff }
+.panel-compact { padding: 12px 18px }
 
-.fab-add-event {
-  position: fixed;
-  bottom: 60px;
-  right: 30px;
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  font-size: 2em;
-  line-height: 56px;
-  text-align: center;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  cursor: pointer;
-  z-index: 999;
-  transition: background-color 0.2s ease;
+.calendar-board { display: flex; flex-direction: column; min-height: 0; overflow: hidden; border: 1px solid #eceef2; border-radius: 14px; background: #ffffff }
+
+@media (width < 1100px) {
+  .calendar-page { height: auto; min-height: calc(100dvh - var(--topbar-height)); padding: 20px 16px }
+  .calendar-layout { grid-template-columns: 1fr }
+  .calendar-aside { display: none; overflow: visible }
+  .calendar-aside.open { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); align-items: start }
+  .calendar-board { height: 70dvh }
 }
 </style>

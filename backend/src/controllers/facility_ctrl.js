@@ -1,4 +1,4 @@
-const uuid = require("uuid");
+const { randomUUID } = require('crypto')
 const Facility = require("../models/facility");
 
 const facilityCtrl = {};
@@ -11,7 +11,7 @@ facilityCtrl.createFacility = async (req, res) => {
     return res.send({ message: "El nombre y color es obligatorios." });
   }
 
-  const newFacility = new Facility(uuid.v4());
+  const newFacility = new Facility(randomUUID());
   newFacility.set(req.body);
 
   const result = await newFacility.create();

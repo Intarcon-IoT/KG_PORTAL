@@ -1,6 +1,7 @@
-const cache = require('../utils/cacheAdapter');
+const sessions = require('../utils/sessions')
 const thirdPartyConfig = require('../../configThirdParty.json');
 const { ROLES } = require("../utils/constants");
+const User = require('../models/user')
 
 const middlewares = {
   /**
@@ -13,10 +14,20 @@ const middlewares = {
       return res.status(401).json({ ok: false, message: 'No token provided' });
     }
 
-    const exist = await cache.getRedis(token, true);
+    const stored = await sessions.get(token)
 
-    if (exist && !exist.error) {
-      res.locals.user = typeof exist === 'string' ? JSON.parse(exist) : exist;
+    // Sin Redis no se puede validar: 503 para que el cliente reintente y no dé la sesión por cerrada
+    if (stored?.error) return res.status(503).json({ ok: false, message: 'Servicio no disponible temporalmente' })
+
+    if (stored) {
+      // Rol, empresa y estado salen de la BD en cada petición: la sesión solo identifica al usuario
+      const user = await User.refreshSession(JSON.parse(stored))
+      if (!user) {
+        await sessions.destroy(token)
+        return res.status(401).json({ ok: false, message: 'Usuario deshabilitado' })
+      }
+      res.locals.user = user
+      res.locals.token = token
       return next();
     }
 

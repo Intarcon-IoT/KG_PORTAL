@@ -1,153 +1,67 @@
 <template>
-  <v-dialog v-model="dialog" max-width="600" transition="dialog-bottom-transition" persistent>
-    <v-card class="pa-4 rounded-xl">
-      <v-card-title class="d-flex align-center position-relative text-subtitle-1 font-weight-medium text-grey-darken-3">
-        <i v-if="!isEditMode" class="fa-solid fa-arrow-left position-absolute start-5 fa-lg back-icon" @click="goBack"></i>
-        <div class="w-100 text-center">{{ isEditMode ? 'Editar Reserva' : 'Detalles de la Reserva' }}</div>
-        <i class="fa-solid fa-xmark position-absolute fa-lg close-icon" @click="cancelAndClose"></i>
-      </v-card-title>
-      <v-card-text class="dialog-content">
-        <v-container>
-          <v-row>
-            <v-col cols="6">
-              <v-select
-                v-model="bookingInfo.facility_uuid"
-                :items="props.installations"
-                item-title="name"
-                item-value="uuid"
-                label="Edificio"
-                @update:modelValue="onFacilityChange"
-              />
-            </v-col>
-            <v-col cols="6">
-              <v-select
-                v-model="bookingInfo.room_uuid"
-                :items="availableRooms"
-                item-title="name"
-                item-value="uuid"
-                label="Sala"
-              />
-            </v-col>
-          </v-row>
-          <v-row>
-            <v-col cols="6">
-              <v-text-field
-                v-model="bookingInfo.dateFrom"
-                label="Desde"
-                type="date"
-                :min="today"
-                @click="goBack"
-              />
-            </v-col>
-            <v-col cols="6">
-              <!-- SELECT TIME FROM -->
-              <v-select
-                v-model="bookingInfo.timeFrom"
-                label="Desde"
-                :items="timeIntervalsFrom"
-                item-title= "hour"
-                item-value="hour"
-                @update:modelValue="onChangeTimeFrom"
-              >
-                <template #item="{ props, item }">
-                  <v-list-item
-                    v-bind="props"
-                    :disabled="item.raw.disabled"
-                    :class="{ 
-                      'text-error': item.raw.status === BOOKING_STATUS.APPROVED || (item.raw.disabled && item.raw.status !== BOOKING_STATUS.REJECTED),
-                      'text-warning': item.raw.status === BOOKING_STATUS.REJECTED && !item.raw.disabled
-                    }"
-                  >
-                    <template #prepend v-if="item.raw.status === BOOKING_STATUS.REJECTED && !item.raw.disabled">
-                      <v-icon icon="fa-solid fa-clock-rotate-left" color="warning" size="x-small" class="mr-2"></v-icon>
-                    </template>
-                    <v-tooltip v-if="item.raw.status === BOOKING_STATUS.REJECTED && !item.raw.disabled" activator="parent" location="end">
-                      Existe una reserva pendiente de validación en este tramo horario
-                    </v-tooltip>
-                  </v-list-item>
-                </template>
-              </v-select>
-            </v-col>
-          </v-row>
-          <v-row>
-            <v-col cols="6">
-              <v-text-field
-                v-model="bookingInfo.dateTo"
-                label="Hasta"
-                type="date"
-                :min="bookingInfo.dateFrom || today"
-                :max="firstBookingFromTimeFrom?.start_date ? moment(firstBookingFromTimeFrom.start_date).format('YYYY-MM-DD') : undefined"
-                @update:modelValue="onChangeDateTo"
-              />
-            </v-col>
-            <v-col cols="6">
-              <v-select
-                v-model="bookingInfo.timeTo"
-                label="Hasta"
-                item-title= "hour"
-                item-value="hour"
-                :items="timeIntervalsTo"
-              >
-                <template #item="{ props, item }">
-                  <v-list-item
-                    v-bind="props"
-                    :disabled="item.raw.disabled"
-                    :class="{ 
-                      'text-error': item.raw.status === BOOKING_STATUS.APPROVED || (item.raw.disabled && item.raw.status !== BOOKING_STATUS.REJECTED),
-                      'text-warning': item.raw.status === BOOKING_STATUS.REJECTED && !item.raw.disabled
-                    }"
-                  >
-                    <template #prepend v-if="item.raw.status === BOOKING_STATUS.REJECTED && !item.raw.disabled">
-                      <v-icon icon="fa-solid fa-clock-rotate-left" color="warning" size="x-small" class="mr-2"></v-icon>
-                    </template>
-                    <v-tooltip v-if="item.raw.status === BOOKING_STATUS.REJECTED && !item.raw.disabled" activator="parent" location="end">
-                      Existe una reserva pendiente de validación en este tramo horario
-                    </v-tooltip>
-                  </v-list-item>
-                </template>
-              </v-select>
-            </v-col>
-          </v-row>
-          <v-row>
-            <v-col cols="12">
-              <v-text-field
-                v-model="bookingInfo.title"
-                label="Título de la Reserva"
-              />
-            </v-col>
-          </v-row>
-          <v-row>
-            <v-col cols="12">
-              <v-textarea
-                v-model="bookingInfo.details"
-                label="Detalles de la Reserva"
-                rows="2"
-                auto-grow
-              />
-            </v-col>
-          </v-row>
-          <v-row v-if="!isEditMode">
-            <v-col cols="12">
-              <v-checkbox
-                v-model="repeatBooking"
-                label="Repetir reserva"
-                density="compact"
-              />
-            </v-col>
-          </v-row>
-        </v-container>
-      </v-card-text>
-      <v-card-actions>
-        <v-spacer />
-        <v-btn color="primary" @click="confirmReservation" class="confirm-btn">
-          {{ actionButtonText }}
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+  <appDialog
+    v-model="dialog" :eyebrow="isEditMode ? '' : 'Nueva reserva · Paso 4 de 4'" :title="isEditMode ? 'Editar reserva' : 'Detalles de la reserva'"
+    :width="600" :back="!isEditMode" @back="goBack" @close="cancelAndClose"
+  >
+    <div class="fields">
+      <div class="kg-row">
+        <formField label="Sede" column>
+          <v-select v-model="bookingInfo.facility_uuid" autocomplete="off" :items="props.installations" item-title="name" item-value="uuid" hide-details @update:model-value="onFacilityChange" />
+        </formField>
+        <formField label="Sala" column>
+          <v-select v-model="bookingInfo.room_uuid" autocomplete="off" :items="availableRooms" item-title="name" item-value="uuid" placeholder="Selecciona una" hide-details @update:model-value="refreshAvailability" />
+        </formField>
+      </div>
+      <!-- Una reserva ocupa un solo día; para varios días está la repetición -->
+      <div class="when">
+        <formField label="Fecha" column>
+          <dateField v-model="bookingInfo.dateFrom" :min="today" @update:model-value="onChangeDate" />
+        </formField>
+        <formField label="Desde" column>
+          <v-select v-model="bookingInfo.timeFrom" autocomplete="off" :items="timeIntervalsFrom" item-title="hour" item-value="hour" hide-details @update:model-value="onChangeTimeFrom">
+            <template #item="{ props: itemProps, item }">
+              <v-list-item v-bind="itemProps" :disabled="item.disabled" :class="slotClass(item)">
+                <template v-if="isPendingSlot(item)" #prepend><i class="fa-solid fa-clock-rotate-left slot-icon" /></template>
+                <v-tooltip v-if="isPendingSlot(item)" activator="parent" location="end">Hay una reserva pendiente de validación en este tramo</v-tooltip>
+              </v-list-item>
+            </template>
+          </v-select>
+        </formField>
+        <formField label="Hasta" column>
+          <v-select v-model="bookingInfo.timeTo" autocomplete="off" :items="timeIntervalsTo" item-title="hour" item-value="hour" hide-details>
+            <template #item="{ props: itemProps, item }">
+              <v-list-item v-bind="itemProps" :disabled="item.disabled" :class="slotClass(item)">
+                <template v-if="isPendingSlot(item)" #prepend><i class="fa-solid fa-clock-rotate-left slot-icon" /></template>
+                <v-tooltip v-if="isPendingSlot(item)" activator="parent" location="end">Hay una reserva pendiente de validación en este tramo</v-tooltip>
+              </v-list-item>
+            </template>
+          </v-select>
+        </formField>
+      </div>
+      <formField label="Título" column>
+        <v-text-field v-model="bookingInfo.title" autocomplete="off" placeholder="Ej.: Reunión de equipo" hide-details />
+      </formField>
+      <formField label="Detalles" column>
+        <v-textarea v-model="bookingInfo.details" autocomplete="off" placeholder="Opcional" rows="2" auto-grow hide-details />
+      </formField>
+      <label v-if="!isEditMode" class="kg-check">
+        <input v-model="repeatBooking" type="checkbox" />
+        <span class="kg-check-box"><i class="fa-solid fa-check" /></span>
+        Repetir esta reserva en otras fechas
+      </label>
+    </div>
+
+    <template #actions>
+      <v-btn variant="outlined" class="kg-btn kg-btn-ghost" @click="cancelAndClose">Cancelar</v-btn>
+      <v-btn color="primary" variant="flat" class="kg-btn" @click="confirmReservation">{{ actionButtonText }}</v-btn>
+    </template>
+  </appDialog>
 </template>
 
 <script setup>
+import appDialog from '@/components/app-dialog.vue'
+import { formField, dateField } from '@/components/form-components'
+import { toDateKey, useToday } from '@/utils/dates'
 import { ref, watch, computed } from 'vue'
 import { useNotificationStore, sessionStore } from '@/store';
 import moment from 'moment';
@@ -170,7 +84,7 @@ const dialog = ref(props.dialog)
 const isEditMode = computed(() => props.isEditMode)
 const notificationStore = useNotificationStore()
 const session = sessionStore();
-const today = new Date().toISOString().substring(0, 10)
+const today = useToday()
 const repeatBooking = ref(false)
 
 const timeIntervalsFrom = ref(generateTimeIntervals())
@@ -194,9 +108,13 @@ const bookingInfo = ref({
 })
 
 const actionButtonText = computed(() => {
-  if (isEditMode.value) return 'Actualizar Reserva'
-  return repeatBooking.value ? 'Configurar Repetición' : 'Crear Reserva'
+  if (isEditMode.value) return 'Guardar cambios'
+  return repeatBooking.value ? 'Configurar repetición' : 'Crear reserva'
 })
+
+// Tramos del selector de hora: REJECTED marca un tramo con reserva pendiente de otra persona
+const isPendingSlot = item => item.status === BOOKING_STATUS.REJECTED && !item.disabled
+const slotClass = item => ({ 'slot-busy': item.status === BOOKING_STATUS.APPROVED, 'slot-pending': isPendingSlot(item) })
 
 function goBack() {
   emit('update:dialog', false)
@@ -211,8 +129,16 @@ function cancelAndClose() {
   }
 }
 
-function onChangeDateTo() {
-  updateBookingByRangeSelected()
+// La fecha de fin siempre es la de inicio
+function onChangeDate(date) {
+  bookingInfo.value.dateTo = date
+  refreshAvailability()
+}
+
+async function refreshAvailability() {
+  if (!bookingInfo.value.room_uuid || !bookingInfo.value.dateFrom) return
+  await nextBooking(bookingInfo.value.dateFrom, bookingInfo.value.timeFrom)
+  await updateBookingByRangeSelected()
 }
 
 function onChangeTimeFrom() {
@@ -252,9 +178,9 @@ function updateTimeIntervalsByBookingOnRange() {
       interval.disabled = isBlocking(booking);
     }
 
-    if (!interval.disabled && bookingInfo.value.dateFrom === today) {
+    if (!interval.disabled && bookingInfo.value.dateFrom === today.value) {
       const now = moment();
-      const intervalTime = moment(`${today} ${interval.hour}`, 'YYYY-MM-DD HH:mm');
+      const intervalTime = moment(`${today.value} ${interval.hour}`, 'YYYY-MM-DD HH:mm');
       if (intervalTime.isBefore(now)) {
         interval.disabled = true;
       }
@@ -281,9 +207,9 @@ function updateTimeIntervalsByBookingOnRange() {
       interval.status = BOOKING_STATUS.APPROVED;
     }
 
-    if (!interval.disabled && bookingInfo.value.dateTo === today) {
+    if (!interval.disabled && bookingInfo.value.dateTo === today.value) {
       const now = moment();
-      const intervalTime = moment(`${today} ${interval.hour}`, 'YYYY-MM-DD HH:mm');
+      const intervalTime = moment(`${today.value} ${interval.hour}`, 'YYYY-MM-DD HH:mm');
       if (intervalTime.isBefore(now)) {
         interval.disabled = true;
       }
@@ -412,8 +338,7 @@ function addOneHour(hour) {
 
 function toDateString(date) {
   if (!date) return ''
-  const d = new Date(date)
-  return d.toISOString().split('T')[0]
+  return toDateKey(date)
 }
 
 function confirmReservation() {
@@ -424,14 +349,18 @@ function confirmReservation() {
     notificationStore.notifyWarning('La hora de inicio o finalización ya está reservada.');
     isValid = false;
   }
+  if (!bookingInfo.value.dateFrom) {
+    notificationStore.notifyWarning('Por favor, seleccione una fecha.')
+    isValid = false
+  }
   if(bookingInfo.value.room_uuid === '') {
     notificationStore.notifyWarning('Por favor, seleccione una sala.');
     isValid = false;
   }
   
-  if (bookingInfo.value.dateFrom === today) {
+  if (bookingInfo.value.dateFrom === today.value) {
     const now = moment();
-    const startTime = moment(`${today} ${bookingInfo.value.timeFrom}`, 'YYYY-MM-DD HH:mm');
+    const startTime = moment(`${today.value} ${bookingInfo.value.timeFrom}`, 'YYYY-MM-DD HH:mm');
     if (startTime.isBefore(now)) {
       notificationStore.notifyWarning('La hora de inicio ya ha pasado.');
       isValid = false;
@@ -471,11 +400,11 @@ watch(() => props.dialog, async (val) => {
 
     if(isEditMode.value) {
       bookingInfo.value.uuid = props.booking.uuid
-      bookingInfo.value.dateTo = toDateString(props.booking.dateTo)
+      bookingInfo.value.dateTo = bookingInfo.value.dateFrom
       bookingInfo.value.timeTo = moment(props.booking.timeTo, 'HH:mm').format('HH:mm')
     } else {
       bookingInfo.value.uuid = ''
-      bookingInfo.value.dateTo = toDateString(props.booking.date)
+      bookingInfo.value.dateTo = bookingInfo.value.dateFrom
       bookingInfo.value.timeTo = addOneHour(props.booking.time)
     }
 
@@ -500,48 +429,12 @@ watch(dialog, (val) => {
 </script>
 
 <style scoped>
-.close-icon {
-  position: absolute;
-  right: 0;
-  margin-right: 12px;
-  cursor: pointer;
-  color: #666;
-  transition: transform 0.2s ease, color 0.2s ease;
-}
+.fields { display: flex; flex-direction: column; gap: 14px }
+.when { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 14px }
+@media (width < 600px) { .when { grid-template-columns: 1fr 1fr } .when > :first-child { grid-column: 1 / -1 } }
 
-.close-icon:hover {
-  color: #ff5252;
-}
-
-.back-icon {
-  cursor: pointer;
-  color: #666;
-  transition: transform 0.2s ease, color 0.2s ease;
-}
-
-.back-icon:hover {
-  color: #24008f;
-}
-
-.confirm-btn {
-  font-weight: bold;
-  text-transform: uppercase;
-}
-
-.text-warning {
-  color: #fb8c00 !important;
-}
-
-.text-error {
-  color: #ff5252 !important;
-}
-
-.dialog-content {
-  max-height: 70vh;
-  overflow-y: auto;
-}
-
-.v-btn {
-  border-radius: 12px;
-}
+/* Tramos del selector de hora (el menú se renderiza con este scope) */
+.slot-busy { color: #b91c1c }
+.slot-pending { color: #b45309 }
+.slot-icon { margin-right: 8px; font-size: .75rem; color: #b45309 }
 </style>

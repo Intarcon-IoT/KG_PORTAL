@@ -1,8 +1,11 @@
 import { defineStore } from 'pinia';
+import { todayKey } from '@/utils/dates';
 import Request from "@/model/request";
 import { useNotificationStore } from './useNotificationStore';
 import { sessionStore } from './session';
 import { ROLES, BOOKING_STATUS } from '@/utils/constants';
+
+let fetchSeq = 0
 
 export const useBookingStore = defineStore('booking', {
   state: () => ({
@@ -12,9 +15,12 @@ export const useBookingStore = defineStore('booking', {
     currentParams: {}
   }),
   actions: {
-    async fetchBookings(params = {}) {
+    // Sin parámetros se reutiliza el rango visible: sin rango el backend devolvería todas las reservas
+    async fetchBookings(params = this.currentParams) {
       this.loading = true;
       this.currentParams = params;
+      // Solo cuenta la última petición: una respuesta lenta no pisa a otra más reciente
+      const requestId = ++fetchSeq
       try {
         const request = new Request({
           endpoint: 'bookings',
@@ -22,7 +28,8 @@ export const useBookingStore = defineStore('booking', {
           params
         });
         const response = await request.http();
-        this.bookings = response || [];
+        if (requestId !== fetchSeq) return
+        this.bookings = Array.isArray(response) ? response : [];
       } catch (error) {
         console.error('Error fetching bookings:', error);
         const notification = useNotificationStore();
@@ -49,7 +56,7 @@ export const useBookingStore = defineStore('booking', {
     async fetchPendingBookings() {
       this.loading = true;
       try {
-        const today = new Date().toISOString().split('T')[0];
+        const today = todayKey();
         const request = new Request({
           endpoint: 'bookings',
           method: 'GET',
@@ -61,7 +68,7 @@ export const useBookingStore = defineStore('booking', {
         });
 
         const response = await request.http();
-        this.bookings = response || [];
+        this.bookings = Array.isArray(response) ? response : [];
         this.pendingCount = this.bookings.length;
       } catch (error) {
         console.error('Error fetching pending bookings:', error);
@@ -74,7 +81,7 @@ export const useBookingStore = defineStore('booking', {
 
     async fetchPendingCount() {
       try {
-        const today = new Date().toISOString().split('T')[0];
+        const today = todayKey();
         const request = new Request({
           endpoint: 'bookings',
           method: 'GET',
@@ -128,7 +135,7 @@ export const useBookingStore = defineStore('booking', {
           body: JSON.stringify({ bookings: bookingsArray }),
         });
 
-        const response = await request.http();
+        await request.http();
         await this.fetchBookings(this.currentParams);
 
         const validMsg = (needsValidation && (session.auth.user?.role !== ROLES.ADMIN && session.auth.user?.role !== ROLES.GESTOR))? ' y están pendientes de validación por un administrador' : '';

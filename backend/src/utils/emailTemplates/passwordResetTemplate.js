@@ -1,84 +1,36 @@
-function passwordResetTemplate(url, ttlMin = 10, nombre = "Usuario") {
-  const subject = 'Restablecer contraseña';
-  const html = `
-    <!DOCTYPE html>
-    <html lang="es">
-      <head>
-        <meta charset="UTF-8">
-        <title>Restablecer Contraseña</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-        <style>
-          .password-box {
-            background-color: #f8f9fa;
-            border: 2px dashed #5BB133;
-            border-radius: 8px;
-            padding: 15px;
-            font-weight: bold;
-            font-size: 1.25rem;
-            text-align: center;
-            margin-top: 20px;
-            white-space: nowrap;
-            overflow-x: auto;
-            user-select: all;
-            font-family: monospace;
-          }
-          .email-body {
-            max-width: 600px;
-            margin: auto;
-            padding: 30px;
-            background-color: #ffffff;
-            border: 1px solid #dee2e6;
-            border-radius: 10px;
-          }
-          .text-green {
-            color: #5BB133;
-            text-align: center;
-          }
-          .btn-keyter {
-            background-color: #5BB133;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-            text-decoration: none !important;
-            display: inline-block;
-          }
-          .btn-keyter:hover {
-            background-color: #4d9b2b;
-          }
-        </style>
-      </head>
-      <body style="background-color: #f1f3f5;">
-        <div class="email-body shadow">
-          <div style="text-align: center;">
-            <img src="https://keyter-intarcon.com/wp-content/uploads/2025/04/KEYTER-GROUP-300x75.png" alt="KEYTER Group Logo"/>
-          </div>  
-          <h2 class="text-green text-center">¡Hola ${nombre}!</h2>
-          <p>Hemos recibido una solicitud para restablecer la contraseña de su cuenta. A continuación, le proporcionamos un enlace para que pueda cambiarla:</p>
-          <div class="password-box">
-            <a href="${url}" class="btn-keyter" target="_blank">Restablecer contraseña</a>
-          </div>
-          <p>Este enlace caduca en ${ttlMin} minutos.</p>
-          <p>Si no solicitó este cambio, por favor ignore este correo.</p>
-          <p>Un saludo, <br><strong>KEYTER Group.</strong></p>
-        </div>
-      </body>
-    </html>`;
+// Correo de recuperación de contraseña con la maqueta del portal
+const { renderEmail, escapeHtml, firstName, paragraph, button, note } = require('./layout')
 
-    const text = `Restablecer contraseña
+function passwordResetTemplate(url, ttlMin = 10, name = 'Usuario') {
+  const subject = 'Restablece tu contraseña · Portal KEYTER Group'
+  const html = renderEmail({
+    subject,
+    preheader: `Usa este enlace en los próximos ${ttlMin} minutos para elegir una contraseña nueva.`,
+    title: 'Restablece tu contraseña',
+    blocks: [
+      paragraph(`Hola, ${escapeHtml(firstName(name))}. Hemos recibido una solicitud para cambiar la contraseña de tu cuenta. Pulsa el botón para elegir una nueva.`),
+      button(url, 'Elegir nueva contraseña'),
+      note(`<strong style="color:#111111;">El enlace caduca en ${ttlMin} minutos</strong> y solo sirve una vez.`),
+      paragraph('Si el botón no funciona, copia este enlace en tu navegador:', true),
+      `<p style="margin:6px 0 0;font-size:12px;line-height:1.5;word-break:break-all;"><a href="${escapeHtml(url)}" target="_blank" style="color:#468131;text-decoration:underline;">${escapeHtml(url)}</a></p>`,
+    ],
+    footnote: 'Si no has pedido este cambio, ignora este correo: tu contraseña seguirá siendo la misma.',
+  })
 
-    Hemos recibido una solicitud para restablecer la contraseña de su cuenta. A continuación, le proporcionamos un enlace para que pueda cambiarla:
-    ${url}
+  const text = `Restablece tu contraseña · Portal KEYTER Group
 
-    Este enlace caduca en ${ttlMin} minutos.
+Hola, ${firstName(name)}. Hemos recibido una solicitud para cambiar la contraseña de tu cuenta.
 
-    Si no solicitó este cambio, por favor ignore este correo.
+Elige una nueva en este enlace:
+${url}
 
-    Un saludo,
-    KEYTER Group.`;
+El enlace caduca en ${ttlMin} minutos y solo sirve una vez.
 
-  return { subject, html, text };
+Si no has pedido este cambio, ignora este correo: tu contraseña seguirá siendo la misma.
+
+KEYTER Group`
+
+  return { subject, html, text }
 }
 
-module.exports = { passwordResetTemplate };
-
+module.exports = { passwordResetTemplate }

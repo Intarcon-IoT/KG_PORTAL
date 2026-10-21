@@ -1,4 +1,4 @@
-const uuid = require("uuid");
+const { randomUUID } = require('crypto')
 const Room = require("../models/room");
 const LegacyRoom = require("../models/Legacy/legacyRoom");
 
@@ -12,7 +12,7 @@ roomCtrl.createRoom = async (req, res) => {
     return res.send({ message: "El nombre, capacidad y facility_uuid son obligatorios." });
   }
 
-  const newRoom = new Room(uuid.v4());
+  const newRoom = new Room(randomUUID());
   newRoom.set(req.body);
 
   const result = await newRoom.create();

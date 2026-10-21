@@ -1,41 +1,44 @@
-const User = require('../models/user');
+const User = require('../models/user')
+const sessions = require('../utils/sessions')
 
-const passwordResetCtrl = {};
+// Recuperación de contraseña: solo con el token del correo, nunca con una sesión
+const passwordResetCtrl = {}
+
+const INVALID_LINK = 'El enlace no es válido o ha caducado. Solicita uno nuevo'
 
 passwordResetCtrl.requestPasswordReset = async (req, res) => {
-  const { email } = req.body;
-  const user = new User();
+  const { email } = req.body
+  if (typeof email !== 'string' || !email) return res.status(400).json({ ok: false, message: 'El correo es requerido' })
 
-  if (!email) {
-    return res.status(400).json({ ok: false, message: "El correo es requerido" });
-  }
+  await new User().sendPasswordResetEmail(email)
+  return res.json({ ok: true, message: 'Si el correo existe, recibirás un enlace de recuperación en esa dirección' })
+}
 
-  await user.sendPasswordResetEmail(email);
-
-  return res.json({ 
-    ok: true, 
-    message: "Si el correo existe, recibiras un correo de recuperacion a esta dirección" 
-  });
-};
+passwordResetCtrl.checkResetToken = async (req, res) => {
+  const uuid = await User.findByResetToken(req.body.token)
+  if (!uuid) return res.status(400).json({ ok: false, message: INVALID_LINK })
+  return res.json({ ok: true })
+}
 
 passwordResetCtrl.resetPassword = async (req, res) => {
-  const { newPassword } = req.body;
-  const token = req.headers.authorization.split(" ")[1];
-  const user = new User(res.locals.user.uuid);
+  const { token, newPassword } = req.body
+  if (typeof newPassword !== 'string' || newPassword.length < 8) return res.status(400).json({ ok: false, message: 'La contraseña debe tener al menos 8 caracteres' })
 
-  if (!newPassword) {
-    return res.status(400).json({ ok: false, message: "Nueva contraseña es requerida" });
+  const uuid = await User.findByResetToken(token)
+  if (!uuid) return res.status(400).json({ ok: false, message: INVALID_LINK })
+
+  const user = new User(uuid)
+  if (await user.isActive() !== true) {
+    await user.consumeResetToken(token)
+    return res.status(400).json({ ok: false, message: INVALID_LINK })
   }
 
-  const result = await user.update({ password: newPassword });
+  const result = await user.update({ password: newPassword })
+  if (result.error || result.affectedRows === 0) return res.status(500).json({ ok: false, message: 'Error al actualizar la contraseña' })
 
-  user.closeSession(token);
+  await user.consumeResetToken(token)
+  await sessions.destroyAll(uuid)
+  return res.json({ ok: true, message: 'Contraseña actualizada correctamente' })
+}
 
-  if (result.error) {
-    return res.status(500).json({ ok: false, message: "Error al actualizar la contraseña" });
-  } else {
-    return res.json({ ok: true, message: "Contraseña actualizada correctamente" });
-  }
-};
-
-module.exports = passwordResetCtrl;
+module.exports = passwordResetCtrl

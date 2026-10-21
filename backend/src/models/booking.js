@@ -1,5 +1,11 @@
 const mysqlAdapter = require("../utils/mysqlAdapter");
 
+// Las fechas llegan como YYYY-MM-DD (frontend), Date (mysql2, medianoche UTC) o ISO completas (eco de la API)
+const toDay = v => v instanceof Date ? v.toISOString().slice(0, 10) : typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v) ? v.slice(0, 10) : v
+const toMinutes = time => String(time).split(':').slice(0, 2).reduce((h, m) => h * 60 + Number(m), 0)
+// V8 convierte 2026-02-31 en 3 de marzo en vez de Invalid Date: se comprueba que el día exista
+const isRealDay = day => { const [y, m, d] = day.split('-').map(Number); const dt = new Date(y, m - 1, d); return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d }
+
 class Booking {
   constructor(uuid, user_uuid = "") {
     this.uuid = uuid;
@@ -16,8 +22,8 @@ class Booking {
 
   set(data) {
     this.room_uuid = data.room_uuid;
-    this.start_date = data.start_date;
-    this.end_date = data.end_date;
+    this.start_date = toDay(data.start_date);
+    this.end_date = toDay(data.end_date);
     this.start_time = data.start_time;
     this.end_time = data.end_time;
     this.title = data.title;
@@ -120,7 +126,7 @@ class Booking {
       if (typeof statusIn === "string") {
         try {
           statusIn = JSON.parse(statusIn);
-        } catch (e) {
+        } catch {
           statusIn = statusIn.split(",").map((s) => s.trim());
         }
       }
@@ -190,7 +196,8 @@ class Booking {
     return mysqlAdapter.query(sql, data);
   }
 
-  async validate() {
+  // allowPast: la fecha y la hora no cambian (p. ej. aprobar o rechazar); skipOverlap: la reserva queda rechazada
+  async validate({ allowPast = false, skipOverlap = false } = {}) {
     // Validar campos obligatorios 
       if (!this.room_uuid || !this.start_date || !this.end_date || !this.start_time || !this.end_time || !this.title) {
         return {
@@ -198,10 +205,9 @@ class Booking {
           error: 'La sala, fecha, hora, y título son obligatorios'
         };
       }
-    // Validar formato de fecha (YYYY-MM-DD) o (YYYY-MM-DDTHH:MM:SSZ) para manejo de base de datos
-    const dateRegex = /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)?$/
-    const toIsoString = v => v instanceof Date ? v.toISOString() : String(v).trim()
-    if (!dateRegex.test(toIsoString(this.start_date)) || !dateRegex.test(toIsoString(this.end_date))) {
+    // set() ya normaliza a YYYY-MM-DD; aquí solo se acepta ese formato
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+    if (!dateRegex.test(this.start_date) || !dateRegex.test(this.end_date) || !isRealDay(this.start_date) || !isRealDay(this.end_date)) {
       return {
         valid: false,
         error: 'El formato de fecha debe ser YYYY-MM-DD'
@@ -229,19 +235,24 @@ class Booking {
     now.setSeconds(0);
     now.setMilliseconds(0);
 
+    // Invalid Date haría pasar todas las comparaciones siguientes
+    if (isNaN(startDateTime) || isNaN(endDateTime)) return { valid: false, error: 'La fecha u hora no es válida' }
+    // Una reserva es una franja diaria (así la interpreta validRange): fin posterior al inicio dentro del día
+    if (toMinutes(this.start_time) >= toMinutes(this.end_time)) return { valid: false, error: 'La hora de fin debe ser posterior a la de inicio' }
+
     if (startDateTime > endDateTime) {
       return {
         valid: false,
         error: 'La fecha de inicio no puede ser posterior a la fecha de fin'
       };
     }
-    if (startDateTime < now) {
+    if (!allowPast && startDateTime < now) {
       return {
         valid: false,
         error: 'La fecha de inicio no puede ser anterior a la fecha actual'
       };
     }
-    const validRange = await this.validRange();
+    const validRange = skipOverlap || await this.validRange();
     if (!validRange) {
       return {
         valid: false,

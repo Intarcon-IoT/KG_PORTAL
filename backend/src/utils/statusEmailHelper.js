@@ -7,8 +7,9 @@ const Room = require("../models/room");
 
 const sendBookingStatusEmail = async ({ user, booking, roomName, status }) => {
   const template = bookingStatusTemplate({
-    nombre: user.name,
+    name: user.name,
     status,
+    url: process.env.APP_URL ? `${process.env.APP_URL}/calendar` : undefined,
     booking: {
       ...booking,
       room_name: roomName,

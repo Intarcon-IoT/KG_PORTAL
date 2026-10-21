@@ -9,15 +9,10 @@
         v-for="day in weekDays" 
         :key="day.date.toISOString()" 
         class="day-header"
-        :class="{ 'today-header': isToday(day.date)}"
+        :class="{ 'today-header': isToday(day.date), 'past-header': isPastDay(day.date) }"
       >
-        <span class="weekday-name">{{ day.shortName }}</span>
-          <span 
-            class="day-number"
-            :class="{ 'today-number': isToday(day.date) }"
-          >
-            {{ day.dayNumber }}
-          </span>
+        <span class="weekday-name">{{ day.shortName.replace('.', '') }}</span>
+        <span class="day-number">{{ day.dayNumber }}</span>
       </div>
     </div>
 
@@ -68,20 +63,28 @@
               v-for="day in weekDays"
               :key="day.date.toISOString()"
               class="day-cell"
-              :class="{ 'past-day': isPastDay(day.date) }"
+              :class="{ 'past-day': isPastDay(day.date), 'today-cell': isToday(day.date) }"
               :style="{ minHeight: `${getEventsForResourceAndDay(room.uuid, day.date).length * 30 + 40}px` }"
+              :role="isPastDay(day.date) ? undefined : 'button'"
+              :tabindex="isPastDay(day.date) ? undefined : 0"
+              :aria-label="isPastDay(day.date) ? undefined : `Nueva reserva en ${room.name}, ${dayLabel(day.date)}`"
               @click="() => !isPastDay(day.date) && emit('empty_cell_click', room, day.date)"
+              @keydown.enter.space.self.prevent="() => !isPastDay(day.date) && emit('empty_cell_click', room, day.date)"
             >
               <div
                 v-for="event in getEventsForResourceAndDay(room.uuid, day.date)"
                 :key="event.uuid"
                 :style="{ backgroundColor: `${facility.color}` }"
                 class="event-chip"
-                :class="{ 
-                  'past-event': isPastDay(day.date), 
-                  'pending-event': event.status === BOOKING_STATUS.PENDING && !isPastDay(day.date) 
+                :class="{
+                  'past-event': isPastDay(day.date),
+                  'pending-event': event.status === BOOKING_STATUS.PENDING && !isPastDay(day.date)
                 }"
-                @click.stop="() => emit('booking_click', event, resource, isPastDay(day.date))"
+                role="button"
+                tabindex="0"
+                :aria-label="`${event.title}, ${dayLabel(day.date)} de ${formatTime(event.start_time)} a ${formatTime(event.end_time)}${event.status === BOOKING_STATUS.PENDING && !isPastDay(day.date) ? ', pendiente de validación' : ''}`"
+                @click.stop="() => emit('booking_click', event, isPastDay(day.date))"
+                @keydown.enter.space.stop.prevent="() => emit('booking_click', event, isPastDay(day.date))"
               >
                 <v-tooltip
                   activator="parent"
@@ -114,6 +117,7 @@
 <script setup>
 import { computed } from 'vue';
 import { BOOKING_STATUS } from '@/utils/constants';
+import { toDateKey, useToday } from '@/utils/dates'
 
 const props = defineProps({
   selectedDate: Date,
@@ -146,22 +150,12 @@ const weekDays = computed(() => {
   return days;
 });
 
-const today = new Date();
-today.setHours(0, 0, 0, 0);
+// Reactivo: a medianoche cambian el día resaltado y los días pasados
+const today = useToday()
 
-function isToday(date) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime() === today.getTime();
-}
+const isToday = date => toDateKey(date) === today.value
 
-function isPastDay(date) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const checkDate = new Date(date);
-  checkDate.setHours(0, 0, 0, 0);
-  return checkDate < today;
-}
+const isPastDay = date => toDateKey(date) < today.value
 
 // Filtrar eventos para una sala y día específicos
 function getEventsForResourceAndDay(resourceId, date) {
@@ -180,6 +174,8 @@ function getEventsForResourceAndDay(resourceId, date) {
     }).sort((a, b) => a.start_time.localeCompare(b.start_time));
 }
 
+const dayLabel = date => date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
+
 function formatTime(time) {
   if (!time) return '';
   if (typeof time === 'string') {
@@ -192,57 +188,30 @@ function formatTime(time) {
 </script>
 
 <style scoped>
+/* Cabecera y filas comparten el scroll: así la barra no desalinea las columnas */
 .week-view {
   display: flex;
   flex-direction: column;
+  height: 100%;
   border-top: 1px solid #eee;
   overflow: auto;
 }
 
-.header-row {
-  display: flex;
-  border-bottom: 1px solid #ccc;
-  background-color: #f8f8f8;
-  flex-shrink: 0;
-}
+/* Cabecera de días con el estilo del rediseño */
+.header-row { position: sticky; top: 0; z-index: 3; display: flex; flex-shrink: 0; background: #ffffff; border-bottom: 1px solid #e5e7eb }
 
-.today-number {
-  border: 2px solid #007bff;
-  border-radius: 50px;
-  padding: 4px 8px;
-  color: #ffffff;
-  background-color: #007bff;
-  font-weight: bold;
-  display: inline-block;
-  min-width: 28px;
-  text-align: center;
-  line-height: 1;
-  user-select: none;
-}
+/* Ancho mínimo común: en pantallas estrechas cabecera y filas hacen scroll horizontal juntas */
+.header-row, .resource-grid { min-width: calc(200px + 7 * 88px) }
 
-.resource-header {
-  width: 200px;
-  padding: 10px;
-  border-right: 1px solid #ccc;
-  font-weight: bold;
-  flex-shrink: 0;
-}
+.resource-header { display: flex; align-items: flex-end; flex-shrink: 0; width: 200px; padding: 14px 18px; border-right: 1px solid #ccc; font-size: .72rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: #94a3b8 }
 
-.day-header {
-  flex: 1;
-  text-align: center;
-  padding: 5px;
-  border-left: 1px solid #eee;
-}
-.day-header .weekday-name {
-  display: block;
-  font-size: 0.8em;
-  color: #666;
-}
-.day-header .day-number {
-  font-size: 1.1em;
-  font-weight: bold;
-}
+.day-header { display: flex; flex: 1; min-width: 88px; flex-direction: column; align-items: center; gap: 4px; padding: 12px 6px 10px; border-left: 1px solid #eef0f3 }
+.day-header .weekday-name { font-size: .72rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #64748b }
+.day-header .day-number { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; font-size: 1.05rem; font-weight: 600; color: #111111; user-select: none }
+.past-header .weekday-name, .past-header .day-number { color: #b4bcc8 }
+.today-header .weekday-name { color: #468131 }
+.today-header { background: #f3f9ef }
+.today-header .day-number { background: #111111; color: #ffffff }
 
 .resource-column {
   width: 200px;
@@ -378,7 +347,6 @@ function formatTime(time) {
 .resource-grid {
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
   flex-grow: 1;
 }
 
@@ -390,6 +358,7 @@ function formatTime(time) {
 }
 
 .resource-cell {
+  flex-shrink: 0;
   width: 200px;
   padding: 10px;
   border-right: 1px solid #ccc;
@@ -400,13 +369,16 @@ function formatTime(time) {
   justify-content: center;
 }
 
+/* min-width 0: los títulos largos no ensanchan los días ni encogen la columna de salas */
 .resource-row {
   display: flex;
   flex-grow: 1;
+  min-width: 0;
 }
 
 .day-cell {
   flex: 1;
+  min-width: 88px;
   padding: 5px;
   padding-bottom: 24px;
   border-left: 1px solid #eee;
@@ -440,6 +412,11 @@ function formatTime(time) {
   z-index: 2;
 }
 
+/* Foco visible al navegar con teclado */
+.day-cell:focus-visible, .event-chip:focus-visible { outline: 2px solid #111111; outline-offset: -2px }
+.event-chip:focus-visible { outline-color: #ffffff; box-shadow: 0 0 0 2px #111111 }
+.day-cell:focus-visible .add-icon { opacity: 1 }
+
 .day-cell:hover .add-icon {
   opacity: 1;
 }
@@ -448,6 +425,9 @@ function formatTime(time) {
   opacity: 0.7;
   cursor: default;
 }
+
+/* Columna del día de hoy */
+.today-cell { background-color: #f3f9ef }
 
 .past-day {
   background-image: repeating-linear-gradient(

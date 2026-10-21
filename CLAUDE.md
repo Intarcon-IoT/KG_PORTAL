@@ -37,7 +37,7 @@ Código nuevo **sin `;`**, comillas simples (dobles solo en plantillas o si hace
 ## Documentación
 
 **Todo documento `.md` va en `/docs`.** Las únicas excepciones son `README.md` y este `CLAUDE.md`.
-Hoy hay uno: `docs/MIGRACION-BD-KG_PORTAL.md` (paso de la base antigua a `kg_portal`, pendiente en el servidor). Los documentos de trabajo se quedan hasta que su contenido esté hecho.
+Hoy hay dos: `docs/MIGRACION-BD-KG_PORTAL.md` (paso de la base antigua a `kg_portal`, pendiente en el servidor) y `docs/AUDITORIA-2026-10.md` (hallazgos de seguridad, datos y calidad con su plan de acción). Los documentos de trabajo se quedan hasta que su contenido esté hecho.
 
 ## Comandos
 
@@ -49,6 +49,7 @@ pnpm run lint          # ESLint backend + frontend (corre los dos; sale 1 si alg
 pnpm run install:all   # install en backend y frontend
 pnpm run deploy        # deploy del backend y luego del frontend (aborta si falla el backend)
 pnpm run clean         # borra node_modules, builds, cachés y logs (no los lockfiles) y hace el deploy
+pnpm run bump-version  # sube VERSION (AAAA.MM.N); --dry solo muestra la siguiente
 ```
 
 ### Backend (`/backend`)
@@ -71,6 +72,10 @@ pnpm run deploy        # install --frozen-lockfile + build
 ```
 
 `deploy` no reinicia procesos: en producción va seguido de `pm2 reload ecosystem.config.js --update-env`.
+
+### Versiones
+
+La versión del portal vive **solo** en el fichero `VERSION` de la raíz, con formato `AAAA.MM.N` (N es la entrega dentro del mes). El backend la lee al arrancar y la sirve en `GET /api/system/version`; el frontend la incrusta al compilar (`import.meta.env.VITE_APP_VERSION`) y la muestra en el menú de usuario. Cada entrega se sube con `pnpm run bump-version` antes del deploy; los `package.json` no llevan versión.
 
 ## Configuración del entorno
 
@@ -95,11 +100,15 @@ Ninguno de estos ficheros se versiona; cada uno tiene su `.sample`:
 
 ### Autenticación y roles
 
-- `POST /api/users/sign-in` crea un token aleatorio y guarda el usuario en Redis (`<SECRET_KEY_CACHE>:<token>`, 30 días). El cliente lo envía como `Authorization: Basic <token>`; `POST /users/load-session` restaura la sesión al recargar.
+- `POST /api/users/sign-in` crea un token aleatorio y guarda el usuario en Redis bajo su hash; la sesión caduca el domingo de esa semana a las 23:59:59 (hora de Madrid). El cliente lo envía como `Authorization: Basic <token>`; `POST /users/load-session` restaura la sesión al recargar.
 - `AuthMiddleware` (`middlewares/authMiddleware.js`) busca el token en Redis y deja el usuario en `res.locals.user`; si no está, acepta los `api_token` de `configThirdParty.json` (usuario = su `uuid`, sin rol).
 - **La identidad sale siempre de `res.locals.user`**, nunca del body.
 - Roles (`src/utils/constants.js`, duplicado en `frontend/src/utils/constants.js`: mantenerlos iguales): `Admin`, `Gestor`, `User`. Middlewares: `AdminMiddleware`, `GestorMiddleware`, `UserEditMiddleware` (Admin o el propio usuario). Cada usuario pertenece a un tenant (`tenants`).
-- **Recuperación de contraseña**: `request-password-reset` guarda en Redis un token de 10 minutos y envía el enlace `APP_URL/reset-password?token=...`; `reset-password` lo usa como sesión (pasa por `AuthMiddleware`) y lo borra al cambiar la contraseña.
+- **Los usuarios no se borran nunca** (sus reservas dependen de ellos): se deshabilitan con `active = 0` vía `PUT /users/:uuid/status`. Un usuario deshabilitado no inicia sesión ni recupera la contraseña, y `AuthMiddleware` y `load-session` invalidan sus sesiones abiertas.
+- **Tokens**: `crypto.randomBytes` (`utils/userToken.js`); nunca `Math.random` para nada sensible. `User.read()` no devuelve el hash: solo `readWithPassword()`, para `login` y `checkPassword`.
+- **Sesiones** (`utils/sessions.js`): en Redis se guarda el SHA-256 del token (`<SECRET>:<hash>`), nunca el token; `sessions.<uuid>` indexa las de cada usuario. Rol, empresa y estado se leen de la BD en cada petición (`User.refreshSession`): la sesión solo identifica al usuario. Cambiar contraseña, rol o empresa, o deshabilitar al usuario, cierra todas con `sessions.destroyAll`.
+- **Recuperación de contraseña**: `request-password-reset` crea un token de 10 minutos en un espacio de claves propio (`<SECRET>.reset.<hash>`, solo con el uuid; uno vivo por usuario) y envía `APP_URL/reset-password#token=...` (en el fragmento: no llega al servidor). **No es una sesión**: `AuthMiddleware` no lo acepta. `POST /password-reset/check` lo valida y `PUT /password-reset/reset-password` (token en el body) cambia la contraseña, lo consume y cierra las sesiones abiertas.
+- **Fechas en el frontend**: siempre con `utils/dates.js` (`toDateKey`, `todayKey`, `parseDateKey`), en hora local; en componentes, `useToday()` para que «hoy» cambie a medianoche. Nunca `toISOString()` para obtener una fecha.
 
 ### Reservas
 
@@ -122,7 +131,10 @@ Ninguno de estos ficheros se versiona; cada uno tiene su `.sample`:
 - **Todas las llamadas HTTP pasan por `src/model/request.js`** (`new Request({ endpoint, method, body }).http()`, fetch + `VITE_API_URL`). Añade el token y gestiona errores: un 401 limpia la sesión y redirige al login.
 - La sesión (`model/auth.js`) se guarda en `localStorage` (`session`) y vive en el store `sessionStore`.
 - Stores de Pinia en `src/store/`, exportados desde `store/index.js`. `useSyncStore` refresca las reservas cada minuto y al volver a la pestaña.
-- Componentes nuevos en `<script setup>` (los base `app-*` y `form-components/` siguen en Options API). Los formularios usan `formField` (etiqueta + campo) y `textField` de `components/form-components/`; logo, notificaciones, versión y loaders son `app-logo`, `app-notification`, `app-version` y `app-loader`.
+- Componentes nuevos en `<script setup>` (los base `app-*` y `form-components/` siguen en Options API). Los formularios usan `formField` (etiqueta + campo) y `textField` de `components/form-components/`; notificaciones y versión son `app-notification` y `app-version`. La estructura con sesión es `layout.vue` (barra superior, menú desde `meta.section` de las rutas), las pantallas de acceso usan `auth-layout.vue` y las tablas paginan con `table-pagination.vue` en el slot `#bottom`.
+- **Diálogos y formularios**: todo diálogo usa `app-dialog.vue` (`v-model`, `title`, `eyebrow`, `subtitle`, `back`, `closable`, `icon` + `tone` para confirmaciones; slots `#tools` y `#actions`). Su cuerpo lleva `.kg-form`; fuera de un diálogo se pone la clase en el contenedor. Estilos comunes en `src/style/forms.css`: `.kg-row` (dos columnas), `.kg-btn`/`.kg-btn-ghost`/`.kg-btn-danger-ghost`, `.kg-icon-btn`, `.kg-note` y `.kg-summary`. Etiquetas siempre con `formField column`, nunca con el prop `label` de Vuetify. Las fechas, con `dateField` (valor `YYYY-MM-DD`), nunca con `type="date"`.
+- **Slots de item en Vuetify 4**: `item` es el objeto original (no hay `item.raw`); el `ListItem` interno es `internalItem`.
+- **Autorrelleno del navegador solo en el login**: `textField` lo desactiva por defecto (`autocomplete="off"` y solo lectura hasta el foco, porque Chrome ignora `off` en contraseñas); únicamente `login-view.vue` pasa `username` y `current-password`. Los campos de Vuetify usados directamente llevan `autocomplete="off"`.
 - **Sin prefijo `ki`** en código, ficheros ni textos: el producto es «KG Portal» y la base de datos `kg_portal`.
 - **Vuetify 4 — nada deprecated**: comprueba la API de la versión instalada (`frontend/node_modules/vuetify/package.json`) antes de usar un prop o componente.
 
@@ -132,9 +144,9 @@ Ninguno de estos ficheros se versiona; cada uno tiene su `.sample`:
 - **`read(filter)` de `Booking` y `Room`**: con `{}` filtra por el uuid de la instancia; con cualquier clave, aunque su valor sea `undefined`, deja de filtrar por uuid y puede devolver la tabla entera.
 - **`Booking.list()` excluye `Rejected`** salvo que se pida `status_in`.
 - **Express 5**: `router.use(AuthMiddleware)` aplica a todo lo que se declara después en ese router. En `users.js` el middleware va por ruta porque `sign-in` y `load-session` son públicas.
-- **`LegacyRoom.read` interpola el uuid en el SQL**: si se toca, pasarlo a `?`.
+- **Pantallas de sala sin `api_token`**: `ApiRoomMiddleware` responde 403 si la sala no tiene token. Una sala nueva necesita que se le asigne uno antes de configurar su pantalla.
 - **Fechas**: el pool MySQL usa `timezone: '+00:00'`; `getCurrentInfoRoom` mezcla la fecha UTC con la hora local del servidor.
-- **`cacheAdapter`** abre y cierra un cliente Redis por operación; sin Redis, `getRedis` devuelve `{ error }` y `AuthMiddleware` responde 401 a todos.
+- **`cacheAdapter`** abre y cierra un cliente Redis por operación (`run`: falla en 3 s, sin reconexión). Sin Redis, `sessions.get` devuelve `{ error }` y `AuthMiddleware` y `load-session` responden **503**, no 401: el frontend solo descarta la sesión ante 401/403 y, ante fallos de red o 5xx, reintenta al arrancar y la conserva.
 
 ## Migraciones de base de datos
 
@@ -158,6 +170,6 @@ CREATE TABLE nombre (
 ) ENGINE=InnoDB
 ```
 
-- `id` interno, nunca expuesto; `uuid` es el identificador externo (`uuid.v4()` al insertar).
+- `id` interno, nunca expuesto; `uuid` es el identificador externo (`crypto.randomUUID()` al insertar).
 - El campo de modificación es **`updated_ts`** (no `update_ts` como en Client360/IntarLAB): no mezclar.
 - Claves ajenas hacia `uuid`, con `ON DELETE CASCADE` cuando el hijo no tiene sentido sin el padre.

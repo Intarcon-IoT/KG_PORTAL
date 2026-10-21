@@ -9,76 +9,43 @@ const USER = process.env.REDIS_USER || undefined
 const PASS = process.env.REDIS_PASS || undefined
 
 // Credenciales fuera de la URL: una contraseña con símbolos no rompe el parseo
-var config = { url: `redis://${HOST}:${PORT}`, username: USER, password: PASS }
+// Sin reconexión: cada operación abre su cliente y, si Redis no responde, falla en 3 s en vez de quedarse esperando
+const config = { url: `redis://${HOST}:${PORT}`, username: USER, password: PASS, socket: { connectTimeout: 3000, reconnectStrategy: false } }
 
-/**
- * Método para obtener entradas de Redis
- * @param {*} key Método para obtener entradas de Redis
- * @param {*} token Si se trata de una entrada de token de sesión o no
- * @returns Boolean éxito
- */
-cacheAdapter.getRedis = async (key, token = false) => {
+// Abre un cliente, ejecuta la operación y lo cierra siempre; ante error devuelve { error }
+const run = async fn => {
+  const client = redis.createClient(config).on('error', () => {})
   try {
-    const separator = token ? ":" : ".";
-    const client = redis.createClient(config);
-    await client.connect();
-    const result = await client.get(SECRET + separator + key);
-    await client.close();
-
-    return result;
+    await client.connect()
+    return await fn(client)
   } catch (error) {
-    logger.error("REDIS - " + JSON.stringify(error, null, 2));
-    return { error: true, errorInfo: error };
+    logger.error('REDIS - ' + (error?.message || error))
+    return { error: true, errorInfo: error }
+  } finally {
+    if (client.isOpen) await client.close().catch(() => {})
   }
 }
 
-/**
- * Método para crear o actualizar entradas de Redis
- * @param {*} key Clave de la entrada (sin SECRET)
- * @param {*} value Valor que va a tomar la entrada
- * @param {*} token Si se trata de una entrada de token de sesión o no
- * @param {*} expirationTime Tiempo de expiración
- * @returns Boolean éxito
- */
-cacheAdapter.setRedis = async (key, value, token = false, expirationTime = 2592000) => {
-  let params = {};
-  if (expirationTime) {
-    params.EX = expirationTime;
-  }
+// token = true usa el separador ":" de las sesiones; el resto, "."
+const keyOf = (key, token) => SECRET + (token ? ':' : '.') + key
 
-  try {
-    const separator = token ? ":" : ".";
-    const client = redis.createClient(config);
-    await client.connect();
-    const result = await client.set(SECRET + separator + key, JSON.stringify(value), params);
-    await client.close();
+// Devuelve el valor (texto) o null si no existe
+cacheAdapter.getRedis = (key, token = false) => run(client => client.get(keyOf(key, token)))
 
-    return result;
-  } catch (error) {
-    logger.error("REDIS - " + JSON.stringify(error, null, 2));
-    return { error: true, errorInfo: error };
-  }
-}
+cacheAdapter.setRedis = (key, value, token = false, expirationTime = 2592000) =>
+  run(client => client.set(keyOf(key, token), JSON.stringify(value), expirationTime ? { EX: expirationTime } : {}))
 
-/**
- * Método para borrar entradas de Redis
- * @param {*} key Clave de la entrada (sin SECRET)
- * @param {*} token Si se trata de una entrada de token de sesión o no
- * @returns Boolean éxito
- */
-cacheAdapter.delRedis = async (key, token = false) => {
-  try {
-    const separator = token ? ":" : ".";
-    const client = redis.createClient(config);
-    await client.connect();
-    await client.del(SECRET + separator + key);
-    await client.close();
+cacheAdapter.delRedis = (key, token = false) => run(async client => { await client.del(keyOf(key, token)); return true })
 
-    return true;
-  } catch (error) {
-    logger.error("REDIS - " + JSON.stringify(error, null, 2));
-    return { error: true, errorInfo: error };
-  }
-}
+// Conjuntos (claves con separador "."): índice de sesiones por usuario
+cacheAdapter.addToSet = (key, member, expirationTime) => run(async client => {
+  await client.sAdd(SECRET + '.' + key, member)
+  if (expirationTime) await client.expire(SECRET + '.' + key, expirationTime)
+  return true
+})
+
+cacheAdapter.getSet = key => run(client => client.sMembers(SECRET + '.' + key))
+
+cacheAdapter.removeFromSet = (key, member) => run(client => client.sRem(SECRET + '.' + key, member))
 
 module.exports = cacheAdapter;

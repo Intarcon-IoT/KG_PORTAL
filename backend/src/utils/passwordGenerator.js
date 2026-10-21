@@ -1,29 +1,20 @@
-function generateRandomPassword(length = 8) {
-  // Definir los caracteres que se usarán en la contraseña
-  const uppercaseChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const lowercaseChars = 'abcdefghijklmnopqrstuvwxyz';
-  const numberChars = '0123456789';
-  const specialChars = '!@#$%^&*()-_=+[]{}|;:,.?';
-  
-  // Combinar todos los caracteres
-  const allChars = uppercaseChars + lowercaseChars + numberChars + specialChars;
-  
-  let password = '';
-  
-  // Asegurar que la contraseña tiene al menos un carácter de cada tipo
-  password += uppercaseChars.charAt(Math.floor(Math.random() * uppercaseChars.length));
-  password += lowercaseChars.charAt(Math.floor(Math.random() * lowercaseChars.length));
-  password += numberChars.charAt(Math.floor(Math.random() * numberChars.length));
-  password += specialChars.charAt(Math.floor(Math.random() * specialChars.length));
-  
-  // Completar la contraseña hasta la longitud deseada
-  for (let i = password.length; i < length; i++) {
-    const randomIndex = Math.floor(Math.random() * allChars.length);
-    password += allChars.charAt(randomIndex);
+const { randomInt } = require('crypto')
+
+// Contraseña inicial con generador criptográfico y al menos un carácter de cada tipo
+const SETS = ['ABCDEFGHJKLMNPQRSTUVWXYZ', 'abcdefghijkmnopqrstuvwxyz', '23456789', '!@#$%^&*()-_=+[]{}|;:,.?']
+const ALL = SETS.join('')
+
+const pick = chars => chars[randomInt(chars.length)]
+
+function generateRandomPassword(length = 12) {
+  const chars = SETS.map(pick)
+  while (chars.length < length) chars.push(pick(ALL))
+  // Fisher-Yates: barajado uniforme
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]]
   }
-  
-  // Mezclar los caracteres para que no estén en un orden predecible
-  return password.split('').sort(() => 0.5 - Math.random()).join('');
+  return chars.join('')
 }
 
-module.exports = generateRandomPassword;
+module.exports = generateRandomPassword

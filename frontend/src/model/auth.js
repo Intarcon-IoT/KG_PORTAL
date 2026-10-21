@@ -72,6 +72,11 @@ class Auth {
     this.user = JSON.parse(result.user)
   }
 
+  // Valida el enlace de recuperación sin tocar la sesión abierta
+  checkResetToken(token) {
+    return new Request({ endpoint: 'password-reset/check', method: 'POST', body: JSON.stringify({ token }) }).http()
+  }
+
   async checkAuth({ token, role }) {
     let response;
 

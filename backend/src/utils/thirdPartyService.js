@@ -1,4 +1,3 @@
-const axios = require('axios');
 const thirdPartyConfig = require('../../configThirdParty.json');
 
 const thirdPartyService = {
@@ -21,8 +20,10 @@ const thirdPartyService = {
       const headers = thirdPartyService.getHeaders(key);
       const { user_uuid, ...cleanPayload } = payload;
 
+      // fetch no lanza con 4xx/5xx; el límite evita que una app colgada bloquee la reserva
       try {
-        await axios.post(config.app_url, cleanPayload, { headers });
+        const res = await fetch(config.app_url, { method: 'POST', headers, body: JSON.stringify(cleanPayload), signal: AbortSignal.timeout(10000) })
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
       } catch (error) {
         console.error(`ThirdPartySync Error [${key}]:`, error.message);
       }

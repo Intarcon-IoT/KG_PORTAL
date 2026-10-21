@@ -1,0 +1,74 @@
+/* Estilo común de formularios: se aplica con la clase .kg-form (app-dialog y pantallas de formulario la llevan) */
+.kg-form { display: flex; flex-direction: column; gap: 4px; color: #111111 }
+
+/* formField: etiqueta encima del campo */
+.kg-form .column-main { row-gap: 6px }
+.kg-form .column-main > div:first-child { max-width: none; font-size: .85rem; font-weight: 600; color: #334155 }
+
+/* Campos de Vuetify: borde fino, esquinas de 10px y foco en negro */
+.kg-form .v-field { border-radius: 10px; font-family: inherit; font-size: .925rem }
+.kg-form .v-field__outline { --v-field-border-opacity: 1; color: #d1d5db }
+.kg-form .v-field:hover .v-field__outline { color: #9ca3af }
+.kg-form .v-field--focused .v-field__outline { color: #111111 }
+.kg-form .v-field--error .v-field__outline { color: rgb(var(--v-theme-error)) }
+.kg-form .v-field--disabled .v-field__outline { color: #e5e7eb }
+.kg-form .text-input .v-field__input { min-height: 44px !important; color: #111111 }
+.kg-form .v-field__append-inner, .kg-form .v-field__prepend-inner { font-size: 13px; color: #64748b }
+.kg-form .v-field__append-inner { cursor: pointer }
+.kg-form .v-input__details { padding-inline: 2px }
+
+/* Dos campos en paralelo; en móvil, uno debajo de otro */
+.kg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px }
+@media (width < 600px) { .kg-row { grid-template-columns: 1fr; gap: 4px } }
+
+/* Botones de acción */
+.kg-btn { height: 40px !important; border-radius: 10px !important; font-size: .875rem; font-weight: 600; letter-spacing: 0 }
+.kg-btn-ghost { border-color: #d1d5db !important; color: #334155 !important }
+.kg-btn-danger-ghost { border-color: #e5e7eb !important; color: #b91c1c !important }
+
+/* Confirmaciones: texto explicativo y resumen clave-valor de lo que se confirma */
+.kg-note { margin: 0; font-size: .9rem; line-height: 1.6; color: #475569 }
+.kg-note-danger { color: #b91c1c; font-size: .825rem; font-weight: 500 }
+.kg-summary { margin: 14px 0; padding: 12px 14px; border: 1px solid #eceef2; border-radius: 12px; background: #f8f9fa; font-size: .875rem }
+.kg-summary dl { display: flex; flex-direction: column; gap: 6px; margin: 0 }
+.kg-summary dl > div { display: flex; gap: 12px }
+.kg-summary dt { width: 64px; flex-shrink: 0; color: #64748b }
+.kg-summary dd { flex: 1; min-width: 0; margin: 0; font-weight: 500; color: #111111; overflow-wrap: anywhere }
+.kg-summary-title { display: block; margin-bottom: 8px; font-weight: 600; color: #111111; overflow-wrap: anywhere }
+
+/* Botón de icono (cabeceras de diálogo y tablas) */
+.kg-icon-btn { display: grid; place-items: center; flex-shrink: 0; width: 34px; height: 34px; border: 0; border-radius: 9px; background: transparent; color: #64748b; font-size: .95rem; cursor: pointer; transition: background-color .15s, color .15s }
+.kg-icon-btn:hover { background: #f1f2f4; color: #111111 }
+.kg-icon-btn:focus-visible { outline: 2px solid #111111; outline-offset: 2px }
+.kg-icon-btn.danger:hover { background: #fef2f2; color: #b91c1c }
+
+/* Calendarios de Vuetify: días en cuadrado redondeado y cabecera sobria */
+.v-date-picker { font-family: inherit }
+.v-date-picker-controls .v-btn { letter-spacing: 0; text-transform: none; font-weight: 600 }
+.v-date-picker-controls .v-icon { font-size: .8rem; color: #64748b }
+.v-date-picker-month__weekday { font-size: .7rem; font-weight: 600; color: #94a3b8 }
+.v-date-picker-month__day .v-btn { border-radius: 10px; font-size: .85rem; font-weight: 500 }
+.v-date-picker-month__day--selected .v-btn { font-weight: 700 }
+
+/* Menús de selects y autocompletados: tarjeta con borde, filas compactas y elegido en gris */
+.v-select__content, .v-autocomplete__content { overflow: hidden; border: 1px solid #eceef2; border-radius: 12px !important; box-shadow: 0 16px 40px -12px rgba(15, 23, 42, .3) !important }
+.v-select__content > .v-sheet, .v-autocomplete__content > .v-sheet { background: #ffffff }
+.v-select__content .v-list, .v-autocomplete__content .v-list { padding: 6px; scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent }
+.v-select__content .v-list-item, .v-autocomplete__content .v-list-item { min-height: 38px !important; margin-bottom: 2px; padding-inline: 10px !important; border-radius: 8px; color: #334155 }
+.v-select__content .v-list-item-title, .v-autocomplete__content .v-list-item-title { font-size: .9rem; font-weight: 500 }
+.v-select__content .v-list-item--active, .v-autocomplete__content .v-list-item--active { background: #f1f2f4; color: #111111 }
+.v-select__content .v-list-item--active .v-list-item-title, .v-autocomplete__content .v-list-item--active .v-list-item-title { font-weight: 600 }
+.v-select__content .v-list-item--active > .v-list-item__overlay, .v-autocomplete__content .v-list-item--active > .v-list-item__overlay { opacity: 0 }
+.v-select__menu-icon, .v-autocomplete__menu-icon { font-size: .75rem !important; color: #64748b }
+.v-select__content .v-list-item:focus-visible, .v-autocomplete__content .v-list-item:focus-visible { outline: 0 }
+.v-select__content .v-list-item:focus-visible > .v-list-item__overlay, .v-autocomplete__content .v-list-item:focus-visible > .v-list-item__overlay { opacity: .06 }
+
+/* Casilla del portal: input nativo oculto y cuadro propio */
+.kg-check { position: relative; display: inline-flex; align-items: center; gap: 10px; color: #334155; font-size: .875rem; cursor: pointer; user-select: none }
+.kg-check input { position: absolute; opacity: 0; pointer-events: none }
+.kg-check-box { display: grid; place-items: center; flex-shrink: 0; width: 18px; height: 18px; border: 1.5px solid #cbd5e1; border-radius: 5px; background: #ffffff; color: #ffffff; font-size: .6rem; transition: background-color .12s, border-color .12s }
+.kg-check-box i { opacity: 0 }
+.kg-check:hover .kg-check-box { border-color: #94a3b8 }
+.kg-check input:checked + .kg-check-box { border-color: #111111; background: #111111 }
+.kg-check input:checked + .kg-check-box i { opacity: 1 }
+.kg-check input:focus-visible + .kg-check-box { outline: 2px solid #111111; outline-offset: 2px }

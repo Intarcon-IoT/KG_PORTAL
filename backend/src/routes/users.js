@@ -3,8 +3,8 @@ const router = Router();
 
 const {
   signIn, logOut, loadSession,
-  getUsers, getUser, getDeletionImpact,
-  createUser, deleteUser, updateUser
+  getUsers, getUser, setUserStatus,
+  createUser, updateUser
 } = require("../controllers/user_ctrl");
 
 const { AuthMiddleware, AdminMiddleware, UserEditMiddleware } = require('../middlewares/authMiddleware');
@@ -23,11 +23,9 @@ router.route("/")
   .post(AuthMiddleware, AdminMiddleware, createUser);
 
 router.route("/:uuid")
-  .get(AuthMiddleware, getUser)
-  .delete(AuthMiddleware, AdminMiddleware, deleteUser)
+  .get(AuthMiddleware, UserEditMiddleware, getUser)
   .put(AuthMiddleware, UserEditMiddleware, updateUser);
 
-router.route("/:uuid/deletion-impact")
-  .get(AuthMiddleware, AdminMiddleware, getDeletionImpact);
+router.put('/:uuid/status', AuthMiddleware, AdminMiddleware, setUserStatus) //HABILITAR / DESHABILITAR
 
 module.exports = router;

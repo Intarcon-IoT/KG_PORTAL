@@ -214,7 +214,11 @@ pnpm run lint          # ESLint de backend y frontend (corre los dos; sale 1 si 
 pnpm run install:all   # pnpm install en backend y frontend
 pnpm run deploy        # deploy del backend y, si va bien, del frontend
 pnpm run clean         # borra node_modules, builds, cachés y logs (NO los lockfiles) y lanza el deploy
+pnpm run bump-version  # sube la versión de VERSION (AAAA.MM.N); con --dry solo la muestra
 ```
+
+La versión del portal está solo en el fichero `VERSION` de la raíz: el backend la sirve en
+`GET /api/system/version` y el frontend la incrusta al compilar. Súbela con `bump-version` en cada entrega.
 
 `deploy` es también un comando propio de pnpm: lánzalo siempre como `pnpm run deploy`, nunca
 `pnpm deploy`. La lógica está en `scripts/*.js`.

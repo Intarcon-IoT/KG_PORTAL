@@ -1,6 +1,7 @@
-const uuid = require("uuid");
+const { randomUUID } = require('crypto')
 const User = require("../models/user");
 const generateRandomPassword = require("../utils/passwordGenerator");
+const sessions = require("../utils/sessions")
 const { ROLES } = require("../utils/constants");
 
 const ALLOWED_FIELDS = ["name", "mail", "role", "tenant_uuid", "password", "currentPassword"];
@@ -17,9 +18,9 @@ userCtrl.createUser = async (req, res) => {
     return res.send({ message: "El nombre de usuario, mail, tenant y rol son obligatorios" });
   }
 
-  const randomPassword = generateRandomPassword(8);
+  const randomPassword = generateRandomPassword();
   req.body.password = randomPassword;
-  const newUser = new User(uuid.v4());
+  const newUser = new User(randomUUID());
   newUser.set(req.body);
   const result = await newUser.create();
 
@@ -31,27 +32,17 @@ userCtrl.createUser = async (req, res) => {
   }
 };
 
-userCtrl.getDeletionImpact = async (req, res) => {
-  const { uuid } = req.params;
-  const user = new User(uuid);
-  const result = await user.getDeletionImpact();
-  return res.json(result);
-};
+// Habilita o deshabilita un usuario; nunca se borran porque sus reservas dependen de él
+userCtrl.setUserStatus = async (req, res) => {
+  const { active } = req.body
+  if (typeof active !== 'boolean') return res.status(400).json({ ok: false, message: "El campo active debe ser true o false" })
+  if (req.params.uuid === res.locals.user?.uuid) return res.status(400).json({ ok: false, message: "No puedes deshabilitar tu propio usuario" })
 
-userCtrl.deleteUser = async (req, res) => {
-  const targetUser = new User(req.params.uuid);
-  const targetUserResult = await targetUser.read();
-
-  if (res.locals.user?.role !== ROLES.ADMIN) {
-    return res.status(403).json({ ok: false, message: "No tienes permiso para eliminar usuarios" });
-  }
-  const result = await targetUser.delete();
-
-  if (result.affectedRows === 0) {
-    return res.status(404).json({ ok: false, message: "Error al eliminar el usuario" });
-  } else {
-    return res.json({ ok: true, message: "Usuario eliminado correctamente" });
-  }
+  const result = await new User(req.params.uuid).setActive(active)
+  if (result.error) return res.status(500).json({ ok: false, message: "Error al cambiar el estado del usuario" })
+  if (result.affectedRows === 0) return res.status(404).json({ ok: false, message: "Usuario no encontrado" })
+  if (!active) await sessions.destroyAll(req.params.uuid)
+  return res.json({ ok: true, message: active ? "Usuario habilitado" : "Usuario deshabilitado" })
 };
 
 userCtrl.updateUser = async (req, res) => {
@@ -89,13 +80,17 @@ userCtrl.updateUser = async (req, res) => {
 
   const uuid = req.params.uuid;
   const user = new User(uuid);
+  const current = await user.read()
+  const before = Array.isArray(current) ? current[0] : null
   const result = await user.update(req.body);
 
-  if (result.affectedRows === 0) {
+  if (result.error || result.affectedRows === 0) {
     return res.json({ ok: false, message: "Error al actualizar el usuario" });
-  } else {
-    return res.json({ ok: true, message: "Usuario actualizado correctamente" });
   }
+  // Contraseña, rol o empresa nuevos invalidan las sesiones abiertas (guardan los datos antiguos)
+  const changed = key => req.body[key] !== undefined && req.body[key] !== before?.[key]
+  if (req.body.password || changed('role') || changed('tenant_uuid')) await sessions.destroyAll(uuid)
+  return res.json({ ok: true, message: "Usuario actualizado correctamente" });
 };
 
 userCtrl.getUsers = async (req, res) => {
@@ -128,6 +123,7 @@ userCtrl.signIn = async (req, res) => {
 
   const result = await user.login(email, password);
 
+  if (result.login === false && result.message === "Usuario deshabilitado") return res.status(403).json({ ok: false, message: "Tu usuario está deshabilitado. Contacta con un administrador" })
   if (result.login === false) {
     return res.status(401).json({ ok: false, message: "Las credenciales no son válidas" });
   } else {
@@ -141,6 +137,7 @@ userCtrl.loadSession = async (req, res) => {
 
   const result = await user.loadSession(token);
 
+  if (result.unavailable) return res.status(503).json({ ok: false, message: 'Servicio no disponible temporalmente' })
   if (result.ok === false) {
     return res.status(403).json({ ok: false, message: "Error al cargar la sesión" });
   } else {
@@ -149,10 +146,8 @@ userCtrl.loadSession = async (req, res) => {
 };
 
 userCtrl.logOut = async (req, res) => {
-  const user = new User();
-  const { token } = req.body;
-
-  const result = await user.closeSession(token);
+  // El token sale de la cabecera ya autenticada, no del body
+  const result = await new User().closeSession(res.locals.token);
   return res.json(result);
 };
 

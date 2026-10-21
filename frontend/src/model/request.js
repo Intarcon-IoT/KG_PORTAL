@@ -20,7 +20,7 @@ export default class Request {
 
   errorHandler = {
     400: event => {
-      throw new ErrorResponse(event.body.message);
+      throw new ErrorResponse(event.body?.message, event.code);
     },
     401: event => {  
       const session = sessionStore();
@@ -28,10 +28,10 @@ export default class Request {
       localStorage.removeItem('session');
       router.push({ name: 'Log In' });
       
-      throw new ErrorResponse(event.body.message);
+      throw new ErrorResponse(event.body?.message, event.code);
     },
     403: event => {      
-      throw new ErrorResponse(event.body.message);
+      throw new ErrorResponse(event.body?.message, event.code);
     }
   }
 
@@ -58,7 +58,8 @@ export default class Request {
         return res.json();
       } else {
 
-        return new ErrorRequest(res.status, await res.json());
+        // Un proxy caído puede responder HTML: el cuerpo no siempre es JSON
+        return new ErrorRequest(res.status, await res.json().catch(() => ({})));
       }
 
     }).then(response => {
@@ -66,7 +67,7 @@ export default class Request {
         if (this.errorHandler[response.code]) {
           this.errorHandler[response.code](response);
         } else {
-          throw new ErrorResponse(response.body?.message || `Error ${response.code}`);
+          throw new ErrorResponse(response.body?.message || `Error ${response.code}`, response.code);
         }
       }
 

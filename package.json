@@ -1,6 +1,5 @@
 {
   "name": "kg-portal",
-  "version": "1.0.0",
   "private": true,
   "description": "Monorepo KG Portal (backend + frontend) - INTARCON",
   "author": "INTARCON",
@@ -9,6 +8,7 @@
   "scripts": {
     "lint": "node scripts/lint-all.js",
     "deploy": "node scripts/deploy.js",
+    "bump-version": "node scripts/bump-version.js",
     "install:all": "pnpm --dir backend install && pnpm --dir frontend install",
     "clean": "node scripts/clean.js && pnpm run deploy"
   }

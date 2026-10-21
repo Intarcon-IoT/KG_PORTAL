@@ -1,4 +1,4 @@
-const uuid = require("uuid");
+const { randomUUID } = require('crypto')
 const Booking = require("../models/booking");
 const Room = require("../models/room");
 const mysqlAdapter = require("../utils/mysqlAdapter");
@@ -9,7 +9,7 @@ const bookingCtrl = {};
 
 bookingCtrl.createBooking = async (req, res) => {
   try {
-    const newBooking = new Booking(uuid.v4(), res.locals.user.uuid);
+    const newBooking = new Booking(randomUUID(), res.locals.user.uuid);
     newBooking.set(req.body);
 
     const room = new Room(newBooking.room_uuid);
@@ -90,14 +90,13 @@ bookingCtrl.editBooking = async (req, res) => {
   const uuid = req.params.uuid;
   const booking = new Booking(uuid);
   const saved = await booking.read();
-  const room = new Room(saved[0].room_uuid);
-  const roomData = await room.read();
-  
+
   if (!saved || saved.length === 0) {
     return res
       .status(404)
       .json({ ok: false, message: "Reserva no encontrada" });
   }
+  const roomData = await new Room(saved[0].room_uuid).read()
   const isOwner = saved[0].user_uuid === res.locals.user.uuid;
   const isAdmin = res.locals.user.role === ROLES.ADMIN;
   const isGestor = res.locals.user.role === ROLES.GESTOR;
@@ -133,7 +132,11 @@ bookingCtrl.editBooking = async (req, res) => {
   const { status, updated_ts, tenant_uuid, ...cleanBooking } = merged;
   booking.set(merged);
 
-  const validation = await booking.validate();
+  // Aprobar o rechazar sin mover la reserva no exige que siga en el futuro; una rechazada no compite por la sala
+  const original = new Booking(uuid);
+  original.set(saved[0]);
+  const slot = b => [b.start_date, b.end_date, String(b.start_time).slice(0, 5), String(b.end_time).slice(0, 5)].join('|')
+  const validation = await booking.validate({ allowPast: slot(booking) === slot(original), skipOverlap: booking.status === BOOKING_STATUS.REJECTED });
   if (!validation.valid) {
     return res.status(400).json({ message: validation.error });
   }
@@ -226,7 +229,7 @@ bookingCtrl.createBulkBookings = async (req, res) => {
   try {
     await mysqlAdapter.runInTransaction(async () => {
       for (const bookingData of bookings) {
-        const newBooking = new Booking(uuid.v4(), res.locals.user.uuid);
+        const newBooking = new Booking(randomUUID(), res.locals.user.uuid);
         newBooking.set(bookingData);
 
         const room = new Room(newBooking.room_uuid);

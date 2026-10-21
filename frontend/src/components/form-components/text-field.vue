@@ -11,7 +11,7 @@
     :loading="loading"
     :disabled="disabled"
     :rules="rules"
-    :readonly="readonly"
+    :readonly="readonly || locked"
     :prepend-inner-icon="prependInnerIcon"
     :hide-details="hideDetails"
     :append-inner-icon="appendIcon"
@@ -19,6 +19,7 @@
     :autocapitalize="autocapitalize"
     :autocorrect="autocorrect"
     :autofocus="autofocus"
+    @update:focused="unlock"
     :suffix="suffix"
     :variant="variant"
     dense
@@ -102,9 +103,10 @@ export default {
       type: String,
       default: null
     },
+    // Sin autorrelleno salvo que se pida expresamente (solo el login lo hace)
     autocomplete: {
       type: String,
-      default: null
+      default: 'off'
     },
     autocapitalize: {
       type: String,
@@ -126,7 +128,14 @@ export default {
   data() {
     return {
       selected: this.value,
+      // Chrome ignora autocomplete="off" en contraseñas: el campo es de solo lectura hasta que el usuario lo enfoca
+      locked: this.autocomplete === 'off',
     }
+  },
+  methods: {
+    unlock(focused) {
+      if (focused) this.locked = false
+    },
   },
   watch: {
     value(v) {

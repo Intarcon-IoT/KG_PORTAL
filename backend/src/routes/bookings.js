@@ -4,7 +4,6 @@ const router = Router();
 const {
   getBookings, 
   getBooking, 
-  getBookingByUser,
   createBooking, 
   createBulkBookings,
   editBooking, 

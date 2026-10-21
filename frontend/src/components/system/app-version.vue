@@ -1,37 +1,19 @@
+<!-- Versión del portal, incrustada al compilar desde el fichero VERSION de la raíz -->
 <script>
-import { ref, onMounted } from 'vue';
-import Request from "@/model/request";
-import { useNotificationStore } from '@/store';
-import { appLoader } from '../loaders';
-
 export default {
   name: 'appVersion',
-  components: { appLoader},
-  setup() {
-    const version = ref(null);
-    const notificationStore = useNotificationStore();
-
-    onMounted(async () => {
-      const request = new Request({
-        endpoint: 'system/version',
-        method: 'GET'
-      });
-      try {
-        const res = await request.http();
-        version.value = res.version;
-      } catch (err) {
-        notificationStore.notifyError(err.message);
-      }
-    });
-
-    return {
-      version
-    };
-  }
-};
+  data: () => ({ version: import.meta.env.VITE_APP_VERSION }),
+}
 </script>
 
 <template>
-  <v-chip v-if="version">v.{{ version }}</v-chip>
-  <v-chip v-else><appLoader :active="true"/></v-chip>
+  <span v-if="version" class="app-version" :aria-label="`Versión ${version}`">
+    <span class="dot" />
+    <span>v{{ version }}</span>
+  </span>
 </template>
+
+<style scoped>
+.app-version { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px; border-radius: 999px; background: #f4f5f7; color: #64748b; font-size: .72rem; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: .02em; white-space: nowrap }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: #5bb133 }
+</style>

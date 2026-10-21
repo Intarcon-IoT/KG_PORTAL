@@ -7,7 +7,7 @@ const pool = database.pool;
 const transactionStorage = new AsyncLocalStorage();
 
 mysqlAdapter.getConnection = () => {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     pool.getConnection((err, connection) => {
       if (err) {
         logger.error("MYSQL - Error getting connection: " + JSON.stringify(err, null, 2));
@@ -53,7 +53,7 @@ mysqlAdapter.runInTransaction = async (callback) => {
 mysqlAdapter.query = (sql, data) => {
   const connection = transactionStorage.getStore() || pool;
   
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     connection.query(sql, data,
       (error, elements) => {
         if (error) {

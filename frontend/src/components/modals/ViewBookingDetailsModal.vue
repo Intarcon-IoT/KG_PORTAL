@@ -1,122 +1,71 @@
 <template>
   <div>
-    <v-dialog v-model="internalDialog" max-width="500" transition="dialog-bottom-transition" persistent>
-      <v-card class="pa-6 rounded-xl" style="position: relative;">
+    <appDialog v-model="internalDialog" eyebrow="Reserva" :title="booking?.title || ''" :width="500">
+      <template #tools>
+        <button v-if="canDeleteBooking && !isReadOnly" type="button" class="kg-icon-btn" aria-label="Editar reserva" @click="handleEdit">
+          <i class="fa-solid fa-pen" />
+          <v-tooltip activator="parent" location="top">Editar</v-tooltip>
+        </button>
+        <button v-if="canDeleteBooking && !isReadOnly" type="button" class="kg-icon-btn danger" aria-label="Eliminar reserva" @click="confirmDelete">
+          <i class="fa-solid fa-trash-can" />
+          <v-tooltip activator="parent" location="top">Eliminar</v-tooltip>
+        </button>
+      </template>
 
-        <div class="action-buttons">
-          <v-btn v-if="canDeleteBooking && !isReadOnly" class="btn-edit" icon size="small" aria-label="Editar"
-            @click="handleEdit">
-            <i class="fa-solid fa-pen-to-square"></i>
-          </v-btn>
-          <v-btn v-if="canDeleteBooking && !isReadOnly" class="btn-delete" icon size="small" aria-label="Borrar"
-            @click="confirmDelete">
-            <i class="fa-solid fa-trash-can"></i>
-          </v-btn>
-          <v-btn icon size="small" aria-label="Cerrar" @click="internalDialog = false">
-            <i class="fa-solid fa-xmark"></i>
-          </v-btn>
-        </div>
+      <div v-if="isReadOnly || isPending || wasEdited" class="tags">
+        <span v-if="isPending" class="tag tag-pending">Pendiente de aprobación</span>
+        <span v-if="isReadOnly" class="tag">Evento pasado</span>
+        <span v-if="wasEdited" class="tag">Editada</span>
+      </div>
 
-        <v-card-title class="text-h6 font-weight-bold text-grey-darken-3 pa-0 mb-4">
-          <!-- Sección de etiquetas -->
-          <div class="mb-2 d-flex gap-2 flex-wrap">
-            <v-chip v-if="isReadOnly" size="small" color="error">Evento pasado</v-chip>
-          </div>
-          <!-- Título de la reserva -->
-          <div class="title-container">
-            <span class="booking-title">{{ booking.title }}</span>
-            <span v-if="wasEdited" class="edited-tag">(Editado)</span>
-          </div>
-        </v-card-title>
+      <ul class="info">
+        <li>
+          <i class="fa-regular fa-calendar" />
+          <span v-if="formatedDate === formatedDateTo" class="cap">{{ formatedDate }} · {{ startTime }} – {{ endTime }}</span>
+          <span v-else class="cap">{{ formatedDate }}, {{ startTime }}<br>{{ formatedDateTo }}, {{ endTime }}</span>
+        </li>
+        <li>
+          <span class="color-box" :style="{ background: facilitySelected?.color }" />
+          <span>{{ roomSelected?.name || 'Sala no disponible' }}<small v-if="facilitySelected"> · {{ facilitySelected.name }}</small></span>
+        </li>
+        <li v-if="booking.details">
+          <i class="fa-solid fa-align-left" />
+          <span class="details">{{ booking.details }}</span>
+        </li>
+        <li>
+          <i class="fa-regular fa-user" />
+          <span>{{ booking.name }}</span>
+        </li>
+      </ul>
 
-        <v-card-text class="pa-0">
-          <div class="info-line mb-2">
-            <i class="fa-solid fa-calendar-days mr-3"></i>
-            <span v-if="formatedDate == formatedDateTo">{{ formatedDate }} {{ startTime }} - {{ endTime }}</span>
-            <span v-else>{{ formatedDate }} - {{ startTime }}<br>{{ formatedDateTo }} - {{ endTime }}</span>
-          </div>
+      <template v-if="canManageStatus && isPending && !isReadOnly" #actions>
+        <v-btn variant="outlined" class="kg-btn kg-btn-danger-ghost" @click="handleStatusUpdate(BOOKING_STATUS.REJECTED)">Rechazar</v-btn>
+        <v-btn color="primary" variant="flat" class="kg-btn" @click="handleStatusUpdate(BOOKING_STATUS.APPROVED)">Aprobar</v-btn>
+      </template>
+    </appDialog>
 
-          <div class="info-line mb-2">
-            <div class="color-box mr-3" :style="{ backgroundColor: `${facilitySelected.color}` }"></div>
-            <span>{{ roomSelected.name }}</span>
-          </div>
+    <appDialog v-model="deleteDialog" title="¿Eliminar reserva?" icon="fa-solid fa-trash-can" tone="danger" :width="440">
+      <div class="kg-summary">
+        <span class="kg-summary-title">{{ booking.title }}</span>
+        <dl>
+          <div><dt>Fecha</dt><dd class="cap">{{ formatedDate }}</dd></div>
+          <div><dt>Hora</dt><dd>{{ startTime }} – {{ endTime }}</dd></div>
+          <div v-if="facilitySelected"><dt>Sede</dt><dd>{{ facilitySelected.name }}</dd></div>
+          <div v-if="roomSelected"><dt>Sala</dt><dd>{{ roomSelected.name }}</dd></div>
+        </dl>
+      </div>
+      <p class="kg-note kg-note-danger">Esta acción no se puede deshacer.</p>
 
-          <div v-if="booking.details" class="info-line mb-2">
-            <i class="fa-solid fa-align-left mr-3"></i>
-            <span>{{ booking.details }}</span>
-          </div>
-
-          <div class="info-line mt-4">
-            <i class="fa-solid fa-user mr-3"></i>
-            <span>{{ booking.name }}</span>
-          </div>
-        </v-card-text>
-        <v-card-actions v-if="canManageStatus && isPending && !isReadOnly" class="justify-center pb-4 pt-4">
-          <v-btn color="error" variant="outlined" class="mx-2" min-width="140" @click="handleStatusUpdate(BOOKING_STATUS.REJECTED)">
-            Rechazar reserva
-          </v-btn>
-          <v-btn color="success" variant="elevated" class="mx-2" min-width="140" @click="handleStatusUpdate(BOOKING_STATUS.APPROVED)">
-            Aceptar reserva
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-    <v-dialog v-model="deleteDialog" max-width="400" transition="dialog-bottom-transition">
-      <v-card class="delete-dialog rounded-lg">
-        <div class="delete-header">
-          <v-avatar color="error" size="50" class="elevation-2">
-            <i class="fa-solid fa-trash-can fa-lg"></i>
-          </v-avatar>
-        </div>
-
-        <v-card-title class="text-h5 text-center pt-4 pb-0">¿Eliminar reserva?</v-card-title>
-
-        <v-card-text class="text-center pt-4 pb-0">
-          <p class="mb-3">Está a punto de eliminar la siguiente reserva:</p>
-
-          <div class="booking-info-box">
-            <div class="booking-info-title">
-              <i class="fa-solid fa-calendar-day mr-2"></i>
-              {{ booking.title }}
-            </div>
-            <div class="booking-info-details">
-              <div class="info-row">
-                <span class="info-label">Fecha:</span>
-                <span class="info-value">{{ formatedDate }}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Hora:</span>
-                <span class="info-value">{{ startTime }} - {{ endTime }}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Edificio:</span>
-                <span class="info-value">{{ facilitySelected.name }}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Sala:</span>
-                <span class="info-value">{{ roomSelected.name }}</span>
-              </div>
-            </div>
-          </div>
-
-          <p class="text-caption text-error mt-4 mb-0">Esta acción no se puede deshacer.</p>
-        </v-card-text>
-
-        <v-card-actions class="pb-6 pt-3 px-6 justify-center">
-          <v-btn color="grey-darken-1" variant="outlined" class="mx-2" min-width="120" @click="deleteDialog = false">
-            Cancelar
-          </v-btn>
-          <v-btn color="error" variant="elevated" min-width="120" class="mx-2" @click="handleDelete">
-            Eliminar
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+      <template #actions>
+        <v-btn variant="outlined" class="kg-btn kg-btn-ghost" @click="deleteDialog = false">Cancelar</v-btn>
+        <v-btn color="#b91c1c" variant="flat" class="kg-btn" @click="handleDelete">Eliminar</v-btn>
+      </template>
+    </appDialog>
   </div>
 </template>
 
-
 <script setup>
+import appDialog from '@/components/app-dialog.vue'
 import { ref, watch, computed } from 'vue'
 import { sessionStore } from '@/store';
 import moment from 'moment/min/moment-with-locales'
@@ -166,11 +115,11 @@ const wasEdited = computed(() => {
 });
 
 const formatedDate = computed(() => {
-  return moment(props.booking.start_date).format('dddd, D MMMM YYYY')
+  return moment(props.booking.start_date).format('dddd, D [de] MMMM [de] YYYY')
 })
 
 const formatedDateTo = computed(() => {
-  return moment(props.booking.end_date).format('dddd, D MMMM YYYY')
+  return moment(props.booking.end_date).format('dddd, D [de] MMMM [de] YYYY')
 })
 
 const startTime = computed(() => {
@@ -186,7 +135,7 @@ const roomSelected = computed(() => {
 })
 
 const facilitySelected = computed(() => {
-  return props.facilities.find((facility) => facility.uuid === roomSelected.value.facility_uuid)
+  return props.facilities.find((facility) => facility.uuid === roomSelected.value?.facility_uuid)
 })
 
 
@@ -210,115 +159,15 @@ watch(internalDialog, (val) => {
 </script>
 
 <style scoped>
-.btn-delete {
-  color: #f44336;
-}
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px }
+.tag { padding: 3px 10px; border-radius: 999px; background: #f1f2f4; color: #475569; font-size: .75rem; font-weight: 600 }
+.tag-pending { background: #fff7ed; color: #b45309 }
 
-.btn-edit {
-  color: #0077d9;
-}
-
-.action-buttons {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  display: flex;
-  gap: 8px;
-  z-index: 1;
-}
-
-.title-container {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 8px;
-  max-width: 70%;
-}
-
-.booking-title {
-  flex: 1 1 100%;
-  word-break: break-word;
-  white-space: normal;
-}
-
-.edited-tag {
-  font-size: 11px;
-  color: #777;
-  font-style: italic;
-  font-weight: normal;
-  margin-top: 1px;
-}
-
-.info-line {
-  display: flex;
-  align-items: center;
-  font-size: 15px;
-  color: #333;
-}
-
-.color-box {
-  width: 14px;
-  height: 14px;
-  border-radius: 4px;
-  margin-right: 8px;
-}
-
-.delete-dialog {
-  overflow: hidden;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
-}
-
-.delete-header {
-  display: flex;
-  justify-content: center;
-  padding-top: 20px;
-}
-
-.text-error {
-  color: #f44336;
-  font-weight: 600;
-}
-
-.booking-info-box {
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  margin: 0 auto;
-  background-color: #f5f5f5;
-  text-align: left;
-  overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.booking-info-title {
-  background-color: #eeeeee;
-  padding: 10px 15px;
-  font-weight: 600;
-  border-bottom: 1px solid #e0e0e0;
-  color: #333;
-}
-
-.booking-info-details {
-  padding: 12px 15px;
-}
-
-.info-row {
-  display: flex;
-  margin-bottom: 6px;
-}
-
-.info-row:last-child {
-  margin-bottom: 0;
-}
-
-.info-label {
-  width: 70px;
-  font-weight: 500;
-  color: #666;
-}
-
-.info-value {
-  flex: 1;
-  font-weight: 500;
-  color: #333;
-}
+.info { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; font-size: .925rem; color: #111111 }
+.info li { display: flex; align-items: flex-start; gap: 12px; line-height: 1.5 }
+.info i { width: 16px; margin-top: 4px; font-size: .85rem; text-align: center; color: #64748b }
+.info small { color: #64748b; font-size: .85rem }
+.cap::first-letter { text-transform: uppercase }
+.details { white-space: pre-line; overflow-wrap: anywhere; color: #334155 }
+.color-box { flex-shrink: 0; width: 12px; height: 12px; margin: 5px 2px 0; border-radius: 3px; background: #cbd5e1 }
 </style>

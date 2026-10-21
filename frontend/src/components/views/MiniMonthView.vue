@@ -1,185 +1,84 @@
+<!-- Calendario mensual compacto: al pulsar un día se muestra su semana -->
+<script setup>
+import { ref, computed, watch } from 'vue'
+import { parseDateKey, useToday } from '@/utils/dates'
+
+const props = defineProps({ selectedDate: Date })
+const emit = defineEmits(['dateSelected'])
+
+const startOfDay = date => { const d = new Date(date); d.setHours(0, 0, 0, 0); return d }
+const mondayOf = date => { const d = startOfDay(date); const day = d.getDay(); d.setDate(d.getDate() - day + (day === 0 ? -6 : 1)); return d }
+
+const current = ref(new Date(props.selectedDate))
+watch(() => props.selectedDate, value => { current.value = new Date(value) })
+
+const year = computed(() => current.value.getFullYear())
+const month = computed(() => current.value.getMonth())
+const monthName = computed(() => `${current.value.toLocaleDateString('es-ES', { month: 'long' })} ${year.value}`)
+const weekdays = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
+
+const shiftMonth = step => { current.value = new Date(year.value, month.value + step, 1) }
+
+// 6 semanas completas empezando en lunes
+const todayKey = useToday()
+const days = computed(() => {
+  const today = parseDateKey(todayKey.value).getTime()
+  const selected = startOfDay(props.selectedDate).getTime()
+  const monday = mondayOf(props.selectedDate)
+  const weekStart = monday.getTime()
+  const weekEnd = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6).getTime()
+  const first = mondayOf(new Date(year.value, month.value, 1))
+  return Array.from({ length: 42 }, (_, i) => {
+    const date = new Date(first)
+    date.setDate(first.getDate() + i)
+    const time = date.getTime()
+    return { date, key: time, number: date.getDate(), outside: date.getMonth() !== month.value, today: time === today, selected: time === selected, inWeek: time >= weekStart && time <= weekEnd }
+  })
+})
+</script>
+
 <template>
-  <div class="mini-month-view">
-    <div class="mini-header">
-      <button @click="prevMonth" class="nav-button">
-        <i class="fa-solid fa-caret-left"></i>
-      </button>
-        <span class="month-name">{{ monthName }} {{ year }}</span>
-      <button @click="nextMonth" class="nav-button">
-        <i class="fa-solid fa-caret-right"></i>
-      </button>
+  <div class="mini">
+    <div class="mini-head">
+      <span class="mini-title">{{ monthName }}</span>
+      <div class="mini-nav">
+        <button type="button" aria-label="Mes anterior" @click="shiftMonth(-1)"><i class="fa-solid fa-chevron-left" /></button>
+        <button type="button" aria-label="Mes siguiente" @click="shiftMonth(1)"><i class="fa-solid fa-chevron-right" /></button>
+      </div>
     </div>
-    <div class="mini-weekdays">
-      <span v-for="day in weekdays" :key="day">{{ day }}</span>
-    </div>
-    <div class="mini-days">
-      <span
-        v-for="(day, index) in daysOfMonth"
-        :key="index"
-        @click="selectDay(day)"
-        :class="{
-          'day-cell': true,
-          'other-month': !day.isCurrentMonth,
-          'is-selected': day.isSelected,
-          'is-today': day.isToday && !day.isSelected
-        }"
+
+    <div class="mini-grid">
+      <span v-for="day in weekdays" :key="day" class="mini-wd">{{ day }}</span>
+      <button
+        v-for="day in days"
+        :key="day.key"
+        type="button"
+        class="mini-day"
+        :class="{ outside: day.outside, today: day.today, selected: day.selected, 'in-week': day.inWeek }"
+        @click="emit('dateSelected', day.date)"
       >
         {{ day.number }}
-      </span>
+      </button>
     </div>
   </div>
 </template>
 
-<script setup>
-import { ref, computed, watch } from 'vue';
-
-const emit = defineEmits(['dateSelected']);
-const props = defineProps({
-  selectedDate: Date,
-});
-
-const currentDate = ref(new Date(props.selectedDate));
-
-watch(() => props.selectedDate, (newVal) => {
-  currentDate.value = new Date(newVal);
-});
-
-function prevMonth() {
-  const newDate = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth() - 1, 1);
-  currentDate.value = newDate;
-}
-
-function nextMonth() {
-  const newDate = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth() + 1, 1);
-  currentDate.value = newDate;
-}
-
-const year = computed(() => currentDate.value.getFullYear());
-const month = computed(() => currentDate.value.getMonth());
-const monthName = computed(() => currentDate.value.toLocaleDateString('es-ES', { month: 'long' }));
-
-const weekdays = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
-
-const daysOfMonth = computed(() => {
-  const days = [];
-  const firstOfMonth = new Date(year.value, month.value, 1);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const selectedDayTime = new Date(props.selectedDate);
-  selectedDayTime.setHours(0, 0, 0, 0);
-
-  let firstDayOfWeek = firstOfMonth.getDay();
-  if (firstDayOfWeek === 0){
-    firstDayOfWeek = 6;
-  } else {
-    firstDayOfWeek -= 1;
-  }
-  // Días del mes anterior
-  const daysInPreviousMonth = new Date(year.value, month.value, 0).getDate();
-  for (let i = firstDayOfWeek - 1; i >= 0; i--) {
-    const dayDate = new Date(year.value, month.value - 1, daysInPreviousMonth - i);
-    dayDate.setHours(0, 0, 0, 0);
-    days.push({
-      number: dayDate.getDate(),
-      isCurrentMonth: false,
-      isSelected: dayDate.getTime() === selectedDayTime.getTime(),
-      isToday: dayDate.getTime() === today.getTime(),
-      date: dayDate,
-    });
-  }
-  // Días del mes actual
-  const daysInThisMonth = new Date(year.value, month.value + 1, 0).getDate();
-  for (let day = 1; day <= daysInThisMonth; day++) {
-    const loopDate = new Date(year.value, month.value, day);
-    loopDate.setHours(0, 0, 0, 0);
-    days.push({
-      number: day,
-      isCurrentMonth: true,
-      isSelected: loopDate.getTime() === selectedDayTime.getTime(),
-      isToday: loopDate.getTime() === today.getTime(),
-      date: loopDate,
-    });
-  }
-  // Días del mes siguiente
-  const totalCells = 42;
-  let nextDay = 1;
-  while (days.length < totalCells) {
-    const dayDate = new Date(year.value, month.value + 1, nextDay++);
-    dayDate.setHours(0, 0, 0, 0);
-    days.push({
-      number: dayDate.getDate(),
-      isCurrentMonth: false,
-      isSelected: dayDate.getTime() === selectedDayTime.getTime(),
-      isToday: dayDate.getTime() === today.getTime(),
-      date: dayDate,
-    });
-  }
-
-  return days;
-});
-
-function selectDay(day) {
-  emit('dateSelected', day.date);
-}
-</script>
-
 <style scoped>
-.mini-month-view {
-  padding: 10px;
-  font-family: sans-serif;
-  font-size: 0.8em;
-  border: 1px solid #eee;
-  border-radius: 4px;
-  background-color: #fff;
-}
+.mini-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px }
+.mini-title { font-size: .9rem; font-weight: 600; color: #111111; text-transform: capitalize }
+.mini-nav { display: flex; gap: 2px }
+.mini-nav button { display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 8px; background: transparent; color: #64748b; font-size: .7rem; cursor: pointer }
+.mini-nav button:hover { background: #f4f5f7; color: #111111 }
 
-.month-name {
-  margin: 0 15px;
-  cursor: default;
-}
+.mini-grid { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 2px; text-align: center }
+.mini-wd { padding-bottom: 6px; font-size: .7rem; font-weight: 600; color: #94a3b8 }
 
-.mini-header {
-  text-align: center;
-  font-weight: bold;
-  margin-bottom: 8px;
-  text-transform: capitalize;
-}
-
-.mini-weekdays, .mini-days {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  text-align: center;
-}
-
-.mini-weekdays span {
-  font-weight: bold;
-  color: #666;
-  padding-bottom: 5px;
-}
-
-.day-cell {
-  padding: 4px 2px;
-  border-radius: 3px;
-  line-height: 1.5;
-  cursor: pointer;
-}
-
-.other-month {
-  color: #ccc;
-}
-
-.is-today {
-  color: #007bff;
-  font-weight: bold;
-}
-
-.nav-button:hover {
-  color: #007bff;
-}
-
-.is-selected {
-  background-color: #007bff;
-  color: white;
-  font-weight: bold;
-}
+.mini-day { height: 32px; border: 0; background: transparent; color: #334155; font: inherit; font-size: .8rem; font-weight: 500; cursor: pointer; transition: background-color .12s }
+.mini-day:hover { background: #f1f2f4; border-radius: 8px }
+.mini-day.outside { color: #c3c9d2 }
+.mini-day.in-week { background: #f1f5ee }
+.mini-day.in-week:nth-of-type(7n + 1) { border-radius: 8px 0 0 8px }
+.mini-day.in-week:nth-of-type(7n) { border-radius: 0 8px 8px 0 }
+.mini-day.today { color: #468131; font-weight: 700 }
+.mini-day.selected { border-radius: 8px; background: #111111; color: #ffffff; font-weight: 700 }
 </style>

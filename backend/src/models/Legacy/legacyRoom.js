@@ -1,3 +1,4 @@
+const crypto = require('crypto')
 const mysqlAdapter = require("../../utils/mysqlAdapter");
 const Booking = require("../booking");
 const moment = require('moment');
@@ -12,13 +13,11 @@ class LegacyRoom {
   }
 
   read() {
-    let data = [];
-    let sql = `SELECT r.uuid, r.name, r.api_token, f.color
+    const sql = `SELECT r.uuid, r.name, r.api_token, f.color
                     FROM rooms r
                     LEFT JOIN facilities f ON r.facility_uuid = f.uuid
-                      WHERE r.uuid = '${this.uuid}'`;
-
-    return mysqlAdapter.query(sql, data);
+                      WHERE r.uuid = ?`
+    return mysqlAdapter.query(sql, [this.uuid])
   };
 
   async getCurrentInfoRoom() {
@@ -91,14 +90,13 @@ class LegacyRoom {
     };
   }
 
+  // Sin token o sala sin api_token no hay acceso; la comparación es en tiempo constante
   async checkToken(token) {
-    const room = await this.read({ uuid: this.uuid });
-
-    if (room.length > 0 && room[0].api_token === token) {
-      return true;
-    } else {
-      return false;
-    }
+    if (typeof token !== 'string' || !token) return false
+    const room = await this.read()
+    if (room.error || !room[0]?.api_token) return false
+    const [given, stored] = [Buffer.from(token), Buffer.from(room[0].api_token)]
+    return given.length === stored.length && crypto.timingSafeEqual(given, stored)
   }
 }
 
