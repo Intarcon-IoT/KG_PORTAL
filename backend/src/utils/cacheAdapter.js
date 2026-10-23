@@ -48,4 +48,7 @@ cacheAdapter.getSet = key => run(client => client.sMembers(SECRET + '.' + key))
 
 cacheAdapter.removeFromSet = (key, member) => run(client => client.sRem(SECRET + '.' + key, member))
 
+// 'PONG' si Redis responde; lo usa /ready
+cacheAdapter.ping = () => run(client => client.ping())
+
 module.exports = cacheAdapter;

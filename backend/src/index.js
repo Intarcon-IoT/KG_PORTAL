@@ -15,3 +15,6 @@ wrapper.use('/api', app);
 wrapper.listen(PORT, HOST, () => {
   console.log(`Servidor escuchando en ${HOST}:${PORT}`);
 });
+
+// Vigilancia de los servicios que lee /api/ready
+require('./utils/health').startMonitoring()

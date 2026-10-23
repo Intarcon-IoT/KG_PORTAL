@@ -30,6 +30,9 @@ app.use(express.text({ type: 'text/plain' }));
 // En Express 5 req.body es undefined si la petición no trae cuerpo
 app.use((req, res, next) => { req.body ??= {}; next() })
 
+// Estado público del portal (contrato común de Servidores): antes de las rutas, sin sesión. Queda en /api/ready
+app.get('/ready', require('./utils/health').ready)
+
 // ROUTES
 // rutas para interpretar las peticiones en la API
 app.use("/rooms", require("./routes/rooms"));

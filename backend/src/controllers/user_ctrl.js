@@ -123,6 +123,8 @@ userCtrl.signIn = async (req, res) => {
 
   const result = await user.login(email, password);
 
+  // Fallo de MySQL o Redis: el frontend espera un usuario en toda respuesta 200
+  if (result.ok === false) return res.status(500).json({ ok: false, message: 'No se ha podido iniciar sesión. Inténtalo de nuevo más tarde' })
   if (result.login === false && result.message === "Usuario deshabilitado") return res.status(403).json({ ok: false, message: "Tu usuario está deshabilitado. Contacta con un administrador" })
   if (result.login === false) {
     return res.status(401).json({ ok: false, message: "Las credenciales no son válidas" });

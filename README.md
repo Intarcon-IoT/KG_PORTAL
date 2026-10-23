@@ -411,6 +411,19 @@ pm2 reload /var/www/KG_PORTAL/ecosystem.config.js --update-env && pm2 save
 
 > `--update-env` es obligatorio: sin él PM2 no recoge los cambios del `.env`.
 
+### Estado
+
+`GET /api/ready` es la ruta de estado, pública y con el contrato común de las plataformas (la vigila Servidores de
+INTARCON Tools).
+- Responde siempre JSON con `status` (`ok`, `degraded`, o `down` con 503), `version` (la de `VERSION`) y `checks`.
+- Comprueba MySQL, Redis y SMTP, que son críticos, y que se pueda escribir en la carpeta de logs.
+- Una vigilancia en segundo plano los comprueba cada 30 s (SMTP y logs, cada 5 min) y la ruta solo lee el estado.
+- URL para Servidores: `https://prt.keytergroup.com/api/ready`.
+
+```bash
+curl http://127.0.0.1:3445/api/ready
+```
+
 ### Logs
 
 ```bash

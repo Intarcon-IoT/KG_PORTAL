@@ -123,6 +123,12 @@ Ninguno de estos ficheros se versiona; cada uno tiene su `.sample`:
 - **Apps de terceros** (`utils/thirdPartyService.js`): en salas sin validación, cada alta, cambio o baja se envía por `POST` a `app_url` de cada app con `action` (`insert`, `update`, `delete`) y `Authorization: <app_token>`. Se omite la app cuyo `uuid` originó el cambio; un fallo se registra y no rompe la petición.
 - **Pantallas de sala** (`GET /api/v0/rooms/:uuid`, `ApiRoomMiddleware`): autenticadas con el `api_token` de la sala en `Authorization` (sin `Basic`). Devuelven sala, color (entero), fecha y hora del servidor, reunión actual y siguiente. Contrato heredado: no cambiar el formato sin actualizar las pantallas.
 - **Correo**: Nodemailer con pool (`connections/mailer.js`) vía `utils/mailerAdapter.js`; plantillas en `utils/emailTemplates/`.
+- **Estado** (`GET /api/ready`, `utils/health.js`): ruta pública con el contrato común que lee Servidores (INTARCON
+  Tools).
+  - Se monta en `app.js` antes de las rutas.
+  - Una vigilancia en segundo plano comprueba MySQL, Redis y SMTP (críticos: si caen, 503) y la carpeta de logs; la
+    ruta solo lee ese estado.
+  - Un servicio nuevo se añade con `watch()` en `startMonitoring`.
 
 ### Frontend
 

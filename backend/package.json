@@ -6,6 +6,9 @@
   "license": "UNLICENSED",
   "main": "src/index.js",
   "packageManager": "pnpm@12.14.0",
+  "engines": {
+    "node": ">=24.22.1"
+  },
   "scripts": {
     "dev": "nodemon src/index.js",
     "prod": "node src/index.js",
