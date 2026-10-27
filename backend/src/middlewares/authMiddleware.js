@@ -1,5 +1,4 @@
 const sessions = require('../utils/sessions')
-const thirdPartyConfig = require('../../configThirdParty.json');
 const { ROLES } = require("../utils/constants");
 const User = require('../models/user')
 
@@ -28,16 +27,6 @@ const middlewares = {
       }
       res.locals.user = user
       res.locals.token = token
-      return next();
-    }
-
-    const thirdParty = Object.values(thirdPartyConfig).find(tp => tp.api_token === token);
-    
-    if (thirdParty) {
-      res.locals.user = {
-        uuid: thirdParty.uuid,
-        isAdmin: false
-      };
       return next();
     }
 

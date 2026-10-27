@@ -83,7 +83,6 @@ Ninguno de estos ficheros se versiona; cada uno tiene su `.sample`:
 
 - **`backend/.env`**: `PORT` (3445 en local y en producción; 3443 y 3444 son de Client360 e IntarLAB), `FRONTEND_CLIENT` (origen CORS), MySQL (`DB_*`), Redis (`REDIS_HOST`, `REDIS_PORT`, `REDIS_USER` y `REDIS_PASS` de su ACL, vacíos en local; `SECRET_KEY_CACHE=kg_portal` como prefijo propio, porque Redis es compartido), `APP_URL` (enlaces de los correos) y SMTP (`smtp.intarcon.es:465`, `SMTP_SECURE=true` como texto).
 - **`backend/database.json`**: conexión de `db-migrate` (entorno `dev`) con `{ "ENV": ... }`: lee las credenciales del `.env`, no se duplican.
-- **`backend/configThirdParty.json`**: apps externas (`api_token`, `uuid`, `app_url`, `app_token`). Se carga con `require` al arrancar: **obligatorio aunque esté vacío (`{}`)** y sus cambios exigen reiniciar.
 - **`frontend/.env`**: `VITE_API_URL`, URL base del backend **con `/api/` al final**.
 
 ## Arquitectura
@@ -101,7 +100,7 @@ Ninguno de estos ficheros se versiona; cada uno tiene su `.sample`:
 ### Autenticación y roles
 
 - `POST /api/users/sign-in` crea un token aleatorio y guarda el usuario en Redis bajo su hash; la sesión caduca el domingo de esa semana a las 23:59:59 (hora de Madrid). El cliente lo envía como `Authorization: Basic <token>`; `POST /users/load-session` restaura la sesión al recargar.
-- `AuthMiddleware` (`middlewares/authMiddleware.js`) busca el token en Redis y deja el usuario en `res.locals.user`; si no está, acepta los `api_token` de `configThirdParty.json` (usuario = su `uuid`, sin rol).
+- `AuthMiddleware` (`middlewares/authMiddleware.js`) busca el token en Redis y deja el usuario en `res.locals.user`; si no está, responde 401. No hay tokens de terceros: la sincronización de reservas con la API de INTARCON (`configThirdParty.json`) se retiró el 27/10/2026.
 - **La identidad sale siempre de `res.locals.user`**, nunca del body.
 - Roles (`src/utils/constants.js`, duplicado en `frontend/src/utils/constants.js`: mantenerlos iguales): `Admin`, `Gestor`, `User`. Middlewares: `AdminMiddleware`, `GestorMiddleware`, `UserEditMiddleware` (Admin o el propio usuario). Cada usuario pertenece a un tenant (`tenants`).
 - **Los usuarios no se borran nunca** (sus reservas dependen de ellos): se deshabilitan con `active = 0` vía `PUT /users/:uuid/status`. Un usuario deshabilitado no inicia sesión ni recupera la contraseña, y `AuthMiddleware` y `load-session` invalidan sus sesiones abiertas.
@@ -120,7 +119,6 @@ Ninguno de estos ficheros se versiona; cada uno tiene su `.sample`:
 
 ### Integraciones
 
-- **Apps de terceros** (`utils/thirdPartyService.js`): en salas sin validación, cada alta, cambio o baja se envía por `POST` a `app_url` de cada app con `action` (`insert`, `update`, `delete`) y `Authorization: <app_token>`. Se omite la app cuyo `uuid` originó el cambio; un fallo se registra y no rompe la petición.
 - **Pantallas de sala** (`GET /api/v0/rooms/:uuid`, `ApiRoomMiddleware`): autenticadas con el `api_token` de la sala en `Authorization` (sin `Basic`). Devuelven sala, color (entero), fecha y hora del servidor, reunión actual y siguiente. Contrato heredado: no cambiar el formato sin actualizar las pantallas.
 - **Correo**: Nodemailer con pool (`connections/mailer.js`) vía `utils/mailerAdapter.js`; plantillas en `utils/emailTemplates/`.
 - **Estado** (`GET /api/ready`, `utils/health.js`): ruta pública con el contrato común que lee Servidores (INTARCON

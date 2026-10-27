@@ -3,7 +3,6 @@ const Booking = require("../models/booking");
 const Room = require("../models/room");
 const mysqlAdapter = require("../utils/mysqlAdapter");
 const { handleStatusCheck } = require("../utils/bookingHelper");
-const thirdPartyService = require("../utils/thirdPartyService");
 const { ROLES, BOOKING_STATUS } = require("../utils/constants");
 const bookingCtrl = {};
 
@@ -39,10 +38,6 @@ bookingCtrl.createBooking = async (req, res) => {
     } else {
       if (newBooking.status === BOOKING_STATUS.APPROVED) {
         await newBooking.rejectOverlapping();
-      }
-      if(roomData[0].needsValidation === 0) {
-        const { status, ...cleanBooking } = newBooking;
-        await thirdPartyService.syncThirdParty(cleanBooking, 'insert');
       }
       return res.status(201).json({
         ok: true,
@@ -96,7 +91,6 @@ bookingCtrl.editBooking = async (req, res) => {
       .status(404)
       .json({ ok: false, message: "Reserva no encontrada" });
   }
-  const roomData = await new Room(saved[0].room_uuid).read()
   const isOwner = saved[0].user_uuid === res.locals.user.uuid;
   const isAdmin = res.locals.user.role === ROLES.ADMIN;
   const isGestor = res.locals.user.role === ROLES.GESTOR;
@@ -129,7 +123,6 @@ bookingCtrl.editBooking = async (req, res) => {
   booking.user_uuid = saved[0].user_uuid;
   const previousStatus = saved[0].status;
   const merged = { ...saved[0], ...req.body };
-  const { status, updated_ts, tenant_uuid, ...cleanBooking } = merged;
   booking.set(merged);
 
   // Aprobar o rechazar sin mover la reserva no exige que siga en el futuro; una rechazada no compite por la sala
@@ -158,9 +151,6 @@ bookingCtrl.editBooking = async (req, res) => {
   if (result.error) {
     return res.json({ ok: false, message: "Error al actualizar la reserva" });
   } else {
-    if(roomData[0].needsValidation === 0) {
-      await thirdPartyService.syncThirdParty(cleanBooking, 'update');
-    }
     return res.json({
       ok: true,
       message:
@@ -184,9 +174,6 @@ bookingCtrl.deleteBooking = async (req, res) => {
       .json({ ok: false, message: "Reserva no encontrada" });
   }
 
-  const room = new Room(saved[0].room_uuid);
-  const roomData = await room.read();
-  const { updated_ts, status, tenant_uuid, ...cleanBooking } = saved[0];
   const isOwner = saved[0].user_uuid === res.locals.user.uuid;
   const isAdmin = res.locals.user.role === ROLES.ADMIN;
   const isGestor = res.locals.user.role === ROLES.GESTOR;
@@ -210,9 +197,6 @@ bookingCtrl.deleteBooking = async (req, res) => {
   if (result.affectedRows === 0) {
     return res.json({ ok: false, message: "Error al eliminar la reserva" });
   } else {
-    if(roomData[0]?.needsValidation === 0) {
-      await thirdPartyService.syncThirdParty(cleanBooking, 'delete');
-    }
     return res.json({ ok: true, message: "Reserva eliminada correctamente" });
   }
 };
@@ -260,18 +244,11 @@ bookingCtrl.createBulkBookings = async (req, res) => {
           if (newBooking.status === BOOKING_STATUS.APPROVED) {
             await newBooking.rejectOverlapping();
           }
-          const { user_uuid, status, ...cleanBooking } = newBooking;
-          successfulBookings.push({ booking: cleanBooking, needsSync: roomData[0].needsValidation === 0 });
+          successfulBookings.push(newBooking.uuid);
         }
       }
     });
 
-    await Promise.all(
-      successfulBookings
-        .filter(item => item.needsSync)
-        .map(item => thirdPartyService.syncThirdParty(item.booking, 'insert'))
-    );
-    
     return res.status(201).json({
       ok: true,
       message: `Se han creado ${successfulBookings.length} reservas correctamente.`,

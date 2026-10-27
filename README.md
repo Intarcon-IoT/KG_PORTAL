@@ -42,17 +42,16 @@ Monorepo con **dos servicios independientes** que se despliegan con PM2.
                          ┌──────▼───────┐
                          │   backend    │  Express 5 bajo /api
                          │              │  Winston · Nodemailer
-                         └──┬────┬────┬─┘
-          ┌─────────────────┘    │    └─────────────────┐
-  ┌───────▼──────┐       ┌───────▼──────┐       ┌───────▼───────────┐
-  │    MySQL     │       │    Redis     │       │ apps de terceros  │
-  │  kg_portal   │       │   sesiones   │       │ configThirdParty  │
-  └──────────────┘       └──────────────┘       └───────────────────┘
+                         └──┬─────────┬─┘
+          ┌─────────────────┘         └──────┐
+  ┌───────▼──────┐                   ┌───────▼──────┐
+  │    MySQL     │                   │    Redis     │
+  │  kg_portal   │                   │   sesiones   │
+  └──────────────┘                   └──────────────┘
 ```
 
 **Cómo se comunican:** el frontend solo habla con `backend/api/*`. Las sesiones viven en Redis, los
-datos en MySQL y los correos salen por SMTP. Las apps de terceros reciben las altas, cambios y bajas
-de reservas de las salas sin validación, y pueden llamar a la API con su propio token.
+datos en MySQL y los correos salen por SMTP. No hay integración con apps de terceros.
 
 ### Estructura
 
@@ -69,7 +68,7 @@ KG_PORTAL/
 │       ├── models/          clases con SQL raw (Legacy/ = modelo de las pantallas)
 │       ├── middlewares/     sesión, roles y token de sala
 │       ├── connections/     pool MySQL y transporte SMTP
-│       └── utils/           mysqlAdapter · cacheAdapter · bookingHelper · thirdPartyService
+│       └── utils/           mysqlAdapter · cacheAdapter · bookingHelper
 │           └── emailTemplates/  alta de usuario, contraseña y estado de reserva
 ├── frontend/                SPA Vue 3 + Vite
 │   └── src/
@@ -129,17 +128,16 @@ Cuatro ficheros a partir de sus plantillas. Ninguno se versiona.
 **Linux / macOS:**
 
 ```bash
-cp backend/.env.sample backend/.env && cp backend/database.json.sample backend/database.json && cp backend/configThirdParty.json.sample backend/configThirdParty.json && cp frontend/.env.sample frontend/.env
+cp backend/.env.sample backend/.env && cp backend/database.json.sample backend/database.json && cp frontend/.env.sample frontend/.env
 ```
 
 **Windows PowerShell:**
 
 ```powershell
-Copy-Item backend\.env.sample backend\.env; Copy-Item backend\database.json.sample backend\database.json; Copy-Item backend\configThirdParty.json.sample backend\configThirdParty.json; Copy-Item frontend\.env.sample frontend\.env
+Copy-Item backend\.env.sample backend\.env; Copy-Item backend\database.json.sample backend\database.json; Copy-Item frontend\.env.sample frontend\.env
 ```
 
-Rellénalos con lo de [Configuración](#configuración). Si no hay apps de terceros, deja
-`configThirdParty.json` como `{}`.
+Rellénalos con lo de [Configuración](#configuración).
 
 ### 3. Migrar la base de datos
 
@@ -181,18 +179,6 @@ El frontend queda en `http://localhost:3000`. Los usuarios los da de alta un adm
 ### `backend/database.json`
 
 Conexión de `db-migrate` (entorno `dev`). No lleva credenciales: las lee del `.env` con `{ "ENV": "DB_HOST" }`, así que basta con copiar la plantilla.
-
-### `backend/configThirdParty.json`
-
-Una entrada por aplicación externa. **Obligatorio aunque esté vacío** (`{}`): el backend lo carga al
-arrancar.
-
-| Campo | Para qué |
-|---|---|
-| `api_token` | Token con el que la app llama a la API (`Authorization: Basic <api_token>`) |
-| `uuid` | Usuario de KG Portal al que se atribuyen sus reservas |
-| `app_url` | URL que recibe el `POST` con cada alta, cambio o baja |
-| `app_token` | Cabecera `Authorization` que se envía a esa URL |
 
 ### `frontend/.env`
 
@@ -299,12 +285,6 @@ Authorization: <api_token de la sala>
 Devuelve el nombre y color de la sala, la fecha y hora del servidor, la reunión en curso y la
 siguiente del día. Es una API heredada (`models/Legacy/`): su formato no se cambia sin actualizar
 las pantallas.
-
-### Apps de terceros
-
-En las salas **sin validación**, cada alta, cambio o baja se envía por `POST` a las apps de
-`configThirdParty.json` con un campo `action` (`insert`, `update`, `delete`). La app que originó el
-cambio no lo recibe de vuelta. Un fallo de envío se registra y no afecta a la reserva.
 
 ---
 
@@ -435,10 +415,6 @@ El backend escribe además en `backend/logs/` con rotación diaria (14 días).
 ---
 
 ## Troubleshooting
-
-### El backend no arranca: `Cannot find module '../../configThirdParty.json'`
-
-Falta `backend/configThirdParty.json`. Créalo, aunque sea con `{}`.
 
 ### El backend se cae al arrancar con un error de MySQL
 
