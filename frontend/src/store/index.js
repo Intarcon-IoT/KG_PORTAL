@@ -4,16 +4,18 @@ import { useConfigStore } from "./useConfigStore";
 import { useBookingStore } from "./useBookingStore";
 import { useFacilityStore } from "./useFacilityStore";
 import { useRoomStore } from "./useRoomStore";
-import { useUserStore } from "./useUserStore";
 import { useSyncStore } from "./useSyncStore";
+import { useAccessStore } from './useAccessStore'
+import { useSocketStore } from './useSocketStore'
 
-export { 
+export {
+  useAccessStore,
+  useSocketStore,
   sessionStore, 
   useNotificationStore, 
   useConfigStore, 
   useBookingStore, 
   useFacilityStore, 
   useRoomStore, 
-  useUserStore,
   useSyncStore
 };

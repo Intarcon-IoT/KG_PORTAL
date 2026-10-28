@@ -20,21 +20,21 @@
 | Media | 9 | 8 | 9 | 12 | 1 | **39** |
 | Baja | 9 | 6 | 3 | 11 | 3 | **32** |
 
-### Estado (actualizado el 20/10/2026)
+### Estado (actualizado el 28/10/2026)
 
 Cada hallazgo lleva su estado: ✅ Hecho · 🟡 Parcial (se indica qué falta) · ⬜ Pendiente · — Sin acción.
 
-| Severidad | ✅ Hecho | 🟡 Parcial | ⬜ Pendiente | Total |
-|---|---:|---:|---:|---:|
-| Crítica | 1 | – | – | 1 |
-| Alta | 10 | 1 | – | 11 |
-| Media | 2 | 2 | 35 | 39 |
-| Baja | 3 | – | 29 | 32 |
-| **Total** | **16** | **3** | **64** | **83** |
+| Severidad | ✅ Hecho | 🟡 Parcial | ⬜ Pendiente | — Sin acción | Total |
+|---|---:|---:|---:|---:|---:|
+| Crítica | 1 | – | – | – | 1 |
+| Alta | 10 | 1 | – | – | 11 |
+| Media | 3 | 2 | 34 | – | 39 |
+| Baja | 3 | 2 | 26 | 1 | 32 |
+| **Total** | **17** | **5** | **60** | **1** | **83** |
 
-- **Hechos:** SEG-01 a SEG-04, SEG-07, DAT-01 a DAT-05, FRO-01, FRO-02, FRO-05, SEG-18, SEG-21 y OPE-10.
-- **Parcial:** SEG-05 (falta el certificado, que depende del DNS) OPE-03 (falta el timeout del SMTP y enviar el correo de alta tras responder) y OPE-04 (falta reutilizar un único cliente Redis).
-- BD-05 (informativo) no requiere acción.
+- **Hechos:** SEG-01 a SEG-04, SEG-07, SEG-14, DAT-01 a DAT-05, FRO-01, FRO-02, FRO-05, SEG-18, SEG-21 y OPE-10.
+- **Parcial:** SEG-05 (falta el certificado, que depende del DNS), SEG-16 (falta verificar el correo nuevo), FRO-18 (quedan Mi cuenta y «(Editado)»), OPE-03 (falta el timeout del SMTP y enviar el correo de alta tras responder) y OPE-04 (falta reutilizar un único cliente Redis).
+- **Sin acción:** SEG-20, por decisión del 28/10. BD-05 es informativo.
 
 **Lo que hay que hacer ya** (horas, no días):
 
@@ -102,18 +102,18 @@ Lo que está bien: SQL parametrizado en todo salvo SEG-01, lista blanca de campo
 | SEG-11 | ⬜ Pendiente | `backend/src/app.js:13-25` | `app.use(cors())` sin opciones responde `Access-Control-Allow-Origin: *` y anula la cabecera manual: `FRONTEND_CLIENT` no tiene efecto. | Solo `cors({ origin: process.env.FRONTEND_CLIENT })`. |
 | SEG-12 | ⬜ Pendiente | `backend/src/app.js`, `index.js` | Sin `helmet`; `X-Powered-By: Express`; el frontend se sirve sin CSP ni `X-Frame-Options`. | `helmet()`, `app.disable('x-powered-by')`, CSP `script-src 'self'` en Apache. |
 | SEG-13 | ⬜ Pendiente | `frontend/src/model/auth.js:16` | Token de 30 días en `localStorage`: cualquier XSS (propio o de una dependencia) lo roba. No se ha encontrado ningún vector XSS. | Cookie `HttpOnly; Secure; SameSite=Strict` o TTL corto con renovación. |
-| SEG-14 | ⬜ Pendiente | `backend/src/utils/emailTemplates/*` | Nombre, título, detalles y sala se interpolan en el HTML del correo sin escapar. Un Gestor puede editar el título de una reserva ajena y el dueño recibirá ese HTML desde el remitente corporativo. | Escapar `& < > " '` en todas las interpolaciones. |
+| SEG-14 | ✅ Hecho | `backend/src/utils/emailTemplates/*` | Nombre, título, detalles y sala se interpolan en el HTML del correo sin escapar. Un Gestor puede editar el título de una reserva ajena y el dueño recibirá ese HTML desde el remitente corporativo. | Escapar `& < > " '` en todas las interpolaciones. **Hecho:** las plantillas escapan con `escapeHtml` (`emailTemplates/layout.js`). |
 
 ### Baja
 
 | ID | Estado | Dónde | Problema | Recomendación |
 |---|---|---|---|---|
 | SEG-15 | ⬜ Pendiente | `password_reset_ctrl.js`, `models/user.js` `login` | Enumeración de usuarios por tiempo: si el correo existe se espera al SMTP; si no existe en `sign-in` no se ejecuta bcrypt. | Enviar el correo en segundo plano y hacer un `bcrypt.compare` falso. |
-| SEG-16 | ⬜ Pendiente | `user_ctrl.js` `ALLOWED_FIELDS` | Un `User` puede cambiar su propio `tenant_uuid` (cambiar de empresa) y su `mail` sin verificación. | Restringir esos campos al Admin o verificar el correo. |
+| SEG-16 | 🟡 Parcial | `user_ctrl.js` `ALLOWED_FIELDS` | Un `User` puede cambiar su propio `tenant_uuid` (cambiar de empresa) y su `mail` sin verificación. | Restringir esos campos al Admin o verificar el correo. **Hecho (28/10):** nadie cambia su propia empresa ni su rol, y nombre y correo se validan (tipo, formato, longitud). *Falta:* verificar el correo nuevo. |
 | SEG-17 | ⬜ Pendiente | `utils/mysqlAdapter.js`, `models/user.js` | Los logs guardan el SQL completo con valores (correos; hashes si falla un `UPDATE users`). | Registrar `code` y `sqlMessage`, no `sql`; enmascarar correos. |
 | SEG-18 | ✅ Hecho | `models/user.js` `login` | `email` sin validar tipo: `{"email":0}` coincide con todas las filas en MySQL y prueba la contraseña del primer usuario. | Exigir `typeof email === 'string'` en todos los campos del body. |
 | SEG-19 | ⬜ Pendiente | `models/user.js` `isActive` | Devuelve `null` si falla la BD y el middleware solo bloquea con `=== false`: ante un error, deja pasar a los deshabilitados. | Tratar `null` como no autorizado (decisión explícita). |
-| SEG-20 | ⬜ Pendiente | `controllers/booking_ctrl.js` `getBookings`, `getBooking` | Cualquier sesión ve todas las reservas (incluidas `Pending` y `Rejected`) de todos los tenants con nombre del autor; `filter_tenant` que envía el frontend no está implementado. | Confirmar si es deseado; si no, filtrar por tenant y limitar campos. |
+| SEG-20 | — Sin acción | `controllers/booking_ctrl.js` `getBookings`, `getBooking` | Cualquier sesión ve todas las reservas (incluidas `Pending` y `Rejected`) de todos los tenants con nombre del autor; `filter_tenant` que envía el frontend no está implementado. | Confirmar si es deseado; si no, filtrar por tenant y limitar campos. **Decidido (28/10):** se mantiene. El calendario muestra todas las reservas, y gestionar y validar no se limitan por empresa. |
 | SEG-21 | ✅ Hecho | `frontend/src/views/login/set-new-password-view.vue` | El token de recuperación queda en el historial y la vista sustituye el token global: si el enlace caducó, el 401 borra además la sesión abierta. | `Request` con cabecera propia para esa llamada. |
 | SEG-22 | ⬜ Pendiente | `frontend/src/model/request.js:18` | `Authorization: Basic <token>` no es Basic real y se envía vacío a endpoints públicos. | `Bearer` y omitir la cabecera si no hay token. |
 | SEG-23 | ✅ Retirado (27/10/2026): se eliminó la integración con apps de terceros | `backend/src/routes/v0`, `configThirdParty` | `configThirdParty.json` ausente tumba el arranque en bucle (pasó en el primer despliegue). | Validar la configuración al arrancar con un mensaje claro y `process.exit(1)`. |
@@ -136,7 +136,7 @@ Lo que está bien: SQL parametrizado en todo salvo SEG-01, lista blanca de campo
 
 | ID | Estado | Dónde | Problema | Recomendación |
 |---|---|---|---|---|
-| DAT-06 | ⬜ Pendiente | `booking_ctrl.js` alta/edición/bulk, `utils/bookingHelper.js` | Validar y escribir sin bloqueo: dos peticiones simultáneas (o dos aprobaciones) pueden dejar dos `Approved` solapadas. | `runInTransaction` con `SELECT … FROM rooms WHERE uuid = ? FOR UPDATE` para serializar por sala. |
+| DAT-06 | ⬜ Pendiente | `booking_ctrl.js` alta/edición/bulk, `utils/bookingHelper.js` | Validar y escribir sin bloqueo: dos peticiones simultáneas (o dos aprobaciones) pueden dejar dos `Approved` solapadas. | `runInTransaction` con `SELECT … FROM rooms WHERE uuid = ? FOR UPDATE` para serializar por sala. *Reproducido el 28/10 en pruebas de concurrencia (alta y aprobación).* |
 | DAT-07 | ⬜ Pendiente | `booking_ctrl.js:41, 258`, `bookingHelper.js:38-39` | `rejectOverlapping` se ignora en altas y bulk (los autores no reciben correo, contra lo documentado); en la aprobación se rechaza y se avisa **antes** del `update`, fuera de transacción; editar una `Approved` encima de `Pending` no las rechaza. | Llamar a `rejectOverlapping` siempre que el resultado sea `Approved`, dentro de la transacción de DAT-06, y enviar correos tras el commit. |
 | DAT-08 | ⬜ Pendiente | `backend/src/models/Legacy/legacyRoom.js` | Pantallas de sala: fecha en UTC y hora local (entre las 00:00 y las 02:00 muestra las de ayer); excluye reservas de varios días; muestra `Pending`; compara `'10:00:00' <= '10:00'` como texto (la reunión aparece un minuto tarde); `color.slice(1)` lanza si la sede no tiene color. | Fecha local, rango `start_date <= hoy <= end_date`, solo `Approved`, horas normalizadas, color por defecto. |
 | DAT-09 | ⬜ Pendiente | `backend/src/models/booking.js:226-228`, `connections/mysql.js:11` | «Pasado» depende de la zona horaria del proceso, que no se fija (`TZ` no está en `ecosystem` ni `.env`): en un servidor en UTC se puede reservar hasta 2 h en el pasado. | `TZ=Europe/Madrid` en `ecosystem.config.js`; `SET time_zone` coherente por conexión. |
@@ -210,14 +210,14 @@ Lo que está bien: SQL parametrizado en todo salvo SEG-01, lista blanca de campo
 | FRO-15 | ⬜ Pendiente | `WeekView`: los eventos se recalculan y ordenan dos veces por celda en cada render (salas × 7 × reservas, agravado por DAT-02); hoy se puede pulsar una hora ya pasada. |
 | FRO-16 | ⬜ Pendiente | `ResourceFilter`: la selección guardada no incluye sedes nuevas y `allSelected` compara longitudes aunque haya uuids obsoletos. |
 | FRO-17 | ⬜ Pendiente | `app-version` pide `system/version` cada vez que se abre el menú de usuario; `app-loader` falla con `active=false`. |
-| FRO-18 | ⬜ Pendiente | Mi cuenta oculta el mensaje del backend ante una contraseña actual incorrecta; «(Editado)» aparece tras aprobar una reserva; el contador de pendientes se pide también para Gestor. |
+| FRO-18 | 🟡 Parcial | Mi cuenta oculta el mensaje del backend ante una contraseña actual incorrecta; «(Editado)» aparece tras aprobar una reserva; ~~el contador de pendientes se pide también para Gestor~~ (hecho: solo con `bookings.validate`). |
 | FRO-19 | ⬜ Pendiente | Lógica duplicada: lunes de la semana (5 sitios), formato de hora (4), fecha a cadena (3), iniciales (2), CSS de cierre y volver copiado en 5 modales. Crear `utils/dates.js` y un componente de cabecera de diálogo. |
 | FRO-20 | ⬜ Pendiente | Componentes grandes: `DetailsSelectionModal` (547 líneas), `WeekView` (449), `BulkBookingModal`, `DateSelectionModal`, `Calendar` con seis modales y todo el estado del asistente. Extraer un composable `useBookingWizard`. |
 | FRO-21 | ⬜ Pendiente | Colores repetidos (`#111111` 63 veces, `#64748b` 23, `#334155` 19) y tema de Vuetify sin configurar: los modales antiguos usan `primary` azul y las pantallas nuevas negro y verde. Definirlos en `createVuetify({ theme })`. |
 | FRO-22 | ⬜ Pendiente | 23 `!important` en 13 ficheros; props no declaradas en los modales; `sessionStore.getAuth` y setters de `ErrorResponse` sin uso; CSS muerto en `WeekView`; errata `--black-transaparent-xs`. |
 | FRO-23 | ⬜ Pendiente | Textos: mezcla de tú y usted, mayúsculas inconsistentes («Crear Reserva» frente a «Nueva reserva»), la misma entidad llamada «Edificio», «Sede» e «instalación»; sin estado de carga en el calendario; el título no tiene `maxlength`; solo horas en punto. |
 | FRO-24 | ⬜ Pendiente | Accesibilidad menor: `role="tablist"` sin navegación con flechas, avisos con `role` dinámico (algunos lectores no los anuncian), botón de menú móvil sin `aria-expanded`, información de validación solo en tooltip, `<title>` fijo en todas las rutas. |
-| FRO-25 | ⬜ Pendiente | `URLSearchParams` serializa `undefined`/`null` como texto; `filter_tenant` se envía pero el backend no lo implementa. |
+| FRO-25 | ⬜ Pendiente | `URLSearchParams` serializa `undefined`/`null` como texto; `filter_tenant` se envía pero el backend no lo implementa (se mantiene así por decisión, ver SEG-20). |
 
 ---
 
@@ -291,6 +291,31 @@ Ver también DAT-10 (longitud del título) y OPE-12 (índices).
 **Otros:**
 
 - **`load-session` no invalidaba a los usuarios deshabilitados** (`backend/src/models/user.js`): Redis devuelve la sesión como texto JSON, así que `user.uuid` era `undefined` y la comprobación nunca se ejecutaba. Se parsea antes de comprobar y se mantiene el texto en la respuesta, que es lo que espera el frontend. Verificado con un usuario temporal: deshabilitado → `403` sin pasar por `AuthMiddleware`; activo → `200`.
+
+**Roles y permisos (28/10/2026).**
+- Las comprobaciones por rol (`GestorMiddleware`, `UserEditMiddleware`, `role === Gestor`) se sustituyen
+  por permisos por módulo y roles gestionables. Las reglas del Gestor pasan a ser los permisos por
+  defecto de su rol.
+- El acceso a `GET/PUT /users/:uuid` lo decide ahora el controlador (`user_ctrl.canManage`): uno
+  mismo, el Admin o quien gestiona usuarios en su alcance.
+- Se probó con dos baterías contra una copia aislada del backend, con un SMTP falso y usuarios
+  temporales. La segunda generaba la matriz de 525 combinaciones de ruta y permiso, y probaba también
+  entradas hostiles, fallos de correo, concurrencia, el socket y el ciclo de las sesiones.
+- Corregido en esas pruebas:
+  - **Validar sin «Reservar sin validación».** Aprobar o rechazar devolvía la reserva a `Pending` tras
+    enviar el correo.
+  - **«Validar reservas» sin `users.view`.** La pantalla pedía la lista de usuarios y fallaba.
+  - **Código de rol en otra caja** (`admin`). Se guardaba tal cual; ahora `Role.codeOf` guarda el
+    código canónico.
+  - **Rol llamado «admin».** Daba 500 al chocar con `Admin`; ahora se crea como `admin_2`.
+  - **Admin sin su propio rol.** Un Admin podía quitárselo; nadie cambia ya su propio rol.
+  - **Alta de usuario sin correo.** Si el correo de alta fallaba, el usuario quedaba creado con una
+    contraseña desconocida. Ahora el alta se deshace (502).
+  - **Altas simultáneas del mismo rol.** Una daba 500; ahora da 409.
+  - **Datos de usuario sin validar.** El nombre, el correo, la empresa y la contraseña llegaban sin
+    comprobar tipo ni formato.
+  - **Alta sin campos obligatorios.** Respondía 200 y el portal la daba por creada.
+- Pendiente: DAT-06 (reproducido).
 
 ---
 
@@ -366,7 +391,8 @@ Pendiente para cerrar SEG-05. Se hace en el servidor nuevo (`185.79.30.101`, Ubu
      Header always set Strict-Transport-Security "max-age=300"
 
      ProxyPreserveHost On
-     ProxyPass        /api/ http://127.0.0.1:3445/api/
+     # upgrade=websocket (Apache 2.4.47+, mod_proxy_wstunnel) para /api/socket.io; sin él Socket.IO cae a polling
+     ProxyPass        /api/ http://127.0.0.1:3445/api/ upgrade=websocket
      ProxyPassReverse /api/ http://127.0.0.1:3445/api/
 
      DocumentRoot /var/www/KG_PORTAL/frontend/dist
@@ -408,22 +434,31 @@ Pendiente para cerrar SEG-05. Se hace en el servidor nuevo (`185.79.30.101`, Ubu
 
 ## Anexo: endpoints y protección
 
+Estado al 28/10/2026. `can(x)` es `can('x')` de `authMiddleware.js`: exige ese permiso, y el Admin los tiene todos.
+
 | Endpoint | Middleware | Comprobación en el controlador | Hallazgos |
 |---|---|---|---|
-| `POST /users/sign-in` | — | — | SEG-06, SEG-15, SEG-18 |
-| `POST /users/load-session` | — | token del body | SEG-04 |
-| `POST /users/log-out` | Auth | borra el token del body | SEG-07 |
-| `GET /users` | Auth + Admin | sin `password` | — |
-| `POST /users` | Auth + Admin | rol Admin | SEG-09 |
-| `GET /users/:uuid` | **solo Auth** | **ninguna** | **SEG-02** |
-| `PUT /users/:uuid` | Auth + UserEdit | lista blanca; contraseña propia con la actual; rol solo Admin | SEG-16 |
-| `PUT /users/:uuid/status` | Auth + Admin | no a sí mismo | — |
-| `POST /password-reset/request-password-reset` | — | — | SEG-06, SEG-15 |
-| `PUT /password-reset/reset-password` | Auth (**cualquier token**) | **sin contraseña actual** | **SEG-04** |
-| `GET /bookings`, `GET /bookings/:uuid` | Auth | ninguna | SEG-20, DAT-02 |
-| `POST /bookings`, `POST /bookings/bulk` | Auth | estado decidido en servidor | DAT-04 a DAT-07, DAT-14 |
-| `PUT /bookings/:uuid` | Auth | dueño, Admin o Gestor sobre `Approved`; estado solo Admin | SEG-10, DAT-15, DAT-17 |
-| `DELETE /bookings/:uuid` | Auth | ídem | OPE-01 |
+| `POST /users/sign-in` | — | correo y contraseña como texto; deshabilitado → 403 | SEG-06, SEG-15 |
+| `POST /users/load-session` | — | token del body; relee rol, empresa y estado | — |
+| `POST /users/log-out` | Auth | token de la cabecera | — |
+| `GET /users` | Auth + `can(users.view)` | su empresa, salvo Admin o `users.all_companies` | — |
+| `POST /users` | Auth + `can(users.manage)` | sin ser Admin: rol `User`; empresa propia salvo `all_companies`; datos validados; si el correo falla, se deshace | SEG-09 |
+| `GET /users/permissions` | Auth + `can(users.view)` | catálogo | — |
+| `GET /users/:uuid` | Auth | uno mismo, Admin o `users.view` en su alcance | — |
+| `PUT /users/:uuid` | Auth | uno mismo o `canManage`; rol solo el Admin y nunca el propio; empresa el Admin o `all_companies` sobre otro; datos validados | SEG-16 |
+| `PUT /users/:uuid/status` | Auth + `can(users.manage)` | `canManage`; no a sí mismo | — |
+| `GET/PUT /users/:uuid/permissions` | Auth + Admin | catálogo conocido; añade implícitos | — |
+| `GET /roles` | Auth + `can(users.view)` | — | — |
+| `POST/PUT/DELETE /roles…` | Auth + Admin | sistema: ni renombrar ni borrar; Admin sin permisos; con usuarios → 409 | — |
+| `POST /password-reset/request-password-reset` | — | deshabilitado: sin correo | SEG-06, SEG-15 |
+| `PUT /password-reset/reset-password` | — | token de recuperación del body; 8 caracteres | — |
+| `GET /bookings`, `GET /bookings/:uuid` | Auth | ninguna (decidido) | SEG-20 |
+| `POST /bookings`, `POST /bookings/bulk` | Auth | estado: `auto_approve` o sala sin validación | DAT-06, DAT-07, DAT-14 |
+| `PUT /bookings/:uuid` | Auth | `canTouch`: dueño, `validate` o `manage` sobre `Approved`; estado solo `validate` | DAT-06, DAT-15, DAT-17 |
+| `DELETE /bookings/:uuid` | Auth | `canTouch` | OPE-01 |
 | `GET /rooms…`, `GET /facilities…`, `GET /tenants`, `GET /system/version` | Auth | — | — |
-| `POST/PUT/DELETE /rooms…`, `/facilities…` | Auth + Admin | — | DAT-11, BD-03 |
-| `GET /v0/rooms/:uuid` | ApiRoom (`api_token`) | — | **SEG-01**, DAT-08 |
+| `POST/PUT/DELETE /rooms…`, `/facilities…` | Auth + `can(rooms.manage)` | — | DAT-11, BD-03 |
+| `GET /reception/visits…` (lectura) | Auth + `can(visits.view)` | errores de Odoo → 502 genérico | — |
+| `POST/PATCH /reception/visits…`, `/reception/visitors…` | Auth + `can(visits.manage)` | escribe en Odoo y avisa por socket | — |
+| `GET /v0/rooms/:uuid` | ApiRoom (`api_token`) | uuid válido; comparación en tiempo constante | DAT-08 |
+| Socket.IO `/api/socket.io` | sesión del portal | salas por permiso, recalculadas cada minuto | — |

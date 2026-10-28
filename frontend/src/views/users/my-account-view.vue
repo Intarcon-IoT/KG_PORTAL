@@ -63,7 +63,7 @@ const save = async () => {
       <div class="account-id">
         <span class="account-eyebrow">Mi cuenta</span>
         <h1>{{ user.name }}</h1>
-        <p>{{ user.mail }} <span class="account-role">{{ roleLabel[user.role] || user.role }}</span></p>
+        <p>{{ user.mail }} <span class="account-role">{{ user.role_name || roleLabel[user.role] || user.role }}</span></p>
       </div>
     </header>
 

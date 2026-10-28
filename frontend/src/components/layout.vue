@@ -1,12 +1,13 @@
 <!-- Estructura del portal con sesión: barra superior con el menú siempre visible y contenido -->
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useDisplay } from 'vuetify'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import logo from '@/assets/logo.svg'
 import { appVersion } from '@/components/system'
-import { sessionStore, useBookingStore, useNotificationStore } from '@/store'
+import { sessionStore, useBookingStore, useNotificationStore, useSocketStore } from '@/store'
 import { ROLES } from '@/utils/constants'
+import { canAny } from '@/utils/permissions'
 
 // useRouter y no el import de @/router: el router importa este componente
 const router = useRouter()
@@ -14,14 +15,19 @@ const route = useRoute()
 const session = sessionStore()
 const bookingStore = useBookingStore()
 const notificationStore = useNotificationStore()
+const socketStore = useSocketStore()
 const { mdAndUp } = useDisplay()
 
 const drawer = ref(false)
 
+// El socket vive mientras haya sesión abierta en el portal
+onMounted(() => socketStore.connect())
+onBeforeUnmount(() => socketStore.disconnect())
+
 const user = computed(() => session.auth.user || {})
 const initials = computed(() => (user.value.name || user.value.mail || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase())
 
-const canSee = meta => !meta.role || user.value.role === ROLES.ADMIN || [].concat(meta.role).includes(user.value.role || ROLES.USER)
+const canSee = meta => canAny(user.value, meta.permission) && (!meta.role || user.value.role === ROLES.ADMIN || [].concat(meta.role).includes(user.value.role || ROLES.USER))
 
 // Menú agrupado por meta.section a partir de las rutas hijas del layout
 const sections = computed(() => {

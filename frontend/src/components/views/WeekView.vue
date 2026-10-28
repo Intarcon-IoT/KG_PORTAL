@@ -36,7 +36,7 @@
                 activator="parent"
                 location="end"
               >
-                Las reservas en esta sala necesitan ser aprobadas por un administrador
+                Las reservas en esta sala necesitan validación
               </v-tooltip>
               <i class="fa-solid fa-circle-exclamation"></i>
             </div>

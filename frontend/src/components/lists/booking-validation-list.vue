@@ -8,7 +8,6 @@ const props = defineProps({
   bookings: { type: Array, required: true, default: () => [] },
   rooms: { type: Array, default: () => [] },
   facilities: { type: Array, default: () => [] },
-  users: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false },
 })
 
@@ -70,7 +69,9 @@ const items = computed(() => {
 
 const roomOf = uuid => props.rooms.find(r => r.uuid === uuid) || null
 const facilityOf = uuid => { const room = roomOf(uuid); return room ? props.facilities.find(f => f.uuid === room.facility_uuid) || null : null }
-const userName = item => item.name || props.users.find(u => u.uuid === item.user_uuid)?.name || 'Usuario'
+const userName = item => item.name || 'Usuario'
+// El filtro ofrece solo a quien tiene solicitudes: no hace falta poder ver usuarios para validar
+const users = computed(() => [...new Map(props.bookings.map(b => [b.user_uuid, { uuid: b.user_uuid, name: userName(b) }])).values()].sort((a, b) => a.name.localeCompare(b.name)))
 
 const formatDay = date => new Date(date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })
 const formatShort = date => new Date(date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })

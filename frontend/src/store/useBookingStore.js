@@ -3,7 +3,8 @@ import { todayKey } from '@/utils/dates';
 import Request from "@/model/request";
 import { useNotificationStore } from './useNotificationStore';
 import { sessionStore } from './session';
-import { ROLES, BOOKING_STATUS } from '@/utils/constants';
+import { BOOKING_STATUS } from '@/utils/constants';
+import { can } from '@/utils/permissions'
 
 let fetchSeq = 0
 
@@ -138,7 +139,7 @@ export const useBookingStore = defineStore('booking', {
         await request.http();
         await this.fetchBookings(this.currentParams);
 
-        const validMsg = (needsValidation && (session.auth.user?.role !== ROLES.ADMIN && session.auth.user?.role !== ROLES.GESTOR))? ' y están pendientes de validación por un administrador' : '';
+        const validMsg = (needsValidation && !can(session.auth.user, 'bookings.auto_approve'))? ' y quedan pendientes de validación' : '';
         notification.notifySuccess(`Se han creado ${bookingsArray.length} reservas correctamente${validMsg}`);
       } catch (error) {
         console.error('Error creating bulk bookings:', error);

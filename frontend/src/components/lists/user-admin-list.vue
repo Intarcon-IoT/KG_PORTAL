@@ -1,54 +1,89 @@
 <!-- Tabla de usuarios con búsqueda y filtros; los usuarios nunca se borran, se deshabilitan -->
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { sessionStore } from '@/store'
+import { sessionStore, useAccessStore } from '@/store'
 import appDialog from '@/components/app-dialog.vue'
 import TablePagination from '@/components/table-pagination.vue'
 import { ROLES } from '@/utils/constants'
 import { ROLE_LABELS, initialsOf } from '@/utils/labels'
+import { can } from '@/utils/permissions'
 
 const props = defineProps({ users: { type: Array, required: true, default: () => [] }, loading: { type: Boolean, default: false } })
 const emit = defineEmits(['edit', 'set-active'])
 
 const session = sessionStore()
+const access = useAccessStore()
 const search = ref('')
 const filter = ref('all')
+const permission = ref(null)
 const page = ref(1)
 const itemsPerPage = ref(25)
 
 const isActive = user => user.active !== 0
-const filters = [
+const roleLabel = user => user.role_name || ROLE_LABELS[user.role] || user.role
+
+// Un filtro por rol (los de la tabla roles, en su orden) más todos y deshabilitados
+const filters = computed(() => [
   { value: 'all', title: 'Todos', test: () => true },
-  { value: ROLES.ADMIN, title: 'Administradores', test: u => u.role === ROLES.ADMIN },
-  { value: ROLES.GESTOR, title: 'Gestores', test: u => u.role === ROLES.GESTOR },
-  { value: ROLES.USER, title: 'Usuarios', test: u => u.role === ROLES.USER },
+  ...(access.roles.length ? access.roles.map(r => ({ code: r.code, title: r.name })) : Object.values(ROLES).map(code => ({ code, title: ROLE_LABELS[code] })))
+    .map(r => ({ value: r.code, title: r.title, test: u => u.role === r.code })),
   { value: 'disabled', title: 'Deshabilitados', test: u => !isActive(u) },
-]
-const countOf = f => props.users.filter(f.test).length
+])
+
+// Permisos efectivos: los propios más los del rol; el administrador los tiene todos
+const allKeys = computed(() => access.actions.map(a => a.key))
+const effective = user => user.role === ROLES.ADMIN ? allKeys.value : [...new Set([...(user.permissions || []), ...(user.role_permissions || [])])]
+
+const permissionOptions = computed(() => [
+  { value: 'any', title: 'Con algún permiso' },
+  { value: 'none', title: 'Sin permisos' },
+  ...access.actions.map(a => ({ value: a.key, title: `${a.module} · ${a.title}` })),
+])
+const permissionTest = user => {
+  if (!permission.value) return true
+  const keys = effective(user)
+  if (permission.value === 'any') return keys.length > 0
+  if (permission.value === 'none') return keys.length === 0
+  return keys.includes(permission.value)
+}
 
 // Búsqueda propia: el correo no es columna y v-data-table solo busca en columnas
 const normalize = text => (text || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
-const items = computed(() => {
+const matching = computed(() => {
   const q = normalize(search.value)
-  const test = filters.find(f => f.value === filter.value).test
-  return props.users.filter(u => test(u) && (!q || [u.name, u.mail, u.tenant_name].some(v => normalize(v).includes(q))))
+  return props.users.filter(u => permissionTest(u) && (!q || [u.name, u.mail, u.tenant_name].some(v => normalize(v).includes(q))))
 })
+const items = computed(() => {
+  const test = (filters.value.find(f => f.value === filter.value) || filters.value[0]).test
+  return matching.value.filter(test)
+})
+const countOf = f => matching.value.filter(f.test).length
 
-watch([search, filter], () => { page.value = 1 })
+watch([search, filter, permission], () => { page.value = 1 })
+
+// Módulos en los que el usuario tiene algún permiso, propio o del rol
+const modulesOf = user => {
+  const keys = effective(user)
+  return access.catalog.filter(m => m.actions.some(a => keys.includes(a.key))).map(m => m.title)
+}
 
 const headers = [
   { title: 'Usuario', key: 'name', sortable: true },
   { title: 'Rol', key: 'role', sortable: true, width: 160 },
   { title: 'Empresa', key: 'tenant_name', sortable: true, width: 200 },
+  { title: 'Módulos', key: 'permissions', sortable: false, width: 220 },
   { title: 'Estado', key: 'active', sortable: true, width: 140 },
   { title: '', key: 'actions', sortable: false, align: 'end', width: 110 },
 ]
 
-// Nadie se modifica a sí mismo aquí; un gestor no toca a gestores ni administradores
+// Nadie se modifica a sí mismo aquí. Igual que el backend: con users.manage, solo a los de su empresa (o de todas con
+// users.all_companies) que no sean administradores ni gestionen usuarios
 const canModify = target => {
   const me = session.auth.user
   if (!me || target.uuid === me.uuid) return false
-  return !(me.role === ROLES.GESTOR && [ROLES.GESTOR, ROLES.ADMIN].includes(target.role))
+  if (me.role === ROLES.ADMIN) return true
+  if (!can(me, 'users.manage') || target.role === ROLES.ADMIN || effective(target).includes('users.manage')) return false
+  return can(me, 'users.all_companies') || target.tenant_uuid === me.tenant_uuid
 }
 
 // Deshabilitar pide confirmación; volver a habilitar es inmediato
@@ -71,6 +106,7 @@ const confirmDisable = () => {
   <div class="ulist">
     <div class="toolbar">
       <v-text-field autocomplete="off" v-model="search" placeholder="Buscar por nombre, correo o empresa" prepend-inner-icon="fa-solid fa-magnifying-glass" variant="outlined" density="compact" hide-details clearable class="search" />
+      <v-select autocomplete="off" v-model="permission" :items="permissionOptions" placeholder="Filtrar por permiso" prepend-inner-icon="fa-solid fa-key" variant="outlined" density="compact" hide-details clearable class="search perm-filter" />
       <div class="segmented" role="tablist">
         <button v-for="f in filters" :key="f.value" type="button" role="tab" :aria-selected="filter === f.value" :class="{ active: filter === f.value }" @click="filter = f.value">
           {{ f.title }} <span>{{ countOf(f) }}</span>
@@ -101,12 +137,18 @@ const confirmDisable = () => {
         </template>
 
         <template #item.role="{ item }">
-          <span class="role" :class="`role-${item.role?.toLowerCase()}`">{{ ROLE_LABELS[item.role] || item.role }}</span>
+          <span class="role" :class="`role-${item.role?.toLowerCase()}`">{{ roleLabel(item) }}</span>
         </template>
 
         <template #item.tenant_name="{ item }">
           <span v-if="item.tenant_name" class="tenant">{{ item.tenant_name }}</span>
           <span v-else class="muted">Sin empresa</span>
+        </template>
+
+        <template #item.permissions="{ item }">
+          <span v-if="item.role === ROLES.ADMIN" class="muted">Todos</span>
+          <div v-else-if="modulesOf(item).length" class="modules"><span v-for="title in modulesOf(item)" :key="title" class="module">{{ title }}</span></div>
+          <span v-else class="muted">Ninguno</span>
         </template>
 
         <template #item.active="{ item }">
@@ -159,6 +201,7 @@ const confirmDisable = () => {
 .search :deep(.v-field__outline) { --v-field-border-opacity: 1; color: #e5e7eb }
 .search :deep(.v-field--focused .v-field__outline) { color: #111111 }
 .search :deep(.v-field__prepend-inner .v-icon) { font-size: .8rem; color: #94a3b8 }
+.perm-filter { flex: 0 1 260px }
 
 .segmented { display: flex; gap: 2px; padding: 3px; border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; overflow-x: auto }
 .segmented button { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; color: #64748b; font: inherit; font-size: .825rem; font-weight: 600; white-space: nowrap; cursor: pointer }
@@ -172,7 +215,7 @@ const confirmDisable = () => {
 .table { background: transparent; font-size: .875rem }
 .table :deep(thead th) { height: 44px !important; background: #fbfbfc; font-size: .72rem; font-weight: 600 !important; letter-spacing: .1em; text-transform: uppercase; color: #94a3b8 !important }
 .table :deep(tbody td) { height: 64px !important; border-bottom-color: #f1f2f4 !important }
-.table :deep(.row-disabled .who), .table :deep(.row-disabled .role), .table :deep(.row-disabled .tenant) { opacity: .5 }
+.table :deep(.row-disabled .who), .table :deep(.row-disabled .role), .table :deep(.row-disabled .tenant), .table :deep(.row-disabled .modules) { opacity: .5 }
 
 .who { display: flex; align-items: center; gap: 12px; min-width: 0 }
 .avatar { display: grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; background: #eef4ea; color: #33662d; font-size: .75rem; font-weight: 700 }
@@ -180,10 +223,12 @@ const confirmDisable = () => {
 .who-text strong { overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap }
 .who-text small { overflow: hidden; font-size: .8rem; color: #64748b; text-overflow: ellipsis; white-space: nowrap }
 
-.role { display: inline-flex; padding: 3px 10px; border-radius: 999px; background: #f1f2f4; color: #334155; font-size: .75rem; font-weight: 600 }
+.role { display: inline-flex; padding: 3px 10px; border-radius: 999px; background: #f1f2f4; color: #334155; font-size: .75rem; font-weight: 600; white-space: nowrap }
 .role-admin { background: #111111; color: #ffffff }
 .role-gestor { background: #eef4ea; color: #33662d }
 .tenant { color: #334155 }
+.modules { display: flex; flex-wrap: wrap; gap: 4px }
+.module { display: inline-flex; padding: 2px 8px; border: 1px solid #e5e7eb; border-radius: 6px; color: #334155; font-size: .75rem; font-weight: 500 }
 .muted { color: #94a3b8 }
 
 .status { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; font-weight: 600; color: #33662d }

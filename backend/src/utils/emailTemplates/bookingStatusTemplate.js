@@ -26,7 +26,7 @@ function bookingStatusTemplate({ name = 'Usuario', status, booking, url }) {
     blocks: [
       badge(approved ? 'Aprobada' : 'Rechazada', approved ? 'success' : 'danger'),
       paragraph(approved
-        ? `Hola, ${escapeHtml(firstName(name))}. Un administrador ha aprobado tu solicitud y la sala queda reservada para ti.`
+        ? `Hola, ${escapeHtml(firstName(name))}. Tu solicitud se ha aprobado y la sala queda reservada para ti.`
         : `Hola, ${escapeHtml(firstName(name))}. Tu solicitud no se ha aprobado, normalmente porque se ha confirmado otra reserva en ese mismo tramo.`),
       details(rows),
       url ? button(url, approved ? 'Ver en el calendario' : 'Buscar otro horario') : '',
@@ -38,7 +38,7 @@ function bookingStatusTemplate({ name = 'Usuario', status, booking, url }) {
 
   const text = `${approved ? 'Tu reserva está confirmada' : 'Tu reserva no se ha aprobado'} · Portal KEYTER Group
 
-Hola, ${firstName(name)}. ${approved ? 'Un administrador ha aprobado tu solicitud y la sala queda reservada para ti.' : 'Tu solicitud no se ha aprobado, normalmente porque se ha confirmado otra reserva en ese mismo tramo.'}
+Hola, ${firstName(name)}. ${approved ? 'Tu solicitud se ha aprobado y la sala queda reservada para ti.' : 'Tu solicitud no se ha aprobado, normalmente porque se ha confirmado otra reserva en ese mismo tramo.'}
 
 ${rows.map(([label, value]) => `${label}: ${value}`).join('\n')}
 ${url ? `\nPortal: ${url}\n` : ''}

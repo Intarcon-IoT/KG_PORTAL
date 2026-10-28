@@ -39,6 +39,8 @@ app.use("/rooms", require("./routes/rooms"));
 app.use("/facilities", require("./routes/facilities"));
 app.use("/users", require("./routes/users"));
 app.use("/tenants", require("./routes/tenants"));
+app.use('/roles', require('./routes/roles'))
+app.use('/reception', require('./routes/reception'))
 app.use("/bookings", require("./routes/bookings"));
 app.use("/system", require("./routes/system"));
 app.use("/password-reset", require("./routes/password_reset"));

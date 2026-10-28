@@ -1,17 +1,16 @@
-<!-- Validación de reservas pendientes (solo administradores) -->
+<!-- Validación de reservas pendientes (permiso bookings.validate) -->
 <script setup>
 import { computed, onMounted } from 'vue'
 import BookingValidationList from '@/components/lists/booking-validation-list.vue'
-import { useBookingStore, useFacilityStore, useRoomStore, useUserStore } from '@/store'
+import { useBookingStore, useFacilityStore, useRoomStore } from '@/store'
 
 const bookingStore = useBookingStore()
 const facilityStore = useFacilityStore()
 const roomStore = useRoomStore()
-const userStore = useUserStore()
 
 const bookingsList = computed(() => bookingStore.bookings)
 
-onMounted(() => Promise.all([roomStore.fetchRooms(), userStore.fetchUsers(), facilityStore.fetchFacilities(), bookingStore.fetchPendingBookings()]))
+onMounted(() => Promise.all([roomStore.fetchRooms(), facilityStore.fetchFacilities(), bookingStore.fetchPendingBookings()]))
 
 const handleUpdateStatus = async ({ uuid, status }) => {
   await bookingStore.updateBookingStatus(uuid, status)
@@ -38,7 +37,6 @@ const handleUpdateStatus = async ({ uuid, status }) => {
     <BookingValidationList
       :bookings="bookingsList"
       :rooms="roomStore.rooms"
-      :users="userStore.users"
       :facilities="facilityStore.facilities"
       :loading="bookingStore.loading"
       @update-status="handleUpdateStatus"

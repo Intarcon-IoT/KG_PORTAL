@@ -69,7 +69,8 @@ import appDialog from '@/components/app-dialog.vue'
 import { ref, watch, computed } from 'vue'
 import { sessionStore } from '@/store';
 import moment from 'moment/min/moment-with-locales'
-import { BOOKING_STATUS, ROLES } from '@/utils/constants';
+import { BOOKING_STATUS } from '@/utils/constants';
+import { can } from '@/utils/permissions'
 moment.locale('es')
 
 const props = defineProps({
@@ -85,9 +86,9 @@ const session = sessionStore();
 const internalDialog = ref(props.dialog)
 const deleteDialog = ref(false)
 
-const isAdmin = computed(() => session.auth.user?.role === ROLES.ADMIN);
-const isGestor = computed(() => session.auth.user?.role === ROLES.GESTOR);
-const canManageStatus = computed(() => isAdmin.value);
+// Validar cambia el estado y toca cualquier reserva; gestionar, solo las aprobadas de otros
+const canManageStatus = computed(() => can(session.auth.user, 'bookings.validate'))
+const canManageOthers = computed(() => can(session.auth.user, 'bookings.manage'))
 const isPending = computed(() => props.booking && props.booking.status === BOOKING_STATUS.PENDING);
 
 const handleStatusUpdate = (status) => {
@@ -141,8 +142,7 @@ const facilitySelected = computed(() => {
 
 const canDeleteBooking = computed(() => {
   const isOwner = session.auth.user.uuid === props.booking.user_uuid;
-  const gestorCanAct = isGestor.value && props.booking?.status === BOOKING_STATUS.APPROVED;
-  return isOwner || isAdmin.value || gestorCanAct;
+  return isOwner || canManageStatus.value || (canManageOthers.value && props.booking?.status === BOOKING_STATUS.APPROVED)
 });
 
 const isReadOnly = computed(() => {

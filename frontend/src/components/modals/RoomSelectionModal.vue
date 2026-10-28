@@ -6,7 +6,7 @@
         <span class="option-meta">
           <span v-if="room.needsValidation" class="tag-approval">
             <i class="fa-solid fa-shield-halved" /> Con aprobación
-            <v-tooltip activator="parent" location="top">Las reservas en esta sala debe aprobarlas un administrador</v-tooltip>
+            <v-tooltip activator="parent" location="top">Las reservas en esta sala necesitan validación</v-tooltip>
           </span>
           <span><i class="fa-solid fa-user-group" /> {{ room.capacity }}</span>
         </span>

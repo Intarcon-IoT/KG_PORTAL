@@ -4,11 +4,13 @@ import { computed, onMounted, ref } from 'vue'
 import appDialog from '@/components/app-dialog.vue'
 import UserForm from '@/components/forms/user-form.vue'
 import UserAdminList from '@/components/lists/user-admin-list.vue'
-import { useNotificationStore } from '@/store'
+import { sessionStore, useAccessStore, useNotificationStore } from '@/store'
+import { can } from '@/utils/permissions'
 import Request from '@/model/request'
 import { ROLES } from '@/utils/constants'
 
 const notification = useNotificationStore()
+const access = useAccessStore()
 
 const usersList = ref([])
 const tenantsList = ref([])
@@ -18,6 +20,9 @@ const dialog = ref(false)
 const selectedUser = ref(null)
 
 const isEditing = computed(() => !!selectedUser.value)
+const canCreate = computed(() => can(sessionStore().auth.user, 'users.manage'))
+// Solo el Admin ve los permisos en el formulario: el diálogo se ensancha para ellos
+const isAdmin = computed(() => sessionStore().auth.user?.role === ROLES.ADMIN)
 const activeUsers = computed(() => usersList.value.filter(u => u.active !== 0))
 const admins = computed(() => activeUsers.value.filter(u => u.role === ROLES.ADMIN).length)
 
@@ -30,7 +35,7 @@ const loadTenants = async () => {
   try { tenantsList.value = (await new Request({ endpoint: 'tenants', method: 'GET' }).http()) || [] } catch { notification.notifyError('Error al cargar las empresas') }
 }
 
-onMounted(() => { loadUsers(); loadTenants() })
+onMounted(() => { loadUsers(); loadTenants(); access.fetchRoles(); access.fetchCatalog() })
 
 const openCreate = () => { selectedUser.value = null; dialog.value = true }
 const openEdit = user => { selectedUser.value = user; dialog.value = true }
@@ -51,9 +56,28 @@ const send = async (request, okText, errorText) => {
   }
 }
 
-const save = payload => isEditing.value
-  ? send(new Request({ endpoint: `users/${selectedUser.value.uuid}`, method: 'PUT', body: JSON.stringify(payload) }), 'Usuario actualizado', 'Error al actualizar el usuario')
-  : send(new Request({ endpoint: 'users', method: 'POST', body: JSON.stringify(payload) }), 'Usuario creado. Recibirá su contraseña por correo', 'Error al crear el usuario')
+// Datos y permisos van por separado: los permisos solo se envían si han cambiado
+const save = async (payload, permissions) => {
+  const editing = isEditing.value
+  const errorText = editing ? 'Error al actualizar el usuario' : 'Error al crear el usuario'
+  saving.value = true
+  try {
+    const response = await new Request(editing
+      ? { endpoint: `users/${selectedUser.value.uuid}`, method: 'PUT', body: JSON.stringify(payload) }
+      : { endpoint: 'users', method: 'POST', body: JSON.stringify(payload) }).http()
+    if (response?.ok === false) return notification.notifyError(response.message || errorText)
+    const uuid = editing ? selectedUser.value.uuid : response?.uuid
+    const changed = [...permissions].sort().join() !== [...(selectedUser.value?.permissions || [])].sort().join()
+    if (uuid && changed) await new Request({ endpoint: `users/${uuid}/permissions`, method: 'PUT', body: JSON.stringify({ permissions }) }).http()
+    notification.notifySuccess(editing ? 'Usuario actualizado' : 'Usuario creado. Recibirá su contraseña por correo')
+    dialog.value = false
+    loadUsers()
+  } catch (error) {
+    notification.notifyError(error?.message || errorText)
+  } finally {
+    saving.value = false
+  }
+}
 
 const setActive = (user, active) => send(
   new Request({ endpoint: `users/${user.uuid}/status`, method: 'PUT', body: JSON.stringify({ active }) }),
@@ -73,7 +97,7 @@ const setActive = (user, active) => send(
       <div class="head-side">
         <div class="stat"><span class="stat-value">{{ activeUsers.length }}</span><span class="stat-label">{{ activeUsers.length === 1 ? 'Usuario activo' : 'Usuarios activos' }}</span></div>
         <div class="stat"><span class="stat-value">{{ admins }}</span><span class="stat-label">{{ admins === 1 ? 'Administrador' : 'Administradores' }}</span></div>
-        <v-btn color="primary" variant="flat" prepend-icon="fa-solid fa-plus" class="kg-btn" @click="openCreate">Nuevo usuario</v-btn>
+        <v-btn v-if="canCreate" color="primary" variant="flat" prepend-icon="fa-solid fa-plus" class="kg-btn" @click="openCreate">Nuevo usuario</v-btn>
       </div>
     </header>
 
@@ -81,7 +105,7 @@ const setActive = (user, active) => send(
 
     <appDialog
       v-model="dialog" eyebrow="Administración" :title="isEditing ? 'Editar usuario' : 'Nuevo usuario'"
-      :subtitle="isEditing ? selectedUser.mail : 'Le enviaremos por correo una contraseña para su primer acceso.'" :closable="!saving"
+      :subtitle="isEditing ? selectedUser.mail : 'Le enviaremos por correo una contraseña para su primer acceso.'" :closable="!saving" :width="canCreate && isAdmin ? 680 : 520"
     >
       <UserForm id="user-form" :mode="isEditing ? 'edit' : 'create'" :value="selectedUser || {}" :tenants="tenantsList" @saved="save" />
 

@@ -6,6 +6,7 @@ const { pool } = require('../connections/mysql')
 const cacheAdapter = require('./cacheAdapter')
 const transporter = require('../connections/mailer')
 const { getVersion } = require('./version')
+const odooAdapter = require('./odooAdapter')
 
 const TIMEOUT_MS = 5000
 const MIN = 60000
@@ -44,6 +45,7 @@ const startMonitoring = () => {
   if (process.env.REDIS_HOST) watch('Redis', pingRedis)
   if (process.env.SMTP_HOST) watch('SMTP', () => transporter.verify(), { every: 5 * MIN, timeout: 10000 })
   watch('Carpeta de logs', () => fs.promises.access(LOGS_DIR, fs.constants.W_OK), { every: 5 * MIN })
+  if (odooAdapter.configured()) watch('Odoo', odooAdapter.ping, { every: 5 * MIN, timeout: 15000 })
 }
 
 const ready = (req, res) => {

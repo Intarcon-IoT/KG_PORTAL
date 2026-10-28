@@ -1,5 +1,6 @@
 import { sessionStore } from '@/store'
 import { ROLES } from '@/utils/constants'
+import { canAny } from '@/utils/permissions'
 
 // Guards con retorno (vue-router 5 depreca el callback next): undefined deja pasar, una ruta redirige
 export const sessionGuard = () => {
@@ -22,5 +23,10 @@ export const resetPasswordGuard = async (to) => {
 export const adminGuard = () => {
   const session = sessionStore()
   if (session.auth.user?.role !== ROLES.ADMIN) return { name: 'Home' }
+}
+
+// Rutas de módulo: meta.permission con uno o varios permisos (`calls.view`…)
+export const permissionGuard = to => {
+  if (!canAny(sessionStore().auth.user, to.meta.permission)) return { name: 'Home' }
 }
 

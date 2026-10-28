@@ -1,6 +1,7 @@
 const sessions = require('../utils/sessions')
 const { ROLES } = require("../utils/constants");
 const User = require('../models/user')
+const permissions = require('../utils/permissions')
 
 const middlewares = {
   /**
@@ -43,18 +44,11 @@ const middlewares = {
     res.status(403).json({ ok: false, message: 'Sorry but you are not authorized as admin' });
   },
 
-  GestorMiddleware: async function (req, res, next) {
-    if (res.locals.user && (res.locals.user.role === ROLES.GESTOR || res.locals.user.role === ROLES.ADMIN)) {
-      return next();
-    }
-    res.status(403).json({ ok: false, message: 'Sorry but you are not authorized as gestor or admin' });
-  },
-
-  UserEditMiddleware: async function (req, res, next) {
-    if (res.locals.user && (res.locals.user.role === ROLES.ADMIN || res.locals.user.uuid === req.params.uuid)) {
-      return next();
-    }
-    res.status(403).json({ ok: false, message: 'Sorry but you are not authorized as gestor or admin or as the user requested' });
+  // Exige un permiso de módulo (`calls.view`…), o alguno si se pasan varios; el administrador los tiene todos.
+  // Va después de AuthMiddleware
+  can: (...list) => (req, res, next) => {
+    if (list.some(p => permissions.has(res.locals.user, p))) return next()
+    res.status(403).json({ ok: false, message: 'No tienes permiso para acceder a este módulo' })
   },
 };
 module.exports = middlewares;

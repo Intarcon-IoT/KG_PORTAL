@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { layout } from '@/components'
-import { sessionGuard, resetPasswordGuard, adminGuard } from './guard'
+import { sessionGuard, resetPasswordGuard, adminGuard, permissionGuard } from './guard'
 import { ROLES } from '@/utils/constants';
 
 const router = createRouter({
@@ -24,15 +24,29 @@ const router = createRouter({
         {
           path: 'bookings-validation',
           name: 'Validar Reservas',
-          meta: { role: [ROLES.ADMIN], icon: 'fa-regular fa-circle-check', title: 'Validar reservas', section: 'Reservas de salas', badge: 'pending' },
+          meta: { permission: 'bookings.validate', icon: 'fa-regular fa-circle-check', title: 'Validar reservas', section: 'Reservas de salas', badge: 'pending' },
           component: () => import('../views/bookings/booking-validation-view.vue'),
-          beforeEnter: adminGuard,
+          beforeEnter: permissionGuard,
+        },
+        {
+          path: 'reception/visits',
+          name: 'Visitas',
+          meta: { permission: 'visits.view', icon: 'fa-solid fa-id-card-clip', title: 'Visitas', section: 'Recepción' },
+          component: () => import('../views/reception/visits-view.vue'),
+          beforeEnter: permissionGuard,
         },
         {
           path: 'users',
           name: 'Administrar Usuarios',
-          meta: { role: [ROLES.ADMIN], icon: 'fa-solid fa-users', title: 'Usuarios', section: 'Administración' },
+          meta: { permission: 'users.view', icon: 'fa-solid fa-users', title: 'Usuarios', section: 'Administración' },
           component: () => import('../views/users/user-admin-view.vue'),
+          beforeEnter: permissionGuard,
+        },
+        {
+          path: 'roles',
+          name: 'Administrar Roles',
+          meta: { role: [ROLES.ADMIN], icon: 'fa-solid fa-user-shield', title: 'Roles y permisos', section: 'Administración' },
+          component: () => import('../views/users/role-admin-view.vue'),
           beforeEnter: adminGuard,
         },
         {

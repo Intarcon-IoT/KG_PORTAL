@@ -12,9 +12,12 @@ const wrapper = express();
 
 wrapper.use('/api', app);
 
-wrapper.listen(PORT, HOST, () => {
+const server = wrapper.listen(PORT, HOST, () => {
   console.log(`Servidor escuchando en ${HOST}:${PORT}`);
 });
+
+// Avisos en tiempo real de los módulos (Recepción) por el mismo puerto
+require('./socket').initSocket(server)
 
 // Vigilancia de los servicios que lee /api/ready
 require('./utils/health').startMonitoring()

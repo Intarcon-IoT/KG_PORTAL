@@ -61,7 +61,8 @@ class Booking {
     return result;
   }
 
-  async update(isAdmin = false) {
+  // Sin keepStatus (autoaprobación o validación), editar en una sala con validación la devuelve a Pending
+  async update(keepStatus = false) {
     const data = this.getUpdatableFields();
 
     const [room] = await mysqlAdapter.query(
@@ -69,7 +70,7 @@ class Booking {
       [this.room_uuid]
     );
 
-    if (room && room.needsValidation === 1 && !isAdmin) {
+    if (room && room.needsValidation === 1 && !keepStatus) {
       data.status = "Pending";
       this.status = "Pending";
     }

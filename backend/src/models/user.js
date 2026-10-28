@@ -8,6 +8,13 @@ const logger = require('../utils/logger').init();
 const mailerAdapter = require('../utils/mailerAdapter');
 const { passwordResetTemplate } = require('../utils/emailTemplates/passwordResetTemplate');
 const { newUserTemplate } = require('../utils/emailTemplates/newUserTemplate');
+const grants = require('./grants')
+
+// Permisos propios y del rol como texto separado por comas, para no hacer una consulta más por fila
+const PERMISSIONS_SQL = `(SELECT GROUP_CONCAT(p.permission ORDER BY p.permission) FROM user_permissions p WHERE p.user_uuid = u.uuid) AS permissions,
+  (SELECT GROUP_CONCAT(rp.permission ORDER BY rp.permission) FROM role_permissions rp JOIN roles r ON r.uuid = rp.role_uuid WHERE r.code = u.role) AS role_permissions,
+  (SELECT r.name FROM roles r WHERE r.code = u.role) AS role_name`
+const withPermissions = row => ({ ...row, permissions: grants.split(row.permissions), role_permissions: grants.split(row.role_permissions) })
 
 class User {
   constructor(uuid) {
@@ -66,11 +73,14 @@ class User {
     return access === null ? null : access?.active === 1
   }
 
-  // Datos de permisos actuales: fila { active, role, tenant_uuid }, false si no existe, null si falla la BD
+  // Datos de acceso actuales: { active, role, role_name, tenant_uuid, permissions } con los permisos efectivos
+  // (propios + del rol); false si no existe, null si falla la BD
   async readAccess() {
-    const rows = await mysqlAdapter.query('SELECT active, role, tenant_uuid FROM users WHERE uuid = ?', [this.uuid])
+    const rows = await mysqlAdapter.query(`SELECT u.active, u.role, u.tenant_uuid, ${PERMISSIONS_SQL} FROM users u WHERE u.uuid = ?`, [this.uuid])
     if (rows.error) return null
-    return rows[0] || false
+    if (!rows[0]) return false
+    const { role_permissions, permissions, ...access } = withPermissions(rows[0])
+    return { ...access, permissions: [...new Set([...permissions, ...role_permissions])].sort() }
   }
 
   // Aplica a una sesión los permisos actuales de la BD; false si el usuario ya no puede entrar
@@ -78,18 +88,28 @@ class User {
     const access = await new User(user.uuid).readAccess()
     if (access === null) return user
     if (!access || access.active !== 1) return false
-    return { ...user, role: access.role, tenant_uuid: access.tenant_uuid }
+    return { ...user, role: access.role, role_name: access.role_name, tenant_uuid: access.tenant_uuid, permissions: access.permissions }
   }
 
+  // Solo los permisos propios; los del rol se suman en readAccess
+  readPermissions() {
+    return grants.read('user', this.uuid)
+  }
+
+  setPermissions(list, grantedBy) {
+    return grants.replace('user', this.uuid, list, grantedBy)
+  }
+
+  // permissions son los propios y role_permissions los que hereda del rol
   async list(filter = {}) {
-    let sql = "SELECT u.uuid, u.name, u.mail, u.role, u.tenant_uuid, u.active, t.name AS tenant_name FROM users u LEFT JOIN tenants t ON u.tenant_uuid = t.uuid WHERE 1";
+    let sql = `SELECT u.uuid, u.name, u.mail, u.role, u.tenant_uuid, u.active, t.name AS tenant_name, ${PERMISSIONS_SQL} FROM users u LEFT JOIN tenants t ON u.tenant_uuid = t.uuid WHERE 1`;
     let data = [];
     if (filter.tenant_uuid) {
       sql += " AND u.tenant_uuid = ?";
       data.push(filter.tenant_uuid);
     }
     const rows = await mysqlAdapter.query(sql, data);
-    return rows;
+    return rows.error ? rows : rows.map(withPermissions);
   }
 
   // El hash de la contraseña solo se lee con readWithPassword (login y comprobación de la actual)
@@ -140,6 +160,9 @@ class User {
       if (userStored.active !== 1) return { login: false, message: "Usuario deshabilitado" }
 
       delete userStored.password
+      const access = await new User(userStored.uuid).readAccess()
+      userStored.permissions = access ? access.permissions : []
+      userStored.role_name = access ? access.role_name : userStored.role
       userStored.start = moment(new Date()).format("YYYY-MM-DD HH:mm:ss")
       const token = await sessions.create(userStored)
       if (!token) return { ok: false, message: "Error en la operación" }

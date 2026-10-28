@@ -3,7 +3,12 @@ const Booking = require("../models/booking");
 const Room = require("../models/room");
 const mysqlAdapter = require("../utils/mysqlAdapter");
 const { handleStatusCheck } = require("../utils/bookingHelper");
-const { ROLES, BOOKING_STATUS } = require("../utils/constants");
+const { BOOKING_STATUS } = require("../utils/constants");
+const permissions = require('../utils/permissions')
+
+// Quién puede tocar una reserva: su dueño; quien valida, cualquiera; quien gestiona, las aprobadas de otros
+const canTouch = (user, saved) => saved.user_uuid === user.uuid || permissions.has(user, 'bookings.validate') || (permissions.has(user, 'bookings.manage') && saved.status === BOOKING_STATUS.APPROVED)
+
 const bookingCtrl = {};
 
 bookingCtrl.createBooking = async (req, res) => {
@@ -20,7 +25,7 @@ bookingCtrl.createBooking = async (req, res) => {
         .json({ ok: false, message: "La sala especificada no existe." });
     }
 
-    const canAutoApprove = res.locals.user.role === ROLES.ADMIN || res.locals.user.role === ROLES.GESTOR || roomData[0].needsValidation === 0;
+    const canAutoApprove = permissions.has(res.locals.user, 'bookings.auto_approve') || roomData[0].needsValidation === 0;
     newBooking.status = canAutoApprove ? BOOKING_STATUS.APPROVED : BOOKING_STATUS.PENDING;
 
     const validation = await newBooking.validate();
@@ -44,7 +49,7 @@ bookingCtrl.createBooking = async (req, res) => {
         message:
           newBooking.status === BOOKING_STATUS.APPROVED
             ? "Reserva creada y confirmada correctamente."
-            : "Reserva creada. Pendiente de validación por un administrador.",
+            : "Reserva creada. Queda pendiente de validación.",
         status: newBooking.status,
         uuid: newBooking.uuid
       });
@@ -91,32 +96,18 @@ bookingCtrl.editBooking = async (req, res) => {
       .status(404)
       .json({ ok: false, message: "Reserva no encontrada" });
   }
-  const isOwner = saved[0].user_uuid === res.locals.user.uuid;
-  const isAdmin = res.locals.user.role === ROLES.ADMIN;
-  const isGestor = res.locals.user.role === ROLES.GESTOR;
+  const user = res.locals.user
+  const autoApprove = permissions.has(user, 'bookings.auto_approve')
+  if (!canTouch(user, saved[0])) return res.status(403).json({ ok: false, message: "No tienes permiso para editar esta reserva" })
 
-  if (isGestor && saved[0].status !== BOOKING_STATUS.APPROVED) {
-    return res.status(403).json({
-      ok: false,
-      message: "No tienes permiso para editar esta reserva",
-    });
-  }
-
-  if (!isOwner && !isAdmin && !isGestor) {
-    return res.status(403).json({
-      ok: false,
-      message: "No tienes permiso para editar esta reserva",
-    });
-  }
-
-  if (!isAdmin && req.body.status !== undefined && req.body.status !== saved[0].status) {
+  if (!permissions.has(user, 'bookings.validate') && req.body.status !== undefined && req.body.status !== saved[0].status) {
     return res.status(403).json({
       ok: false,
       message: "No puedes cambiar el estado de la reserva",
     });
   }
 
-  if ((isAdmin || isGestor) && (req.body.status === undefined || req.body.status === BOOKING_STATUS.PENDING)) {
+  if (autoApprove && (req.body.status === undefined || req.body.status === BOOKING_STATUS.PENDING)) {
     req.body.status = BOOKING_STATUS.APPROVED;
   }
 
@@ -146,7 +137,8 @@ bookingCtrl.editBooking = async (req, res) => {
     });
   }
 
-  const result = await booking.update(isAdmin || isGestor);
+  // Quien valida conserva el estado que fija (aprobar o rechazar); el resto vuelve a Pending en salas con validación
+  const result = await booking.update(autoApprove || permissions.has(user, 'bookings.validate'));
 
   if (result.error) {
     return res.json({ ok: false, message: "Error al actualizar la reserva" });
@@ -155,7 +147,7 @@ bookingCtrl.editBooking = async (req, res) => {
       ok: true,
       message:
         booking.status === BOOKING_STATUS.PENDING
-          ? "Reserva actualizada y pendiente de validación por un administrador."
+          ? "Reserva actualizada. Queda pendiente de validación."
           : "Reserva actualizada correctamente.",
       status: booking.status,
     });
@@ -174,23 +166,7 @@ bookingCtrl.deleteBooking = async (req, res) => {
       .json({ ok: false, message: "Reserva no encontrada" });
   }
 
-  const isOwner = saved[0].user_uuid === res.locals.user.uuid;
-  const isAdmin = res.locals.user.role === ROLES.ADMIN;
-  const isGestor = res.locals.user.role === ROLES.GESTOR;
-
-  if (isGestor && saved[0].status !== BOOKING_STATUS.APPROVED) {
-    return res.status(403).json({
-      ok: false,
-      message: "No tienes permiso para eliminar esta reserva",
-    });
-  }
-
-  if (!isOwner && !isAdmin && !isGestor) {
-    return res.status(403).json({
-      ok: false,
-      message: "No tienes permiso para eliminar esta reserva",
-    });
-  }
+  if (!canTouch(res.locals.user, saved[0])) return res.status(403).json({ ok: false, message: "No tienes permiso para eliminar esta reserva" })
 
   const result = await booking.delete();
 
@@ -225,7 +201,7 @@ bookingCtrl.createBulkBookings = async (req, res) => {
           throw error;
         }
 
-        const canAutoApprove = res.locals.user.role === ROLES.ADMIN || res.locals.user.role === ROLES.GESTOR || roomData[0].needsValidation === 0;
+        const canAutoApprove = permissions.has(res.locals.user, 'bookings.auto_approve') || roomData[0].needsValidation === 0;
         newBooking.status = canAutoApprove ? BOOKING_STATUS.APPROVED : BOOKING_STATUS.PENDING;
 
         const validation = await newBooking.validate();
